@@ -37,31 +37,38 @@ public class DatabaseManager implements AutoCloseable {
         log.info("Database pool initialized: {}", config.dbUrl());
     }
 
+    private static final String[] MIGRATIONS = {
+            "V1__initial_schema.sql",
+            "V2__seed_profiles.sql"
+    };
+
     /** Run database migrations from SQL files. */
     public void migrate() {
         String migrationsDir = System.getenv().getOrDefault("FIKUA_MIGRATIONS_DIR", null);
-        try {
-            String sql;
-            if (migrationsDir != null) {
-                Path path = Path.of(migrationsDir, "V1__initial_schema.sql");
-                sql = Files.readString(path, StandardCharsets.UTF_8);
-                log.info("Loading migration from filesystem: {}", path);
-            } else {
-                try (InputStream is = getClass().getClassLoader().getResourceAsStream("db/migration/V1__initial_schema.sql")) {
-                    if (is == null) throw new IOException("Migration resource not found on classpath");
-                    sql = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                }
-                log.info("Loading migration from classpath");
-            }
-
-            try (Connection conn = dataSource.getConnection();
-                 var stmt = conn.createStatement()) {
+        try (Connection conn = dataSource.getConnection();
+             var stmt = conn.createStatement()) {
+            for (String migration : MIGRATIONS) {
+                String sql = loadMigration(migrationsDir, migration);
                 stmt.execute(sql);
+                log.info("Migration applied: {}", migration);
             }
-            log.info("Database migration applied successfully");
+            log.info("All database migrations applied successfully");
         } catch (Exception e) {
-            log.error("Failed to run migration", e);
+            log.error("Failed to run migrations", e);
             throw new RuntimeException("Database migration failed", e);
+        }
+    }
+
+    private String loadMigration(String migrationsDir, String filename) throws IOException {
+        if (migrationsDir != null) {
+            Path path = Path.of(migrationsDir, filename);
+            log.info("Loading migration from filesystem: {}", path);
+            return Files.readString(path, StandardCharsets.UTF_8);
+        }
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("db/migration/" + filename)) {
+            if (is == null) throw new IOException("Migration not found on classpath: " + filename);
+            log.info("Loading migration from classpath: {}", filename);
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 

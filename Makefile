@@ -3,7 +3,9 @@
 .PHONY: help build run test clean compile local-up local-down local-logs local-frontend \
         integration-test load-test \
         docker-push deploy deploy-frontend deploy-nginx full-deploy \
-        cleanup ssh logs status backup vps-reset reset pull push
+        cleanup ssh logs status backup vps-reset reset \
+        local-db-reset vps-db-reset \
+        pull push
 
 .DEFAULT_GOAL := help
 
@@ -36,6 +38,7 @@ help: ## Show available commands
 	@echo "  make local-down       Stop local environment"
 	@echo "  make local-logs       Tail backend logs (local)"
 	@echo "  make local-frontend   Serve frontend locally (ports 3000-3005)"
+	@echo "  make local-db-reset   Drop all tables and restart (local)"
 	@echo ""
 	@echo "  Docker"
 	@echo "  ------"
@@ -55,6 +58,7 @@ help: ## Show available commands
 	@echo "  make logs             Tail backend logs on VPS"
 	@echo "  make status           Check VPS health"
 	@echo "  make backup           Backup PostgreSQL from VPS"
+	@echo "  make vps-db-reset     Drop all tables on VPS and restart backend"
 	@echo "  make vps-reset        Reset VPS deployment (dangerous!)"
 	@echo ""
 	@echo "  Git sync"
@@ -138,6 +142,15 @@ local-logs:
 local-frontend:
 	chmod +x deployment/envs/local/deploy-frontend.sh && ./deployment/envs/local/deploy-frontend.sh
 
+# Drop all tables and restart backend (local) — profiles re-seeded on restart
+local-db-reset:
+	@echo "Dropping all tables in local database..."
+	@docker compose -f deployment/envs/local/compose.yaml exec postgres \
+		psql -U fikua -d fikua -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	@echo "Restarting backend to re-run migrations..."
+	@docker compose -f deployment/envs/local/compose.yaml restart fikua-lab
+	@echo "Local DB reset complete. Profiles re-seeded."
+
 # =============================================================================
 # VPS — Docker (build + push)
 # =============================================================================
@@ -189,6 +202,21 @@ status:
 # Backup PostgreSQL from VPS
 backup:
 	./deployment/envs/dev/deploy-backend.sh backup
+
+# Drop all tables on VPS and restart backend — profiles re-seeded on restart
+vps-db-reset:
+	@echo "Dropping all tables on VPS database..."
+	@ssh -i deployment/envs/dev/ssh/id_ed25519 -o StrictHostKeyChecking=no -p 49222 \
+		ubuntu@51.38.179.236 "sudo docker exec fikua-lab-db psql -U fikua -d fikua \
+		-c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && \
+		sudo docker restart fikua-lab"
+	@echo "VPS DB reset complete. Waiting for backend..."
+	@READY=0; for i in $$(seq 1 20); do \
+		if curl -sf https://issuer.lab.fikua.com/health > /dev/null 2>&1; then READY=1; break; fi; \
+		sleep 3; \
+	done; \
+	if [ "$$READY" -eq 1 ]; then echo "Backend is UP. Profiles re-seeded."; \
+	else echo "WARNING: Backend did not come back within 60s"; fi
 
 # Reset VPS deployment (dangerous!)
 vps-reset:

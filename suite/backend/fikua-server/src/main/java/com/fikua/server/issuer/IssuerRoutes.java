@@ -339,7 +339,8 @@ public class IssuerRoutes {
     private ProfileConfig getActiveConfig() {
         var active = profileRepo.findActive();
         if (active == null) {
-            throw new RuntimeException("No active profile configured");
+            throw new OAuthErrorException(503, OAuthError.invalidRequest(
+                    "No active profile configured. Create and activate a profile via /admin/profiles first."));
         }
         return active.config();
     }
