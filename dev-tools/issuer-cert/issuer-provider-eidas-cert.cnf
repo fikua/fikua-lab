@@ -1,0 +1,88 @@
+# =============================================================================
+# Fikua Lab — Issuer Provider Certificate (simulado eIDAS)
+# Basado en: AC Representación (FNMT-RCM)
+# Normas: ETSI EN 319 412-1/2/3, eIDAS (Reg. UE 910/2014)
+#
+# Propósito: Certificado de firma del Issuer para SD-JWT VC.
+#            Incluido en el header x5c de las credenciales emitidas.
+#            SAN DNS: issuer.lab.fikua.com (para x509_san_dns client_id prefix)
+#
+# Clave: EC P-256 (ES256) — requerido por HAIP 1.0
+#
+# USO: Solo para pruebas/prototipos. NO es un certificado cualificado real.
+# =============================================================================
+
+# ---- OIDs personalizados ----
+[ oid_section ]
+organizationIdentifier  = 2.5.4.97
+givenName               = 2.5.4.42
+surname                 = 2.5.4.4
+serialNumber            = 2.5.4.5
+description             = 2.5.4.13
+
+# ---- Solicitud y certificado X.509 autofirmado ----
+[ req ]
+default_bits            = 256
+default_md              = sha256
+prompt                  = no
+distinguished_name      = dn
+x509_extensions         = v3_issuer
+utf8                    = yes
+string_mask             = utf8only
+oid_section             = oid_section
+
+# =============================================================================
+# Subject DN — Fikua Lab como Issuer Provider (Persona Jurídica)
+#
+# Formato eIDAS (ETSI EN 319 412-1):
+#   C  = ES
+#   serialNumber = IDCES-<NIF del representante>
+#   O  = <Razón social>
+#   organizationIdentifier = VATES-<CIF>
+#   surname = <APELLIDOS del representante>
+#   givenName = <NOMBRE del representante>
+#   CN = <NOMBRE COMPLETO> (REPRESENTANTE)
+#   description = Ref: Fikua Lab Credential Issuer
+# =============================================================================
+[ dn ]
+C                       = ES
+serialNumber            = IDCES-00000001T
+O                       = Fikua Lab
+organizationIdentifier  = VATES-B00000001
+surname                 = CANADES
+givenName               = ORIOL
+CN                      = CANADES, ORIOL (REPRESENTANTE)
+description             = Fikua Lab - Credential Issuer Provider
+
+# =============================================================================
+# Extensiones X.509v3 — Issuer Provider
+# =============================================================================
+[ v3_issuer ]
+basicConstraints        = critical, CA:FALSE
+
+# keyUsage: digitalSignature para firmar SD-JWT VC
+keyUsage                = critical, digitalSignature
+
+# extendedKeyUsage: autenticación cliente (mTLS) + firma genérica
+extendedKeyUsage        = clientAuth
+
+# Política de certificación (simulada, referencia FNMT RPJ)
+certificatePolicies     = @polsect
+
+# Identificadores de clave
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+
+# subjectAltName: DNS del Issuer (requerido para x509_san_dns client_id prefix)
+subjectAltName          = DNS:issuer.lab.fikua.com
+
+# Authority Info Access (simulado)
+authorityInfoAccess     = @aia
+
+[ polsect ]
+policyIdentifier        = 1.3.6.1.4.1.5734.3.11.2
+CPS.1                   = https://lab.fikua.com/cps/
+
+[ aia ]
+OCSP;URI.0              = http://ocsp.lab.fikua.com/
+caIssuers;URI.0         = http://lab.fikua.com/ca/issuer.cer

@@ -6,7 +6,9 @@ import com.fikua.core.crypto.JwkUtils;
 import com.fikua.core.oauth2.*;
 import com.fikua.core.oid4vci.*;
 import com.fikua.core.profile.ProfileConfig;
+import com.fikua.core.profile.enums.CredentialOfferVariant;
 import com.fikua.core.sdjwt.SdJwtBuilder;
+import com.fikua.server.db.IssuanceRecordRepository;
 import com.fikua.server.db.ProfileRepository;
 import com.fikua.server.state.InMemoryStore;
 import com.fikua.server.state.InMemoryStore.SessionData;
@@ -32,14 +34,16 @@ public class IssuerRoutes {
     private static final String API_PREFIX = "/oid4vci/v1";
 
     private final ProfileRepository profileRepo;
+    private final IssuanceRecordRepository issuanceRepo;
     private final EcKeyManager issuerKey;
     private final InMemoryStore store;
     private final DPoPValidator dpopValidator;
     private final String baseUrl;
 
-    public IssuerRoutes(ProfileRepository profileRepo, EcKeyManager issuerKey,
-                        InMemoryStore store, String baseUrl) {
+    public IssuerRoutes(ProfileRepository profileRepo, IssuanceRecordRepository issuanceRepo,
+                        EcKeyManager issuerKey, InMemoryStore store, String baseUrl) {
         this.profileRepo = profileRepo;
+        this.issuanceRepo = issuanceRepo;
         this.issuerKey = issuerKey;
         this.store = store;
         this.dpopValidator = new DPoPValidator();
@@ -72,6 +76,9 @@ public class IssuerRoutes {
 
         // PAR endpoint (HAIP)
         app.post(API_PREFIX + "/par", this::par);
+
+        // Issuance trigger (frontend cert identification → credential offer)
+        app.post(API_PREFIX + "/issuance", this::triggerIssuance);
     }
 
     /** GET /.well-known/openid-credential-issuer */
@@ -113,8 +120,8 @@ public class IssuerRoutes {
         try {
             String offerJson = MAPPER.writeValueAsString(offer);
 
-            // Support credential_offer_uri
-            if ("by_reference".equalsIgnoreCase(ctx.queryParam("mode"))) {
+            // by_reference or by_value based on active profile config
+            if (config.credentialOffer() == CredentialOfferVariant.BY_REFERENCE) {
                 String offerId = store.storeCredentialOffer(offerJson);
                 String offerUri = baseUrl + API_PREFIX + "/credential-offer/" + offerId;
                 ctx.json(Map.of("credential_offer_uri", offerUri));
@@ -167,10 +174,10 @@ public class IssuerRoutes {
             return;
         }
 
-        // Generate access token and nonce
+        // Generate access token and nonce — propagate metadata (carries issuanceRecordId)
         String cNonce = store.generateNonce();
         SessionData tokenSession = new SessionData(
-                session.sessionId(), cNonce, null, Instant.now(), Map.of()
+                session.sessionId(), cNonce, null, Instant.now(), session.metadata()
         );
         String accessToken = store.createAccessToken(tokenSession);
         store.createNonce(session.sessionId());
@@ -203,7 +210,7 @@ public class IssuerRoutes {
 
         String cNonce = store.generateNonce();
         SessionData tokenSession = new SessionData(
-                session.sessionId(), cNonce, dpopKey, Instant.now(), Map.of()
+                session.sessionId(), cNonce, dpopKey, Instant.now(), session.metadata()
         );
         String accessToken = store.createAccessToken(tokenSession);
         store.createNonce(session.sessionId());
@@ -254,20 +261,36 @@ public class IssuerRoutes {
                     request.proof(), baseUrl, session.cNonce()
             );
 
-            // Build SD-JWT VC (EUDI PID)
-            String sdJwt = new SdJwtBuilder(issuerKey)
+            // Build SD-JWT VC (EUDI PID) — dynamic claims from IssuanceRecord or defaults
+            SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
                     .vct("eu.europa.ec.eudi.pid.1")
                     .issuer(baseUrl)
                     .subject("urn:fikua:pid:" + InMemoryStore.randomToken(8))
-                    .selectiveClaim("given_name", "Jan")
-                    .selectiveClaim("family_name", "Kowalski")
-                    .selectiveClaim("birth_date", "1990-01-15")
-                    .plainClaim("issuing_authority", "Fikua Lab")
-                    .plainClaim("issuing_country", "EU")
                     .holderKey(walletKey)
-                    .x5cChain(issuerKey.ecKey().getX509CertChain()) // null if no certs configured
-                    .build()
-                    .serialize();
+                    .x5cChain(issuerKey.ecKey().getX509CertChain());
+
+            String issuanceRecordId = (String) session.metadata().get("issuanceRecordId");
+            if (issuanceRecordId != null) {
+                var record = issuanceRepo.findById(issuanceRecordId);
+                if (record != null && record.credentialData() != null) {
+                    // Build claims dynamically from JSONB credential_data
+                    var dataNode = MAPPER.readTree(record.credentialData());
+                    var fields = dataNode.fields();
+                    while (fields.hasNext()) {
+                        var field = fields.next();
+                        builder.selectiveClaim(field.getKey(), field.getValue().asText());
+                    }
+                    builder.plainClaim("issuing_authority", "Fikua Lab");
+                    builder.plainClaim("issuing_country", "ES");
+                    issuanceRepo.updateStatus(issuanceRecordId, "credential_issued");
+                } else {
+                    addDefaultClaims(builder);
+                }
+            } else {
+                addDefaultClaims(builder);
+            }
+
+            String sdJwt = builder.build().serialize();
 
             // Generate new nonce
             String newNonce = store.generateNonce();
@@ -332,6 +355,83 @@ public class IssuerRoutes {
                 "request_uri", requestUri,
                 "expires_in", 60
         ));
+    }
+
+    /** POST /oid4vci/v1/issuance — trigger credential issuance from frontend cert identification */
+    private void triggerIssuance(Context ctx) {
+        ProfileConfig config = getActiveConfig();
+
+        try {
+            var body = MAPPER.readTree(ctx.body());
+
+            String credentialType = body.has("credential_type")
+                    ? body.get("credential_type").asText()
+                    : "eu.europa.ec.eudi.pid.1";
+
+            // credential_data: the full claim set as JSON (abstract, any credential type)
+            String credentialData;
+            if (body.has("credential_data")) {
+                credentialData = MAPPER.writeValueAsString(body.get("credential_data"));
+            } else {
+                credentialData = "{}";
+            }
+
+            // source tracking (e.g. "x509_cert", "manual", "api")
+            String sourceType = body.has("source_type") ? body.get("source_type").asText() : null;
+            String sourceRef = body.has("source_ref") ? body.get("source_ref").asText() : null;
+
+            // 1. Create IssuanceRecord in DB
+            var record = issuanceRepo.create(credentialType, credentialData, sourceType, sourceRef);
+            log.info("IssuanceRecord created: id={}, type={}, source={}", record.id(), credentialType, sourceType);
+
+            // 2. Create CredentialOffer based on profile config
+            CredentialOffer offer;
+            if (config.isHaip()) {
+                String issuerState = InMemoryStore.randomToken(16);
+                offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
+            } else {
+                SessionData session = new SessionData(
+                        InMemoryStore.randomToken(16),
+                        null, null, Instant.now(),
+                        Map.of("issuanceRecordId", record.id())
+                );
+                String preAuthCode = store.createPreAuthCode(session);
+                issuanceRepo.updatePreAuthCode(record.id(), preAuthCode);
+                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, false);
+            }
+
+            issuanceRepo.updateStatus(record.id(), "offer_created");
+
+            // 3. Return based on credentialOffer variant from profile config
+            String offerJson = MAPPER.writeValueAsString(offer);
+
+            if (config.credentialOffer() == CredentialOfferVariant.BY_REFERENCE) {
+                String offerId = store.storeCredentialOffer(offerJson);
+                issuanceRepo.updateOfferId(record.id(), offerId);
+                String offerUri = baseUrl + API_PREFIX + "/credential-offer/" + offerId;
+                ctx.json(Map.of(
+                        "credential_offer_uri", offerUri,
+                        "issuance_id", record.id()
+                ));
+            } else {
+                ctx.json(Map.of(
+                        "credential_offer", MAPPER.readTree(offerJson),
+                        "issuance_id", record.id()
+                ));
+            }
+
+        } catch (Exception e) {
+            log.error("Issuance trigger error", e);
+            ctx.status(400).json(OAuthError.invalidRequest("Failed to trigger issuance: " + e.getMessage()));
+        }
+    }
+
+    private void addDefaultClaims(SdJwtBuilder builder) {
+        builder.selectiveClaim("given_name", "Jan")
+               .selectiveClaim("family_name", "Kowalski")
+               .selectiveClaim("birth_date", "1990-01-15")
+               .plainClaim("issuing_authority", "Fikua Lab")
+               .plainClaim("issuing_country", "EU");
     }
 
     // --- Helpers ---

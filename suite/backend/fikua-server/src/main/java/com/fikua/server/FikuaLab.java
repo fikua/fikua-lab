@@ -1,12 +1,13 @@
 package com.fikua.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fikua.core.crypto.EcKeyManager;
 import com.fikua.core.oauth2.OAuthError;
 import com.fikua.core.oauth2.OAuthErrorException;
 import com.fikua.server.admin.AdminRoutes;
 import com.fikua.server.config.LabConfig;
+import com.fikua.core.crypto.X509CertUtil;
 import com.fikua.server.db.DatabaseManager;
+import com.fikua.server.db.IssuanceRecordRepository;
 import com.fikua.server.db.ProfileRepository;
 import com.fikua.server.issuer.IssuerRoutes;
 import com.fikua.server.state.InMemoryStore;
@@ -35,13 +36,24 @@ public class FikuaLab {
         DatabaseManager db = new DatabaseManager(config);
         db.migrate();
 
-        // Generate issuer signing key
-        EcKeyManager issuerKey = EcKeyManager.generate();
-        log.info("Issuer key generated, kid={}", issuerKey.kid());
+        // Load issuer signing key (PEM if available, otherwise generate)
+        EcKeyManager issuerKey;
+        var certPath = java.nio.file.Path.of(config.certsDir(), "issuer-cert.pem");
+        var keyPath = java.nio.file.Path.of(config.certsDir(), "issuer-key.pem");
+        if (java.nio.file.Files.exists(certPath) && java.nio.file.Files.exists(keyPath)) {
+            var cert = X509CertUtil.loadCertificate(certPath);
+            var privKey = X509CertUtil.loadPrivateKey(keyPath);
+            issuerKey = EcKeyManager.fromPem(privKey, cert);
+            log.info("Issuer key loaded from PEM, kid={}, subject={}", issuerKey.kid(), cert.getSubjectX500Principal());
+        } else {
+            issuerKey = EcKeyManager.generate();
+            log.warn("No PEM certs at {}, using generated key (kid={}). x5c will be empty.", config.certsDir(), issuerKey.kid());
+        }
 
         // Initialize stores
         InMemoryStore store = new InMemoryStore();
         ProfileRepository profileRepo = new ProfileRepository(db);
+        IssuanceRecordRepository issuanceRepo = new IssuanceRecordRepository(db);
 
         // Create Javalin app
         Javalin app = Javalin.create(javalinConfig -> {
@@ -70,7 +82,7 @@ public class FikuaLab {
 
         // Register routes
         new AdminRoutes(profileRepo).register(app);
-        new IssuerRoutes(profileRepo, issuerKey, store, config.baseUrl()).register(app);
+        new IssuerRoutes(profileRepo, issuanceRepo, issuerKey, store, config.baseUrl()).register(app);
 
         // Health check
         app.get("/health", ctx -> ctx.json(java.util.Map.of("status", "up")));

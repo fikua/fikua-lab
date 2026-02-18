@@ -4,12 +4,16 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.*;
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.*;
 
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.text.ParseException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,6 +39,26 @@ public final class EcKeyManager {
             return new EcKeyManager(new ECKey.Builder(key).keyID(kid).build());
         } catch (JOSEException e) {
             throw new RuntimeException("Failed to generate EC key", e);
+        }
+    }
+
+    /** Load from PEM private key + X.509 certificate. Includes x5c chain. */
+    public static EcKeyManager fromPem(PrivateKey privateKey, X509Certificate cert) {
+        try {
+            ECPublicKey pubKey = (ECPublicKey) cert.getPublicKey();
+            List<Base64> x5c = X509CertUtil.buildX5cChain(cert);
+
+            ECKey ecKey = new ECKey.Builder(Curve.P_256, pubKey)
+                    .privateKey(privateKey)
+                    .keyUse(KeyUse.SIGNATURE)
+                    .algorithm(JWSAlgorithm.ES256)
+                    .x509CertChain(x5c)
+                    .build();
+
+            String kid = ecKey.computeThumbprint("SHA-256").toString();
+            return new EcKeyManager(new ECKey.Builder(ecKey).keyID(kid).build());
+        } catch (JOSEException e) {
+            throw new RuntimeException("Failed to build ECKey from PEM", e);
         }
     }
 

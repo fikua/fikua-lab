@@ -1,0 +1,83 @@
+# =============================================================================
+# Perfil de certificado simulado FNMT-RCM — Persona Física (Ciudadano)
+# Basado en: AC FNMT Usuarios
+# Normas: ETSI EN 319 412-1/2, eIDAS (Reg. UE 910/2014)
+# OID política real FNMT PF: 1.3.6.1.4.1.5734.3.5.1
+#
+# USO: Solo para pruebas/prototipos. NO es un certificado cualificado real.
+# =============================================================================
+
+# ---- OIDs personalizados ----
+[ oid_section ]
+organizationIdentifier  = 2.5.4.97
+givenName               = 2.5.4.42
+surname                 = 2.5.4.4
+serialNumber            = 2.5.4.5
+
+# ---- Solicitud y certificado X.509 autofirmado ----
+[ req ]
+default_bits            = 2048
+default_md              = sha256
+prompt                  = no
+distinguished_name      = dn
+x509_extensions         = v3_pf
+utf8                    = yes
+string_mask             = utf8only
+oid_section             = oid_section
+
+# =============================================================================
+# Subject DN — imita el formato FNMT AC FNMT Usuarios (Persona Física)
+#
+# Formato real FNMT:
+#   C  = ES
+#   serialNumber = IDCES-<NIF/NIE>
+#   O  = FNMT-RCM
+#   OU = Ceres                          (a veces presente)
+#   surname = <APELLIDO1 APELLIDO2>
+#   givenName = <NOMBRE>
+#   CN = <APELLIDO1 APELLIDO2, NOMBRE> - NIF <NIF>
+# =============================================================================
+[ dn ]
+C                       = ES
+serialNumber            = IDCES-12345678Z
+O                       = FNMT-RCM
+surname                 = DOW SMITH
+givenName               = JOHN
+CN                      = DOW SMITH, JOHN - NIF 12345678Z
+
+# =============================================================================
+# Extensiones X.509v3 — Persona Física (AC FNMT Usuarios)
+# =============================================================================
+[ v3_pf ]
+basicConstraints        = critical, CA:FALSE
+
+# keyUsage: FNMT PF usa digitalSignature + nonRepudiation
+keyUsage                = critical, digitalSignature, nonRepudiation
+
+# extendedKeyUsage: autenticación cliente + firma de correo
+extendedKeyUsage        = clientAuth, emailProtection
+
+# Política de certificación FNMT para Persona Física
+# OID real: 1.3.6.1.4.1.5734.3.5.1
+certificatePolicies     = @polsect
+
+# Identificadores de clave
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+
+# Punto de distribución de CRL (simulado)
+crlDistributionPoints   = URI:http://www.cert.fnmt.es/crl/AC_FNMT_Usuarios.crl
+
+# Authority Info Access: OCSP + caIssuers
+authorityInfoAccess     = @aia
+
+# subjectAltName: FNMT incluye el email del titular como rfc822Name
+subjectAltName          = email:john.dow@example.com
+
+[ polsect ]
+policyIdentifier        = 1.3.6.1.4.1.5734.3.5.1
+CPS.1                   = https://www.cert.fnmt.es/dpcs/
+
+[ aia ]
+OCSP;URI.0              = http://ocsp.cert.fnmt.es/ocsp/OcspResponder
+caIssuers;URI.0         = http://www.cert.fnmt.es/certs/AC_FNMT_Usuarios.cer

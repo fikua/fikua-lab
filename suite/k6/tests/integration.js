@@ -211,32 +211,39 @@ export default function () {
   });
 
   // ---------------------------------------------------------------------------
-  // 9. Credential Offer
+  // 9. Credential Offer (mode depends on active profile config)
   // ---------------------------------------------------------------------------
   group("Credential Offer", () => {
     const res = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
-    const offer = res.json();
+    const body = res.json();
     check(res, {
       "GET /credential-offer → 200": (r) => r.status === 200,
-      "has credential_issuer": () => offer.credential_issuer !== undefined,
-      "has credential_configuration_ids": () =>
-        offer.credential_configuration_ids !== undefined,
+      "returns offer or offer_uri": () =>
+        body.credential_offer_uri !== undefined ||
+        body.credential_configuration_ids !== undefined,
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 10. Credential Offer by Reference
+  // 10. Credential Offer by Reference (resolve URI)
   // ---------------------------------------------------------------------------
   group("Credential Offer by Reference", () => {
-    const res = http.get(
-      `${BASE_URL}/oid4vci/v1/credential-offer?mode=by_reference`
-    );
+    const res = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
+    const body = res.json();
     check(res, {
-      "GET /credential-offer?mode=by_reference → 200": (r) =>
-        r.status === 200,
-      "returns credential_offer_uri": (r) =>
-        r.json().credential_offer_uri !== undefined,
+      "GET /credential-offer → 200": (r) => r.status === 200,
+      "returns credential_offer_uri": () =>
+        body.credential_offer_uri !== undefined,
     });
+
+    // Resolve the offer URI if present
+    if (body.credential_offer_uri) {
+      const offerRes = http.get(body.credential_offer_uri.replace("https://issuer.lab.fikua.com", BASE_URL));
+      check(offerRes, {
+        "resolved offer has credential_configuration_ids": (r) =>
+          r.json().credential_configuration_ids !== undefined,
+      });
+    }
   });
 
   // ---------------------------------------------------------------------------
@@ -271,6 +278,110 @@ export default function () {
           JSON.stringify(m).includes("pre-authorized_code"),
         "pre-auth: has token_endpoint": (m) =>
           m.token_endpoint !== undefined,
+      });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // 12. Issuance Trigger — by_reference (pre-auth profile active from group 11)
+  // ---------------------------------------------------------------------------
+  group("Issuance Trigger — by_reference", () => {
+    const body = JSON.stringify({
+      credential_type: "eu.europa.ec.eudi.pid.1",
+      credential_data: {
+        given_name: "Test",
+        family_name: "User",
+        birth_date: "1990-01-01",
+      },
+      source_type: "x509_cert",
+      source_ref: "CN=Test User, O=Fikua Lab",
+    });
+    const res = http.post(`${BASE_URL}/oid4vci/v1/issuance`, body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = res.json();
+    check(res, {
+      "POST /issuance (by_ref) → 200": (r) => r.status === 200,
+      "returns credential_offer_uri": () =>
+        data.credential_offer_uri !== undefined,
+      "returns issuance_id": () => data.issuance_id !== undefined,
+    });
+
+    // Resolve the offer URI
+    if (data.credential_offer_uri) {
+      const offerRes = http.get(
+        data.credential_offer_uri.replace(
+          "https://issuer.lab.fikua.com",
+          BASE_URL
+        )
+      );
+      check(offerRes, {
+        "resolved issuance offer has credential_configuration_ids": (r) =>
+          r.json().credential_configuration_ids !== undefined,
+        "resolved issuance offer has pre-authorized_code": (r) =>
+          JSON.stringify(r.json()).includes("pre-authorized_code"),
+      });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // 13. Issuance Trigger — by_value (switch to by_value profile)
+  // ---------------------------------------------------------------------------
+  group("Issuance Trigger — by_value", () => {
+    // Create and activate a by_value pre-auth profile
+    const profileBody = JSON.stringify({
+      name: "IT PreAuth ByValue",
+      role: "issuer",
+      config: {
+        grantType: "pre_authorization_code",
+        credentialFormat: "sd_jwt_vc",
+        vciProfile: "plain",
+        credentialOffer: "by_value",
+        issuanceMode: "immediate",
+      },
+    });
+    const profileRes = http.post(
+      `${BASE_URL}/admin/profiles`,
+      profileBody,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    const byValueProfileId = profileRes.json().id;
+
+    if (byValueProfileId) {
+      http.put(`${BASE_URL}/admin/profiles/${byValueProfileId}/activate`);
+
+      // Test GET /credential-offer with by_value
+      const offerRes = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
+      const offerBody = offerRes.json();
+      check(offerRes, {
+        "GET /credential-offer (by_value) → 200": (r) => r.status === 200,
+        "by_value returns credential_configuration_ids": () =>
+          offerBody.credential_configuration_ids !== undefined,
+      });
+
+      // Test POST /issuance with by_value
+      const issuanceBody = JSON.stringify({
+        credential_type: "eu.europa.ec.eudi.pid.1",
+        credential_data: {
+          given_name: "Maria",
+          family_name: "Garcia",
+        },
+        source_type: "manual",
+      });
+      const issuanceRes = http.post(
+        `${BASE_URL}/oid4vci/v1/issuance`,
+        issuanceBody,
+        { headers: { "Content-Type": "application/json" } }
+      );
+      const issuanceData = issuanceRes.json();
+      check(issuanceRes, {
+        "POST /issuance (by_value) → 200": (r) => r.status === 200,
+        "returns credential_offer object": () =>
+          issuanceData.credential_offer !== undefined,
+        "credential_offer has credential_configuration_ids": () =>
+          issuanceData.credential_offer.credential_configuration_ids !==
+          undefined,
+        "returns issuance_id": () => issuanceData.issuance_id !== undefined,
       });
     }
   });

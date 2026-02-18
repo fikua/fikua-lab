@@ -1,7 +1,7 @@
 # Credential Issuance Flow — Especificació tècnica
 
 **Created:** 2026-02-18
-**Updated:** 2026-02-19
+**Updated:** 2026-02-18
 **Status:** Draft
 **Normativa:** OID4VCI 1.0 Final, HAIP 1.0, ARF 2.8, SD-JWT VC draft-14, Token Status List draft-12
 
@@ -192,18 +192,20 @@ El QR conté la URL amb custom scheme `openid-credential-offer://`. Si és `by_r
 
 L'OIDF conformance suite actua com a wallet (Tests #2, #1) o com a issuer (Tests #4, #3). Quan testa el nostre issuer, necessita la `credential_offer_uri` o la `credential_offer` per iniciar el flux. Per això cal que la URL sigui visible i copiable al frontend d'issuer.lab.
 
-**Implementació actual:**
+**Implementació actual:** Completat (parcial).
 
 - `CredentialOffer.java` suporta `preAuthorized()` i `authorizationCode()`. OK.
-- `IssuerRoutes.credentialOffer()` suporta `by_reference` via `?mode=by_reference` i `by_value` per defecte. OK.
-- No existeix `IssuanceRecord`. L'`InMemoryStore` guarda sessions però no hi ha registre persistent del procés d'emissió.
-- No hi ha connexió frontend-backend: l'issuer frontend captura les dades del certificat però no les envia al servidor.
-- No hi ha presentació d'offer (QR, botó, URL copiable).
+- `IssuerRoutes.credentialOffer()` suporta `by_reference` i `by_value` segons `ProfileConfig.credentialOffer()`. OK.
+- `IssuanceRecord` implementat amb model abstracte: `credential_data JSONB` extensible a qualsevol tipus de credencial. Taula `issuance_records` (V3 migration).
+- `POST /oid4vci/v1/issuance` — endpoint que rep `credential_type`, `credential_data` (JSON abstracte), `source_type`, `source_ref`. Crea IssuanceRecord, genera CredentialOffer segons perfil actiu, retorna `credential_offer_uri` (by_reference) o `credential_offer` (by_value).
+- Frontend issuer connectat: `triggerIssuance(cert)` envia dades del certificat al backend, mostra l'offer URI o JSON amb deep link "Open in Wallet".
+- Credential endpoint: construeix SD-JWT VC amb claims dinàmics des del JSONB `credential_data` (no hardcoded).
+- Metadata propagation fix: `SessionData.metadata()` porta `issuanceRecordId` a través del flux offer→token→credential.
 
 **Gaps:**
 
-- [ ] Crear model `IssuanceRecord` (sol·licitant, certificat, offer, token, credential, status, timestamps). Guardar a base de dades.
-- [ ] Connectar frontend issuer amb el backend: enviar dades del certificat → rebre credential offer.
+- [x] Crear model `IssuanceRecord` amb `credential_data JSONB` abstracte.
+- [x] Connectar frontend issuer amb el backend: enviar dades del certificat → rebre credential offer.
 - [ ] Frontend issuer: generar QR code amb la URL `openid-credential-offer://` (cross-device).
 - [ ] Frontend issuer: botó "Open in Wallet" amb redirecció a `wallet.lab.fikua.com` (same-device).
 - [ ] Frontend issuer: camp de text amb la URL completa i botó de copiar (testing OIDF).
@@ -797,18 +799,18 @@ Serialized: <jwt>~<disclosure1>~<disclosure2>~<disclosure3>~
 **Implementació actual — Backend:**
 
 - `SdJwtBuilder` construeix la SD-JWT VC amb disclosures, holder key binding. OK.
-- `SdJwtBuilder` té suport per `x5c` però `IssuerRoutes` no el passa.
-- Les dades de la credencial són hardcoded ("Jan", "Kowalski", "1990-01-15").
+- `x5c` es passa al `SdJwtBuilder` des de `IssuerRoutes.credential()`. La cadena de certificats es carrega des de PEM (`EcKeyManager.fromPem()`) si disponible. OK.
+- Claims dinàmics des de `IssuanceRecord.credential_data` JSONB — extensible a qualsevol tipus de credencial. Fallback a claims per defecte si no hi ha IssuanceRecord. OK.
+- `IssuanceRecord.status` s'actualitza a `credential_issued` en emetre la credencial. OK.
 - No hi ha claim `status` (Token Status List).
-- No hi ha `IssuanceRecord` update.
 
 **Gaps — Backend:**
 
-- [ ] Passar `x5c` (cadena de certificats de l'issuer) al `SdJwtBuilder`.
+- [x] Passar `x5c` (cadena de certificats de l'issuer) al `SdJwtBuilder`.
 - [ ] Afegir claim `status` amb `status_list` (idx + uri) a la credencial.
 - [ ] Implementar Token Status List (veure secció dedicada).
-- [ ] Substituir dades hardcoded per les dades reals del certificat de l'usuari.
-- [ ] Actualitzar `IssuanceRecord` amb la credencial emesa.
+- [x] Substituir dades hardcoded per les dades reals del certificat de l'usuari (claims dinàmics des de JSONB).
+- [x] Actualitzar `IssuanceRecord` amb la credencial emesa (status → credential_issued).
 - [ ] Afegir `exp` (expiration) a la credencial.
 
 ---
@@ -982,52 +984,71 @@ Content-Type: application/statuslist+jwt
 
 ## IssuanceRecord — Model
 
-Model persistent (PostgreSQL) que registra cada procés d'emissió.
+Model persistent (PostgreSQL) que registra cada procés d'emissió. Dissenyat amb `credential_data JSONB` per ser extensible a qualsevol tipus de credencial sense canvis d'esquema.
 
 ```sql
 CREATE TABLE issuance_records (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    profile_id UUID REFERENCES profiles(id),
-    session_id VARCHAR(255),
-
-    -- Identificació del sol·licitant (dades del certificat)
-    subject_dn TEXT,
-    issuer_dn TEXT,
-    serial_number VARCHAR(255),
-    certificate_fingerprint VARCHAR(255),
-
-    -- Credential Offer
-    credential_offer JSONB,
-    offer_variant VARCHAR(20),
-    grant_type VARCHAR(50),
-
-    -- Token
-    access_token_hash VARCHAR(255),
-    dpop_thumbprint VARCHAR(255),
-
-    -- Credential
-    credential_config_id VARCHAR(255),
-    status_list_idx INTEGER,
-    credential_issued_at TIMESTAMP,
-
-    -- Notification
-    notification_id VARCHAR(255),
-    notification_event VARCHAR(50),
-    notification_received_at TIMESTAMP,
-
-    -- Lifecycle
-    status VARCHAR(50) DEFAULT 'OFFER_CREATED',
-    created_at TIMESTAMP DEFAULT now(),
-    updated_at TIMESTAMP DEFAULT now()
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    credential_type VARCHAR(255) NOT NULL,           -- e.g. 'eu.europa.ec.eudi.pid.1'
+    credential_data JSONB NOT NULL DEFAULT '{}',     -- claim set abstracte (qualsevol credencial)
+    source_type     VARCHAR(50),                     -- origen: 'x509_cert', 'manual', 'api'
+    source_ref      TEXT,                            -- referència: DN del cert, ID extern, etc.
+    status          VARCHAR(50) NOT NULL DEFAULT 'pending',
+    pre_auth_code   VARCHAR(255),
+    offer_id        VARCHAR(255),
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+```
+
+**Exemple de `credential_data` per PID (des de certificat X.509):**
+
+```json
+{
+  "given_name": "Oriol",
+  "family_name": "Canades",
+  "birth_date": "1990-05-15"
+}
+```
+
+**Extensibilitat:** Per afegir un nou tipus de credencial (e.g. mDL, diploma), només cal enviar un `credential_data` diferent amb els claims corresponents. El credential endpoint itera dinàmicament les claus del JSONB per construir els selective claims de l'SD-JWT.
+
+**API — POST /oid4vci/v1/issuance:**
+
+```json
+{
+  "credential_type": "eu.europa.ec.eudi.pid.1",
+  "credential_data": { "given_name": "...", "family_name": "...", "birth_date": "..." },
+  "source_type": "x509_cert",
+  "source_ref": "CN=Oriol Canades, O=Test"
+}
+```
+
+**Resposta (by_reference):**
+
+```json
+{
+  "credential_offer_uri": "https://issuer.lab.fikua.com/oid4vci/v1/credential-offer/{id}",
+  "issuance_id": "<uuid>"
+}
+```
+
+**Resposta (by_value):**
+
+```json
+{
+  "credential_offer": { "credential_issuer": "...", "credential_configuration_ids": [...], "grants": {...} },
+  "issuance_id": "<uuid>"
+}
 ```
 
 **Estats del lifecycle:**
 
 ```text
-OFFER_CREATED → TOKEN_ISSUED → CREDENTIAL_ISSUED → ACCEPTED / REJECTED / FAILED
-                                                   → REVOKED (via admin)
+pending → offer_created → credential_issued
 ```
+
+**Nota:** En futures iteracions s'afegiran: `profile_id`, `session_id`, `status_list_idx`, `notification_id`, `notification_event` per completar el model descrit als gaps P4 i P5.
 
 ---
 
@@ -1052,23 +1073,34 @@ suite/backend/
 │   │   ├── SdJwt.java
 │   │   └── Disclosure.java
 │   ├── crypto/
-│   │   └── EcKeyManager.java
+│   │   ├── EcKeyManager.java                ← ✅ fromPem() per carregar certificat X.509
+│   │   └── X509CertUtil.java                ← OK (loadCertificate, loadPrivateKey, buildX5cChain)
 │   └── profile/
 │       └── ProfileConfig.java               ← OK
 ├── fikua-server/src/main/java/com/fikua/server/
 │   ├── issuer/
-│   │   └── IssuerRoutes.java                ← P0: constant; P1-P2: endpoints
+│   │   └── IssuerRoutes.java                ← ✅ POST /issuance, claims dinàmics, fix metadata; P1-P2: endpoints
 │   ├── state/
 │   │   └── InMemoryStore.java               ← P2: PAR storage
-│   └── db/
-│       └── ProfileRepository.java
+│   ├── db/
+│   │   ├── ProfileRepository.java
+│   │   └── IssuanceRecordRepository.java    ← ✅ CRUD amb credential_data JSONB
+│   └── FikuaLab.java                        ← ✅ PEM loading, IssuanceRecordRepository wiring
+├── fikua-server/src/main/resources/db/migration/
+│   ├── V1__initial_schema.sql
+│   ├── V2__seed_profiles.sql
+│   └── V3__issuance_records.sql             ← ✅ credential_data JSONB abstracte
 suite/frontend/
 ├── issuer/
-│   ├── index.html                           ← P4: presentació offer
-│   └── app.js                               ← P4: connexió backend
+│   ├── index.html                           ← P4: presentació offer (QR, botó, URL copiable)
+│   └── app.js                               ← ✅ triggerIssuance(), deep link; P4: QR, wallet redirect
 ├── holder/
 │   ├── index.html                           ← P3-P4: wallet UI
 │   └── app.js                               ← P3: protocol logic
+suite/k6/tests/
+│   └── integration.js                       ← ✅ 56 checks (inclou issuance by_ref i by_value)
+dev-tools/
+│   └── issuer-cert/                         ← ✅ Certificat X.509 EC P-256 per issuer
 ```
 
 ---
@@ -1302,7 +1334,7 @@ String sdJwt = new SdJwtBuilder(issuerKey)
 - [ ] P0.3: Migrar claims a array amb `path` dins `credential_metadata`
 - [ ] P0.4: Treure `credential_nonce_endpoint` de `AuthServerMetadata`
 - [ ] P0.5: Canviar `typ` header a `dc+sd-jwt` a `SdJwtBuilder`
-- [ ] P0.6: Actualitzar constant `CREDENTIAL_CONFIG_ID` i passar `x5c` a `IssuerRoutes`
+- [x] P0.6: Actualitzar constant `CREDENTIAL_CONFIG_ID` i passar `x5c` a `IssuerRoutes`
 - [ ] Compilar: `cd suite/backend && ./gradlew build`
 - [ ] Tests unitaris passen: `./gradlew test`
 - [ ] Validar metadata amb curl
@@ -1723,14 +1755,14 @@ Elements a afegir al HTML:
 
 #### P4 — Checklist
 
-- [ ] P4.1: `IssuanceRecord` model + repository + migration SQL
-- [ ] P4.2: Endpoint POST issuer per rebre dades cert → retornar offer
-- [ ] P4.2: Frontend issuer: enviar dades cert al backend
+- [x] P4.1: `IssuanceRecord` model + repository + migration SQL (V3, credential_data JSONB)
+- [x] P4.2: Endpoint `POST /oid4vci/v1/issuance` per rebre dades cert → retornar offer (by_ref + by_value)
+- [x] P4.2: Frontend issuer: `triggerIssuance(cert)` envia dades al backend
 - [ ] P4.3: Frontend issuer: QR code (cross-device)
-- [ ] P4.3: Frontend issuer: botó "Open in Wallet" (same-device)
-- [ ] P4.3: Frontend issuer: URL copiable (testing OIDF)
+- [ ] P4.3: Frontend issuer: botó "Open in Wallet" amb redirecció a `wallet.lab.fikua.com` (same-device)
+- [ ] P4.3: Frontend issuer: URL copiable amb botó de copiar (testing OIDF)
 - [ ] P4.4: Wallet: detectar query params `credential_offer` / `credential_offer_uri`
-- [ ] P4.5: Substituir dades hardcoded per dades reals del certificat
+- [x] P4.5: Substituir dades hardcoded per dades reals del certificat (claims dinàmics des de JSONB)
 
 #### P4 — Acceptance criteria
 

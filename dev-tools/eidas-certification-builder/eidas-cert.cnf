@@ -1,0 +1,97 @@
+# =============================================================================
+# Perfil de certificado simulado FNMT-RCM — Representante de Persona Jurídica
+# Basado en: AC Representación (FNMT-RCM)
+# Normas: ETSI EN 319 412-1/2/3, eIDAS (Reg. UE 910/2014)
+# OID política real FNMT RPJ: 1.3.6.1.4.1.5734.3.11.2
+#
+# USO: Solo para pruebas/prototipos. NO es un certificado cualificado real.
+# =============================================================================
+
+# ---- OIDs personalizados ----
+[ oid_section ]
+organizationIdentifier  = 2.5.4.97
+givenName               = 2.5.4.42
+surname                 = 2.5.4.4
+serialNumber            = 2.5.4.5
+description             = 2.5.4.13
+# qcStatements no se puede definir aquí directamente; se usa OID en extensiones
+
+# ---- Solicitud y certificado X.509 autofirmado ----
+[ req ]
+default_bits            = 2048
+default_md              = sha256
+prompt                  = no
+distinguished_name      = dn
+x509_extensions         = v3_rpj
+utf8                    = yes
+string_mask             = utf8only
+oid_section             = oid_section
+
+# =============================================================================
+# Subject DN — imita el formato FNMT AC Representación (Persona Jurídica)
+#
+# Formato real FNMT:
+#   C  = ES
+#   serialNumber = IDCES-<NIF del representante>
+#   O  = <Razón social de la empresa>
+#   organizationIdentifier = VATES-<CIF de la empresa>
+#   OU = (no siempre presente; FNMT a veces incluye "Certificado de Representante")
+#   surname = <APELLIDO1 APELLIDO2 del representante>
+#   givenName = <NOMBRE del representante>
+#   CN = <APELLIDO1 APELLIDO2, NOMBRE> (REPRESENTANTE)
+#   description = Representante de: <Razón social> - CIF: <CIF>
+# =============================================================================
+[ dn ]
+C                       = ES
+serialNumber            = IDCES-12345678Z
+O                       = ACME 0100 S.A.
+organizationIdentifier  = VATES-B00000010
+surname                 = DOW SMITH
+givenName               = JOHN
+CN                      = DOW SMITH, JOHN (REPRESENTANTE)
+description             = Ref:AEAT/AEAT0100/PUESTO/CARGO-00000010
+
+# =============================================================================
+# Extensiones X.509v3 — Representante Persona Jurídica (AC Representación)
+# =============================================================================
+[ v3_rpj ]
+basicConstraints        = critical, CA:FALSE
+
+# keyUsage: FNMT RPJ usa digitalSignature + nonRepudiation (contentCommitment)
+keyUsage                = critical, digitalSignature, nonRepudiation
+
+# extendedKeyUsage: autenticación cliente + firma de correo
+extendedKeyUsage        = clientAuth, emailProtection
+
+# Política de certificación FNMT para Representante PJ
+# OID real: 1.3.6.1.4.1.5734.3.11.2
+certificatePolicies     = @polsect
+
+# Identificadores de clave
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+
+# Punto de distribución de CRL (simulado, apunta a FNMT real como referencia)
+crlDistributionPoints   = URI:http://www.cert.fnmt.es/crl/AC_Representacion.crl
+
+# Authority Info Access: OCSP + caIssuers
+authorityInfoAccess     = @aia
+
+# subjectAltName: FNMT incluye el email del titular como rfc822Name
+subjectAltName          = email:john.dow@acme0100.example.com
+
+# qcStatements (ETSI EN 319 412-5) — simulado via OID directo
+# 0.4.0.1862.1.1 = id-etsi-qcs-QcCompliance (cert cualificado)
+# 0.4.0.1862.1.3 = id-etsi-qcs-QcRetentionPeriod
+# 0.4.0.1862.1.6 = id-etsi-qcs-QcType (esign)
+# No se pueden codificar correctamente en openssl.cnf; se indica como referencia:
+# qcStatements = critical, ASN1:SEQUENCE:qc_statements
+# Para un prototipo, incluimos la policy que identifica el tipo.
+
+[ polsect ]
+policyIdentifier        = 1.3.6.1.4.1.5734.3.11.2
+CPS.1                   = https://www.cert.fnmt.es/dpcs/
+
+[ aia ]
+OCSP;URI.0              = http://ocspap.cert.fnmt.es/ocspap/OcspResponder
+caIssuers;URI.0         = http://www.cert.fnmt.es/certs/AC_Representacion.cer
