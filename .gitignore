@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 build/
+bin/
 suite/backend/.gradle/
 suite/backend/build/
 suite/backend/fikua-core/build/
