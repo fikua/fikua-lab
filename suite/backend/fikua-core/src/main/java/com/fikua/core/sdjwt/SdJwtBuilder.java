@@ -122,7 +122,7 @@ public class SdJwtBuilder {
 
         // Build JWS header
         var headerBuilder = new JWSHeader.Builder(JWSAlgorithm.ES256)
-                .type(new JOSEObjectType("vc+sd-jwt"))
+                .type(new JOSEObjectType("dc+sd-jwt"))
                 .keyID(issuerKey.kid());
 
         if (x5cChain != null && !x5cChain.isEmpty()) {
