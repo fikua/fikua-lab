@@ -28,7 +28,7 @@ public class IssuerRoutes {
 
     private static final Logger log = LoggerFactory.getLogger(IssuerRoutes.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid_vc+sd-jwt";
+    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid_dc+sd-jwt";
     private static final String API_PREFIX = "/oid4vci/v1";
 
     private final ProfileRepository profileRepo;
@@ -265,6 +265,7 @@ public class IssuerRoutes {
                     .plainClaim("issuing_authority", "Fikua Lab")
                     .plainClaim("issuing_country", "EU")
                     .holderKey(walletKey)
+                    .x5cChain(issuerKey.ecKey().getX509CertChain()) // null if no certs configured
                     .build()
                     .serialize();
 
