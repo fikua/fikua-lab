@@ -1,0 +1,13 @@
+# Fikua Lab default configuration
+# Environment variables override these values (FIKUA_BASE_URL, FIKUA_PORT, etc.)
+
+base-url: https://issuer.lab.fikua.com
+port: 8080
+
+db:
+  url: jdbc:postgresql://localhost:5432/fikua
+  user: fikua
+  password: fikua
+
+certs-dir: ./certs
+frontend-dir: ./frontend

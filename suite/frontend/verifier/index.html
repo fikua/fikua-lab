@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fikua Lab — Verifier</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <span class="nav-logo">F</span>
+                <span class="nav-name">Fikua Lab</span>
+            </a>
+            <div class="nav-links">
+                <span class="nav-label">Verifier</span>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <header class="page-header">
+            <h1>Credential Verifier</h1>
+            <p class="page-sub">Request and verify credential presentations via OID4VP.</p>
+        </header>
+
+        <!-- Configuration Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="oidc">OID4VP</button>
+            <button class="tab" data-tab="dcapi">DC API</button>
+            <button class="tab" data-tab="log">Event Log</button>
+        </div>
+
+        <!-- OID4VP Tab -->
+        <section id="tab-oidc" class="tab-content">
+            <!-- Credential Type -->
+            <div class="config-group">
+                <h3>Credential Type</h3>
+                <div class="radio-cards">
+                    <label class="radio-card selected">
+                        <input type="radio" name="cred-type" value="pid" checked>
+                        <div class="radio-card-content">
+                            <strong>EUDI PID</strong>
+                            <span>Personal identity (SD-JWT VC)</span>
+                        </div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="cred-type" value="lear">
+                        <div class="radio-card-content">
+                            <strong>LEAR Credential</strong>
+                            <span>Employee authorization</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Query Mode -->
+            <div class="config-group">
+                <h3>Query Mode</h3>
+                <div class="radio-pills">
+                    <label class="radio-pill selected">
+                        <input type="radio" name="query-mode" value="dcql" checked>
+                        <span>DCQL</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="query-mode" value="scope">
+                        <span>Scope</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Client ID Scheme -->
+            <div class="config-group">
+                <h3>Client ID Scheme</h3>
+                <div class="radio-pills">
+                    <label class="radio-pill selected">
+                        <input type="radio" name="client-scheme" value="x509_san_dns" checked>
+                        <span>x509_san_dns</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="client-scheme" value="x509_hash">
+                        <span>x509_hash</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="client-scheme" value="pre_registered">
+                        <span>pre_registered</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="client-scheme" value="redirect_uri">
+                        <span>redirect_uri</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Response Mode -->
+            <div class="config-group">
+                <h3>Response Mode</h3>
+                <div class="radio-pills">
+                    <label class="radio-pill selected">
+                        <input type="radio" name="response-mode" value="direct_post" checked>
+                        <span>direct_post</span>
+                    </label>
+                    <label class="radio-pill">
+                        <input type="radio" name="response-mode" value="direct_post_jwt">
+                        <span>direct_post.jwt</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Advanced -->
+            <details class="advanced-toggle">
+                <summary>Advanced Configuration</summary>
+                <div class="advanced-fields">
+                    <label for="verifier-client-id">Client ID</label>
+                    <input type="text" id="verifier-client-id" value="verifier.lab.fikua.com" class="input">
+
+                    <label for="verifier-url">Verifier API URL</label>
+                    <input type="text" id="verifier-url" value="https://verifier.lab.fikua.com" class="input">
+                </div>
+            </details>
+
+            <!-- Action -->
+            <div class="action-section">
+                <button id="btn-verify" class="btn btn-accent btn-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Request Presentation
+                </button>
+            </div>
+
+            <!-- QR / Result -->
+            <div id="qr-section" class="qr-section hidden">
+                <div class="qr-container">
+                    <div id="qr-code" class="qr-code"></div>
+                    <div class="qr-status">
+                        <span id="qr-status-dot" class="status-dot status-dot--pending"></span>
+                        <span id="qr-status-text">Waiting for wallet...</span>
+                    </div>
+                </div>
+                <div class="qr-link">
+                    <input type="text" id="qr-link-input" readonly class="input input--mono">
+                    <button id="btn-copy-link" class="btn btn-sm">Copy</button>
+                </div>
+            </div>
+
+            <!-- Verification Result -->
+            <div id="result-section" class="result-section hidden">
+                <div class="result-card">
+                    <div id="result-icon" class="result-icon"></div>
+                    <h3 id="result-title"></h3>
+                    <div id="result-claims" class="result-claims"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DC API Tab -->
+        <section id="tab-dcapi" class="tab-content hidden">
+            <div class="config-group">
+                <h3>Digital Credentials API</h3>
+                <p class="config-desc" id="dcapi-support"></p>
+            </div>
+
+            <div class="config-group">
+                <label for="dcapi-protocol">Protocol</label>
+                <select id="dcapi-protocol" class="input">
+                    <option value="openid4vp">openid4vp</option>
+                    <option value="urn:openid.net:oid4vp">urn:openid.net:oid4vp</option>
+                </select>
+            </div>
+
+            <div class="config-group">
+                <label for="dcapi-query">DCQL Query</label>
+                <textarea id="dcapi-query" class="input input--mono textarea" rows="10">{
+  "credentials": [
+    {
+      "id": "my_credential",
+      "format": "vc+sd-jwt",
+      "meta": {
+        "vct_values": ["https://example.com/credentials/identity"]
+      },
+      "claims": [
+        { "path": ["given_name"] },
+        { "path": ["family_name"] },
+        { "path": ["birthdate"] }
+      ]
+    }
+  ]
+}</textarea>
+            </div>
+
+            <div class="action-section">
+                <button id="btn-dcapi-request" class="btn btn-accent btn-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Request via DC API
+                </button>
+            </div>
+
+            <div id="dcapi-result" class="result-section hidden">
+                <div class="result-card">
+                    <h3>DC API Response</h3>
+                    <pre id="dcapi-response" class="code-block"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Event Log Tab -->
+        <section id="tab-log" class="tab-content hidden">
+            <div class="log-header">
+                <h3>Events</h3>
+                <button id="btn-clear-log" class="btn btn-sm">Clear</button>
+            </div>
+            <div id="event-log" class="event-log">
+                <div class="log-empty">No events yet</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

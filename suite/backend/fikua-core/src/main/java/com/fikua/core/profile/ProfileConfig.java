@@ -1,0 +1,53 @@
+package com.fikua.core.profile;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fikua.core.profile.enums.*;
+
+/**
+ * Complete profile configuration for an OIDF conformance test scenario.
+ * Nullable fields mean "not applicable" for the selected profile
+ * (e.g. senderConstraining is null for pre_authorization_code).
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ProfileConfig(
+        // Issuance parameters
+        GrantType grantType,
+        SenderConstraining senderConstraining,
+        ClientAuthType clientAuth,
+        CredentialFormat credentialFormat,
+        VciProfile vciProfile,
+        CredentialOfferVariant credentialOffer,
+        IssuanceMode issuanceMode,
+        CredentialResponseEncryption credentialResponseEnc,
+        Boolean par,
+        String pkce,
+
+        // Presentation parameters
+        ClientIdPrefix clientIdPrefix,
+        ResponseMode responseMode,
+        QueryLanguage queryLanguage,
+
+        // Common
+        String requestMethod,
+        String authRequestType
+) {
+    /** Returns true if this profile requires DPoP sender constraining. */
+    public boolean requiresDPoP() {
+        return senderConstraining == SenderConstraining.DPOP;
+    }
+
+    /** Returns true if this profile requires PAR. */
+    public boolean requiresPar() {
+        return Boolean.TRUE.equals(par);
+    }
+
+    /** Returns true if this profile requires PKCE. */
+    public boolean requiresPkce() {
+        return pkce != null;
+    }
+
+    /** Returns true if this is a HAIP profile. */
+    public boolean isHaip() {
+        return vciProfile == VciProfile.HAIP;
+    }
+}

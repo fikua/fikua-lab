@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+build/
+suite/backend/.gradle/
+suite/backend/build/
+suite/backend/fikua-core/build/
+suite/backend/fikua-server/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSH keys (private only — .pub is safe to commit)
+deployment/envs/dev/ssh/id_ed25519
+deployment/envs/dev/ssh/id_rsa
+
+# Environment variables
+.env
+*.env.local
+deployment/envs/dev/.env
+
+# Docker
+*.tar
+docker-compose.override.yml
+
+# Java
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# Logs
+*.log
+
+# Backups
+backups/

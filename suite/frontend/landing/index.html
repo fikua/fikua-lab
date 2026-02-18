@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fikua Lab — Digital Identity Learning Lab</title>
+    <meta name="description" content="A hands-on learning lab for OpenID Foundation digital identity protocols. Issuer, Wallet, and Verifier conformance testing aligned with eIDAS 2.0 and EUDI ARF.">
+    <meta name="theme-color" content="#1B263B">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">
+                <span class="nav-logo">F</span>
+                <span class="nav-name">Fikua Lab</span>
+            </a>
+            <div class="nav-links">
+                <a href="#what">What</a>
+                <a href="#how">How it works</a>
+                <a href="#stack">Stack</a>
+                <a href="https://oriolcanades.com" target="_blank" rel="noopener">About me</a>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h1>Learn digital identity<br>by <span class="highlight">building</span> it</h1>
+            <p class="hero-sub">
+                A hands-on conformance testing platform for OpenID4VCI, OpenID4VP,
+                and HAIP — aligned with eIDAS 2.0 and the EUDI Architecture Reference Framework.
+            </p>
+            <div class="hero-actions">
+                <a href="https://portal.lab.fikua.com" class="btn btn-primary">Access Portal</a>
+                <a href="#what" class="btn btn-secondary">Learn more</a>
+            </div>
+        </section>
+
+        <section class="roles" id="what">
+            <h2>Three roles, one platform</h2>
+            <p class="section-sub">Fikua Lab implements the full credential lifecycle — issue, hold, and verify — following the OpenID Foundation specifications.</p>
+            <div class="roles-grid">
+                <div class="role-card">
+                    <div class="role-icon issuer-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    </div>
+                    <h3>Issuer</h3>
+                    <p>Creates and signs verifiable credentials using OID4VCI. Supports pre-authorization and authorization code flows with SD-JWT VC format.</p>
+                    <ul class="role-specs">
+                        <li>OID4VCI 1.0</li>
+                        <li>SD-JWT VC</li>
+                        <li>DPoP / PAR / PKCE</li>
+                    </ul>
+                </div>
+                <div class="role-card">
+                    <div class="role-icon holder-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    </div>
+                    <h3>Wallet</h3>
+                    <p>Stores credentials and presents them selectively. Handles holder binding and selective disclosure following the HAIP profile.</p>
+                    <ul class="role-specs">
+                        <li>Holder binding</li>
+                        <li>Selective disclosure</li>
+                        <li>HAIP 1.0</li>
+                    </ul>
+                </div>
+                <div class="role-card">
+                    <div class="role-icon verifier-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <h3>Verifier</h3>
+                    <p>Validates credential presentations via OID4VP with direct_post response mode. Supports X.509 certificate trust chains.</p>
+                    <ul class="role-specs">
+                        <li>OID4VP 1.0</li>
+                        <li>DCQL</li>
+                        <li>x509_san_dns / x509_hash</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="conformance" id="how">
+            <h2>Built to pass OIDF conformance tests</h2>
+            <p class="section-sub">Every implementation detail is driven by the OpenID Foundation conformance test suite — 12 tests covering real-world credential flows.</p>
+            <div class="conformance-grid">
+                <div class="conf-block">
+                    <span class="conf-number">4</span>
+                    <span class="conf-label">Issuer tests</span>
+                    <span class="conf-detail">Pre-auth + Auth code, Plain + HAIP</span>
+                </div>
+                <div class="conf-block">
+                    <span class="conf-number">4</span>
+                    <span class="conf-label">Wallet tests</span>
+                    <span class="conf-detail">Holder flows for both grant types</span>
+                </div>
+                <div class="conf-block">
+                    <span class="conf-number">4</span>
+                    <span class="conf-label">Verifier tests</span>
+                    <span class="conf-detail">direct_post with X.509 trust models</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="profiles">
+            <h2>Profile-driven architecture</h2>
+            <p class="section-sub">Switch between conformance configurations at runtime — no redeployment needed. Each profile maps to a specific OIDF test.</p>
+            <div class="profile-demo">
+                <div class="profile-example">
+                    <div class="profile-header">
+                        <span class="profile-dot active"></span>
+                        <span class="profile-title">HAIP Issuer</span>
+                        <code class="profile-tag">issuer</code>
+                    </div>
+                    <div class="profile-config">
+                        <span>grant: authorization_code</span>
+                        <span>format: sd_jwt_vc</span>
+                        <span>dpop: true</span>
+                        <span>par: required</span>
+                        <span>pkce: S256</span>
+                    </div>
+                </div>
+                <div class="profile-example">
+                    <div class="profile-header">
+                        <span class="profile-dot"></span>
+                        <span class="profile-title">Plain Pre-Auth Issuer</span>
+                        <code class="profile-tag">issuer</code>
+                    </div>
+                    <div class="profile-config">
+                        <span>grant: pre_authorization_code</span>
+                        <span>format: sd_jwt_vc</span>
+                        <span>dpop: false</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="stack" id="stack">
+            <h2>Minimal, intentional stack</h2>
+            <p class="section-sub">No frameworks, no magic. Every line of code is a learning opportunity.</p>
+            <div class="stack-grid">
+                <div class="stack-item">
+                    <strong>Java 25</strong>
+                    <span>Records, sealed interfaces, virtual threads</span>
+                </div>
+                <div class="stack-item">
+                    <strong>Javalin</strong>
+                    <span>Lightweight HTTP — no annotations, no reflection</span>
+                </div>
+                <div class="stack-item">
+                    <strong>PostgreSQL 17</strong>
+                    <span>JSONB profiles, Flyway migrations</span>
+                </div>
+                <div class="stack-item">
+                    <strong>nimbus-jose-jwt</strong>
+                    <span>JWT, JWK, SD-JWT, DPoP token handling</span>
+                </div>
+                <div class="stack-item">
+                    <strong>Docker Compose</strong>
+                    <span>Single-command deployment on EU VPS</span>
+                </div>
+                <div class="stack-item">
+                    <strong>X.509 PKI</strong>
+                    <span>eIDAS-aligned certificate chain, no DIDs</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="about">
+            <div class="about-content">
+                <h2>Why this exists</h2>
+                <p>
+                    I'm <a href="https://oriolcanades.com" target="_blank" rel="noopener">Oriol Canadés</a> — a Technical Product Manager specializing in digital identity.
+                    I build production identity systems at <strong>Altia</strong> and actively follow standards at the <strong>OpenID Foundation</strong>.
+                </p>
+                <p>
+                    Fikua Lab is where I learn by doing. Instead of just reading specs, I implement them — and validate my understanding against the OIDF conformance suite.
+                    Every test passed is a concept internalized.
+                </p>
+                <p class="about-tagline">Where product vision meets technical depth.</p>
+                <div class="about-links">
+                    <a href="https://oriolcanades.com" target="_blank" rel="noopener">oriolcanades.com</a>
+                    <a href="https://github.com/oriolcanades" target="_blank" rel="noopener">GitHub</a>
+                    <a href="https://linkedin.com/in/oriolcanades" target="_blank" rel="noopener">LinkedIn</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Fikua Lab — Built by <a href="https://oriolcanades.com" target="_blank" rel="noopener">Oriol Canadés</a></p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

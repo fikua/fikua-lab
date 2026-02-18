@@ -1,0 +1,39 @@
+# Fikua Lab — Local development
+# Backend (build local) + PostgreSQL
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fikua
+      POSTGRES_USER: fikua
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-fikua_secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fikua"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  fikua-lab:
+    build:
+      context: ../../..
+      dockerfile: deployment/docker/Dockerfile
+    environment:
+      FIKUA_BASE_URL: ${BASE_URL:-https://issuer.lab.fikua.com}
+      FIKUA_PORT: "8080"
+      FIKUA_DB_URL: jdbc:postgresql://postgres:5432/fikua
+      FIKUA_DB_USER: fikua
+      FIKUA_DB_PASSWORD: ${DB_PASSWORD:-fikua_secret}
+      FIKUA_CERTS_DIR: /app/certs
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
