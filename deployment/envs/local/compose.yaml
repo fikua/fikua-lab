@@ -29,6 +29,7 @@ services:
       FIKUA_DB_USER: fikua
       FIKUA_DB_PASSWORD: ${DB_PASSWORD:-fikua_secret}
       FIKUA_CERTS_DIR: /app/certs
+      FIKUA_MIGRATIONS_DIR: /app/migrations
     ports:
       - "8080:8080"
     depends_on:

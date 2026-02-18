@@ -13,6 +13,7 @@ services:
       FIKUA_DB_USER: ${FIKUA_POSTGRES_USER:-fikua}
       FIKUA_DB_PASSWORD: ${FIKUA_POSTGRES_PASSWORD}
       FIKUA_CERTS_DIR: /app/certs
+      FIKUA_MIGRATIONS_DIR: /app/migrations
     volumes:
       - lab-certs:/app/certs:ro
     ports:
