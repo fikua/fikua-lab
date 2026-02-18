@@ -70,6 +70,7 @@ jobs:
 
       - name: Upload compose.yaml to VPS
         run: |
+          ssh -i ~/.ssh/id_ed25519 -p 49222 ubuntu@51.38.179.236 "sudo mkdir -p /opt/vps/lab && sudo chown ubuntu:ubuntu /opt/vps/lab"
           scp -i ~/.ssh/id_ed25519 -P 49222 \
             deployment/envs/dev/docker/compose.yaml \
             ubuntu@51.38.179.236:/opt/vps/lab/compose.yaml
