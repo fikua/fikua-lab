@@ -16,8 +16,7 @@ dependencies {
     // Database
     implementation("org.postgresql:postgresql:${property("postgresqlVersion")}")
     implementation("com.zaxxer:HikariCP:${property("hikariVersion")}")
-    implementation("org.flywaydb:flyway-core:${property("flywayVersion")}")
-    implementation("org.flywaydb:flyway-database-postgresql:${property("flywayVersion")}")
+    // Flyway removed — migrations run via plain JDBC (see DatabaseManager.migrate())
 
     // YAML config loading
     implementation("org.yaml:snakeyaml:${property("snakeyamlVersion")}")
@@ -45,6 +44,8 @@ tasks.register<Jar>("fatJar") {
     manifest {
         attributes["Main-Class"] = "com.fikua.server.FikuaLab"
     }
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }) {
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    }
     with(tasks.jar.get())
 }

@@ -3,17 +3,21 @@ package com.fikua.server.db;
 import com.fikua.server.config.LabConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
  * Database connection pool and migration management.
- * Uses HikariCP for connection pooling and Flyway for schema migrations.
+ * Uses HikariCP for connection pooling and SQL file-based migrations.
  */
 public class DatabaseManager implements AutoCloseable {
 
@@ -33,15 +37,32 @@ public class DatabaseManager implements AutoCloseable {
         log.info("Database pool initialized: {}", config.dbUrl());
     }
 
-    /** Run Flyway migrations. */
+    /** Run database migrations from SQL files. */
     public void migrate() {
-        Flyway flyway = Flyway.configure()
-                .dataSource(dataSource)
-                .locations("classpath:db/migration")
-                .load();
+        String migrationsDir = System.getenv().getOrDefault("FIKUA_MIGRATIONS_DIR", null);
+        try {
+            String sql;
+            if (migrationsDir != null) {
+                Path path = Path.of(migrationsDir, "V1__initial_schema.sql");
+                sql = Files.readString(path, StandardCharsets.UTF_8);
+                log.info("Loading migration from filesystem: {}", path);
+            } else {
+                try (InputStream is = getClass().getClassLoader().getResourceAsStream("db/migration/V1__initial_schema.sql")) {
+                    if (is == null) throw new IOException("Migration resource not found on classpath");
+                    sql = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                }
+                log.info("Loading migration from classpath");
+            }
 
-        int count = flyway.migrate().migrationsExecuted;
-        log.info("Flyway: {} migrations applied", count);
+            try (Connection conn = dataSource.getConnection();
+                 var stmt = conn.createStatement()) {
+                stmt.execute(sql);
+            }
+            log.info("Database migration applied successfully");
+        } catch (Exception e) {
+            log.error("Failed to run migration", e);
+            throw new RuntimeException("Database migration failed", e);
+        }
     }
 
     /** Get a connection from the pool. */

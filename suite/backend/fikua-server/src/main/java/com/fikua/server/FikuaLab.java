@@ -45,11 +45,16 @@ public class FikuaLab {
 
         // Create Javalin app
         Javalin app = Javalin.create(javalinConfig -> {
-            javalinConfig.staticFiles.add(cfg -> {
-                cfg.directory = config.frontendDir();
-                cfg.hostedPath = "/ui";
-                cfg.location = Location.EXTERNAL;
-            });
+            var frontendDir = new java.io.File(config.frontendDir());
+            if (frontendDir.isDirectory()) {
+                javalinConfig.staticFiles.add(cfg -> {
+                    cfg.directory = config.frontendDir();
+                    cfg.hostedPath = "/ui";
+                    cfg.location = Location.EXTERNAL;
+                });
+            } else {
+                log.warn("Frontend directory not found: {}, static files disabled", config.frontendDir());
+            }
             javalinConfig.http.defaultContentType = "application/json";
         });
 
@@ -70,11 +75,13 @@ public class FikuaLab {
         // Health check
         app.get("/health", ctx -> ctx.json(java.util.Map.of("status", "up")));
 
-        // State reset (for between test runs)
-        app.post("/reset", ctx -> {
-            store.clear();
-            ctx.json(java.util.Map.of("status", "reset"));
-        });
+        // State reset (for between test runs) — only enabled in dev/test
+        if (!"production".equalsIgnoreCase(System.getenv("FIKUA_ENV"))) {
+            app.post("/reset", ctx -> {
+                store.clear();
+                ctx.json(java.util.Map.of("status", "reset"));
+            });
+        }
 
         // Start server
         app.start(config.port());

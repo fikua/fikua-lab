@@ -1,5 +1,6 @@
 package com.fikua.core.profile;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fikua.core.profile.enums.*;
 
@@ -32,21 +33,25 @@ public record ProfileConfig(
         String authRequestType
 ) {
     /** Returns true if this profile requires DPoP sender constraining. */
+    @JsonIgnore
     public boolean requiresDPoP() {
         return senderConstraining == SenderConstraining.DPOP;
     }
 
     /** Returns true if this profile requires PAR. */
+    @JsonIgnore
     public boolean requiresPar() {
         return Boolean.TRUE.equals(par);
     }
 
     /** Returns true if this profile requires PKCE. */
+    @JsonIgnore
     public boolean requiresPkce() {
         return pkce != null;
     }
 
     /** Returns true if this is a HAIP profile. */
+    @JsonIgnore
     public boolean isHaip() {
         return vciProfile == VciProfile.HAIP;
     }

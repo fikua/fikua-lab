@@ -37,6 +37,7 @@ docker-compose.override.yml
 *.jar
 *.war
 hs_err_pid*
+META-INF/
 
 # Logs
 *.log
