@@ -1,6 +1,7 @@
 # Fikua Lab — build and deployment shortcuts
 
 .PHONY: help build run test clean compile local-up local-down local-logs local-frontend \
+        integration-test load-test \
         docker-push deploy deploy-frontend deploy-nginx full-deploy \
         cleanup ssh logs status backup vps-reset reset pull push
 
@@ -23,6 +24,11 @@ help: ## Show available commands
 	@echo "  make test             Run tests"
 	@echo "  make clean            Clean build artifacts"
 	@echo "  make reset            Reset test state (local POST /reset)"
+	@echo ""
+	@echo "  Testing (k6)"
+	@echo "  ------------"
+	@echo "  make integration-test  Docker up + k6 integration tests + down"
+	@echo "  make load-test         k6 load/performance tests (backend running)"
 	@echo ""
 	@echo "  Local environment"
 	@echo "  -----------------"
@@ -84,6 +90,33 @@ clean:
 # Reset test state (local)
 reset:
 	curl -X POST http://localhost:8080/reset
+
+# =============================================================================
+# Integration & load tests
+# =============================================================================
+
+# Full cycle: compose up → k6 integration tests → compose down
+integration-test:
+	@docker compose -f deployment/envs/local/compose.yaml up --build -d
+	@echo "Waiting for backend..."
+	@READY=0; for i in $$(seq 1 30); do \
+		if curl -sf http://localhost:8080/health > /dev/null 2>&1; then READY=1; break; fi; \
+		sleep 2; \
+	done; \
+	if [ "$$READY" -ne 1 ]; then \
+		echo "Backend did not start within 60s"; \
+		docker compose -f deployment/envs/local/compose.yaml logs --tail=30 fikua-lab; \
+		docker compose -f deployment/envs/local/compose.yaml down; \
+		exit 1; \
+	fi
+	k6 run suite/k6/tests/integration.js; \
+	EXIT_CODE=$$?; \
+	docker compose -f deployment/envs/local/compose.yaml down; \
+	exit $$EXIT_CODE
+
+# Load/performance tests (requires backend running at localhost:8080)
+load-test:
+	k6 run suite/k6/tests/load.js
 
 # =============================================================================
 # Local environment (backend + postgres + frontend)
