@@ -43,13 +43,43 @@ cd suite/backend && ./gradlew build
 
 ### 4. Testar
 
-- Si existeixen tests unitaris, executa'ls: `./gradlew test`
-- Per gaps P0 (metadata), valida amb curl:
-  ```bash
-  curl -s http://localhost:8080/.well-known/openid-credential-issuer | jq .
-  curl -s http://localhost:8080/.well-known/oauth-authorization-server | jq .
-  ```
-- Compara l'output amb l'exemple JSON del spec document
+Tres nivells de tests, executar en ordre:
+
+#### 4a. Tests unitaris (sempre)
+
+```bash
+cd suite/backend && ./gradlew test
+```
+
+#### 4b. Tests d'integració k6 (quan els canvis afecten endpoints HTTP)
+
+```bash
+make integration-test
+```
+
+Això arrenca Docker Compose, espera el health check, executa `k6 run suite/k6/tests/integration.js` i fa teardown. Si no tens Docker disponible, executa directament contra un backend local:
+
+```bash
+k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080
+```
+
+El threshold és `checks: rate==1.0` — tots els checks han de passar.
+
+#### 4c. Tests de càrrega k6 (opcional, per canvis de rendiment)
+
+```bash
+make load-test                                          # scenario "load" (50 VUs, 70s)
+k6 run suite/k6/tests/load.js --env SCENARIO=smoke    # ràpid (5 VUs, 30s)
+```
+
+#### Quan executar cada nivell
+
+| Canvi | Unitaris | Integració k6 | Càrrega k6 |
+|-------|----------|----------------|------------|
+| Records, builders, validators | ✅ | — | — |
+| Endpoints HTTP (routes, responses) | ✅ | ✅ | — |
+| State management (InMemoryStore) | ✅ | ✅ | — |
+| Optimitzacions de rendiment | ✅ | ✅ | ✅ |
 
 ### 5. Commit
 
@@ -71,13 +101,90 @@ feat(oid4vci): P0.1 — add nonce_endpoint to CredentialIssuerMetadata
 - Mai fer commit si el build falla
 - Mai agrupar múltiples gaps en un sol commit
 
-### 6. Documentar
+### 6. Versionar
 
-Després de cada commit, actualitza el checkbox corresponent a l'spec document:
+La versió del projecte segueix **Semantic Versioning (semver)** i es defineix a `suite/backend/build.gradle.kts` (camp `version`). La pipeline de release llegeix aquest valor per generar el tag de la imatge Docker.
+
+**Format:** `MAJOR.MINOR.PATCH` (ex: `0.3.1`)
+
+**Quan incrementar cada component:**
+
+| Component | Quan | Exemples |
+|-----------|------|----------|
+| **MAJOR** | Canvi incompatible a l'API pública (breaking change) | Canviar format de resposta d'un endpoint existent, eliminar un endpoint, canviar el contracte d'un protocol |
+| **MINOR** | Nova funcionalitat compatible (backwards-compatible) | Nou endpoint, nova credential suportada, nou pas del flux implementat (prioritat P0→P1→P2...) |
+| **PATCH** | Correcció de bugs o millores internes | Fix d'un camp JSON incorrecte, correcció d'un header, fix de validació |
+
+**Regles:**
+- Incrementar la versió **un sol cop per prioritat completada** (no per cada gap individual)
+- Quan incrementes MINOR, reseteja PATCH a 0 (ex: `0.2.3` → `0.3.0`)
+- Quan incrementes MAJOR, reseteja MINOR i PATCH a 0 (ex: `0.3.1` → `1.0.0`)
+- Mentre el projecte està en `0.x.y`, els canvis de MINOR poden incloure breaking changes (pre-1.0 convention)
+- El commit de versió va **separat** del commit de codi: `chore: bump version to 0.3.0`
+
+**Com fer-ho:**
+```bash
+# Editar suite/backend/build.gradle.kts, canviar la línia:
+version = "0.3.0"
+```
+
+### 7. Documentar
+
+Després de completar tots els gaps d'una prioritat, actualitza **tres documents**:
+
+#### 7a. Spec document — checkboxes
+
+Marca els checkboxes dels gaps completats amb data a `docs/specs/credential-issuance-flow.md`:
 
 ```markdown
-- [x] P0.1: Afegir `nonce_endpoint` i `notification_endpoint` — 2026-02-19
+- [x] P2.1: PAR persistence a `InMemoryStore` — 2026-02-18
 ```
+
+Actualitza també les seccions "Implementació actual" dels passos afectats per reflectir el nou estat.
+
+#### 7b. CHANGELOG.md
+
+Afegeix una entrada a `CHANGELOG.md` (arrel del projecte) amb la nova versió. Format [Keep a Changelog](https://keepachangelog.com):
+
+```markdown
+## [0.3.0] - 2026-02-19
+
+Descripció breu del que aporta aquesta versió (1 línia).
+
+### Added
+- **P3.1 — Nom curt:** Descripció concreta del canvi
+- **P3.2 — Nom curt:** Descripció concreta del canvi
+
+### Fixed (si aplica)
+- **Descripció:** Què s'ha corregit
+
+### Spec references
+- Llista d'specs/RFCs rellevants per aquesta versió
+```
+
+**Regles del CHANGELOG:**
+- Una secció `## [X.Y.Z]` per cada versió publicada
+- Subseccions: `Added`, `Changed`, `Fixed`, `Removed` (només les que apliquin)
+- Cada ítem comença amb el nom del gap en negreta
+- La secció `[Unreleased]` queda buida fins al pròxim canvi
+- Mai repetir informació ja present en versions anteriors
+
+#### 7c. Document tècnic (fikua-lab-dt.md)
+
+Actualitza `docs/fikua-lab-dt.md`:
+- Marca el checkbox corresponent a la secció "Pending" → convertir-lo en completat amb versió i data
+- Si el canvi afecta endpoints o arquitectura documentada, actualitza les seccions corresponents
+
+### 8. Push
+
+Després de completar una prioritat sencera (tots els gaps + versió + documentació):
+
+1. **Demana confirmació** a l'usuari abans de fer push
+2. Si l'usuari confirma:
+   ```bash
+   git push origin main
+   ```
+3. Si l'usuari no confirma, informa de l'estat i espera instruccions
 
 ## Ordre d'execució
 
@@ -104,10 +211,14 @@ Si l'spec document té un error o contradicció amb la normativa:
 
 ## Fitxers que mai has de modificar sense permís
 
-- `docs/specs/credential-issuance-flow.md` — és l'spec, no el toquis
 - `docs/specs/references.md` — és l'índex de refs
-- `docs/fikua-lab-dt.md` — és el source of truth del projecte
 - `.claude/agents/*.md` — són les instruccions dels agents
+
+## Fitxers que pots actualitzar durant el pas 7 (Documentar)
+
+- `docs/specs/credential-issuance-flow.md` — marcar checkboxes [x] i actualitzar seccions "Implementació actual". **Mai canviar l'spec en si** (seccions "Esperat", "Spec", exemples JSON de referència).
+- `docs/fikua-lab-dt.md` — marcar checkboxes Pending → completat, actualitzar seccions afectades pels canvis.
+- `CHANGELOG.md` — afegir entrada amb la nova versió.
 
 ## Protocol d'autonomia
 
@@ -143,9 +254,16 @@ PER CADA PRIORITAT (P0, P1, ...):
      f. Executar tests → ./gradlew test
      g. Si FALLA → arreglar → tornar a f
      h. Commit → format correcte
-     i. Marcar checkbox [x] al spec document amb data
   4. Verificar acceptance criteria de la prioritat
-  5. Informar l'usuari que la prioritat està llesta per revisió
+  5. Versionar → bump semver a build.gradle.kts + commit separat
+  6. Documentar:
+     a. Marcar checkboxes [x] al spec document amb data
+     b. Actualitzar seccions "Implementació actual" al spec document
+     c. Afegir entrada a CHANGELOG.md amb la nova versió
+     d. Actualitzar fikua-lab-dt.md (checkbox Pending → completat)
+  7. Commit documentació → chore: update docs for vX.Y.Z
+  8. Demanar confirmació a l'usuari → git push origin main
+  9. Informar l'usuari que la prioritat està llesta per revisió
 ```
 
 ## Gestió del context
@@ -163,12 +281,18 @@ PER CADA PRIORITAT (P0, P1, ...):
 Quan acabes una prioritat, informa l'usuari amb:
 
 ```
-## P0 completat
+## P0 completat — v0.1.0
 
 **Gaps:** P0.1 — P0.6 (6/6)
+**Versió:** 0.0.1 → 0.1.0 (MINOR)
 **Build:** PASS
 **Tests:** X tests nous, tots PASS
-**Commits:** 6 commits, format verificat
+**Commits:** 6 commits de codi + 1 versió + 1 documentació
+
+**Documentació actualitzada:**
+- [x] credential-issuance-flow.md — checkboxes + seccions "Implementació actual"
+- [x] CHANGELOG.md — entrada v0.1.0
+- [x] fikua-lab-dt.md — checkbox Pending → completat
 
 **Acceptance criteria:**
 - [x] Issuer metadata correcte (verificat amb curl)
@@ -176,20 +300,20 @@ Quan acabes una prioritat, informa l'usuari amb:
 - [x] SD-JWT typ: dc+sd-jwt
 - [x] Tests unitaris passen
 
-**Pròxim pas:** Demanar revisió (Reviewer) o procedir a P1.
+**Pròxim pas:** Push a main? / Demanar revisió (Reviewer) / Procedir a P1
 ```
 
 ## Estratègia de tests
 
 ### Per tipus de gap
 
-| Prioritat | Tipus de test | Què verificar |
-|-----------|---------------|---------------|
-| P0 | Unit test del record/builder | Serialitzar a JSON → comparar amb expected JSON camp per camp |
-| P1 | Unit test + integration test | Token endpoint: request → response correcta. Credential endpoint: request → SD-JWT vàlid |
-| P2 | Integration test del flow | PAR → authorize → token → credential. Cada pas verifica state consistency |
-| P3 | Test manual documentat | Passos a seguir al navegador, expected output per cada pas |
-| P4-P5 | Unit + integration + manual | Persistència (SQL), endpoints (HTTP), UI (manual) |
+| Prioritat | Unitaris (JUnit) | Integració (k6) | Manual |
+|-----------|------------------|------------------|--------|
+| P0 | Serialitzar a JSON → comparar amb expected | Metadata endpoints responen correctament | — |
+| P1 | Token request/response, credential request | Pre-auth flow complet (offer→token→credential) | — |
+| P2 | PKCE, DPoP, client attestation | HAIP flow complet (PAR→authorize→token→credential) | — |
+| P3 | — | — | Passos al navegador, expected output per cada pas |
+| P4-P5 | Persistència (SQL), StatusList | Endpoints nous (notification, statuslist) | UI wallet + issuer |
 
 ### Patró de test
 

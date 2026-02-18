@@ -33,6 +33,9 @@ public class InMemoryStore {
     // Authorization codes -> session data (for auth_code flow)
     private final Map<String, SessionData> authCodes = new ConcurrentHashMap<>();
 
+    // PAR request_uri -> stored parameters (for HAIP flow)
+    private final Map<String, Map<String, String>> parRequests = new ConcurrentHashMap<>();
+
     public record SessionData(
             String sessionId,
             String cNonce,
@@ -105,6 +108,16 @@ public class InMemoryStore {
         return credentialOffers.get(offerId);
     }
 
+    // --- PAR requests ---
+
+    public void storeParRequest(String requestUri, Map<String, String> params) {
+        parRequests.put(requestUri, params);
+    }
+
+    public Map<String, String> consumeParRequest(String requestUri) {
+        return parRequests.remove(requestUri);
+    }
+
     // --- Authorization codes ---
 
     public String createAuthCode(SessionData session) {
@@ -124,5 +137,6 @@ public class InMemoryStore {
         nonces.clear();
         credentialOffers.clear();
         authCodes.clear();
+        parRequests.clear();
     }
 }

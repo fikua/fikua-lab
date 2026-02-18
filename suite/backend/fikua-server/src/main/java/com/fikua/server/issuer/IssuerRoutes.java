@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -38,6 +39,7 @@ public class IssuerRoutes {
     private final EcKeyManager issuerKey;
     private final InMemoryStore store;
     private final DPoPValidator dpopValidator;
+    private final ClientAttestationValidator clientAttestationValidator;
     private final String baseUrl;
 
     public IssuerRoutes(ProfileRepository profileRepo, IssuanceRecordRepository issuanceRepo,
@@ -47,6 +49,7 @@ public class IssuerRoutes {
         this.issuerKey = issuerKey;
         this.store = store;
         this.dpopValidator = new DPoPValidator();
+        this.clientAttestationValidator = new ClientAttestationValidator();
         this.baseUrl = baseUrl;
     }
 
@@ -152,6 +155,14 @@ public class IssuerRoutes {
 
         log.info("Token request: grant_type={}", request.grantType());
 
+        // Validate client attestation for HAIP auth_code flow
+        if (request.isAuthorizationCode() && config.isHaip()) {
+            clientAttestationValidator.validate(
+                    params.get("client_assertion_type"),
+                    params.get("client_assertion")
+            );
+        }
+
         if (request.isPreAuthorizedCode()) {
             handlePreAuthToken(ctx, request, config);
         } else if (request.isAuthorizationCode()) {
@@ -193,19 +204,24 @@ public class IssuerRoutes {
             dpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/token", null);
         }
 
-        // Validate PKCE
+        // Consume authorization code first (needed for PKCE verification)
+        SessionData session = store.consumeAuthCode(request.code());
+        if (session == null) {
+            ctx.status(400).json(OAuthError.invalidGrant("Invalid authorization code"));
+            return;
+        }
+
+        // Validate PKCE against stored code_challenge (RFC 7636)
         if (config.requiresPkce()) {
             if (request.codeVerifier() == null) {
                 ctx.status(400).json(OAuthError.invalidRequest("Missing code_verifier"));
                 return;
             }
-            // In a full implementation, verify against stored code_challenge
-        }
-
-        SessionData session = store.consumeAuthCode(request.code());
-        if (session == null) {
-            ctx.status(400).json(OAuthError.invalidGrant("Invalid authorization code"));
-            return;
+            String storedChallenge = (String) session.metadata().get("code_challenge");
+            if (storedChallenge == null || !PkceUtil.verifyS256(request.codeVerifier(), storedChallenge)) {
+                ctx.status(400).json(OAuthError.invalidGrant("PKCE verification failed"));
+                return;
+            }
         }
 
         String cNonce = store.generateNonce();
@@ -246,10 +262,24 @@ public class IssuerRoutes {
             return;
         }
 
-        // Validate DPoP for resource request if required
+        // Validate DPoP for resource request if required (RFC 9449 §6)
         if (config.requiresDPoP()) {
             String dpopHeader = ctx.header("DPoP");
-            dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/credential", null);
+            ECKey resourceDpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/credential", null);
+            // Verify key binding: DPoP proof must use the same key bound at token endpoint
+            if (session.dpopKey() != null) {
+                try {
+                    String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
+                    String actualThumbprint = resourceDpopKey.computeThumbprint().toString();
+                    if (!expectedThumbprint.equals(actualThumbprint)) {
+                        ctx.status(401).json(new OAuthError(OAuthError.INVALID_TOKEN, "DPoP key mismatch"));
+                        return;
+                    }
+                } catch (Exception e) {
+                    ctx.status(401).json(new OAuthError(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed"));
+                    return;
+                }
+            }
         }
 
         try {
@@ -313,20 +343,46 @@ public class IssuerRoutes {
             return;
         }
 
-        // Extract authorization request params
-        String clientId = ctx.queryParam("client_id");
-        String redirectUri = ctx.queryParam("redirect_uri");
-        String state = ctx.queryParam("state");
-        String codeChallenge = ctx.queryParam("code_challenge");
+        // Resolve parameters: from PAR (request_uri) or direct query params
         String requestUri = ctx.queryParam("request_uri");
+        String clientId;
+        String redirectUri;
+        String state;
+        String codeChallenge;
+        String issuerState;
+
+        if (requestUri != null) {
+            // HAIP: resolve stored PAR request parameters
+            Map<String, String> parParams = store.consumeParRequest(requestUri);
+            if (parParams == null) {
+                ctx.status(400).json(OAuthError.invalidRequest("Invalid or expired request_uri"));
+                return;
+            }
+            clientId = parParams.get("client_id");
+            redirectUri = parParams.get("redirect_uri");
+            state = parParams.get("state");
+            codeChallenge = parParams.get("code_challenge");
+            issuerState = parParams.get("issuer_state");
+            log.info("Authorize via PAR: client_id={}, request_uri={}", clientId, requestUri);
+        } else {
+            clientId = ctx.queryParam("client_id");
+            redirectUri = ctx.queryParam("redirect_uri");
+            state = ctx.queryParam("state");
+            codeChallenge = ctx.queryParam("code_challenge");
+            issuerState = ctx.queryParam("issuer_state");
+        }
+
+        // Build session metadata for the auth code
+        var metadata = new LinkedHashMap<String, Object>();
+        if (clientId != null) metadata.put("client_id", clientId);
+        if (redirectUri != null) metadata.put("redirect_uri", redirectUri);
+        if (codeChallenge != null) metadata.put("code_challenge", codeChallenge);
+        if (issuerState != null) metadata.put("issuer_state", issuerState);
 
         // Generate authorization code
         SessionData session = new SessionData(
                 InMemoryStore.randomToken(16),
-                null, null, Instant.now(),
-                Map.of("client_id", clientId != null ? clientId : "",
-                       "redirect_uri", redirectUri != null ? redirectUri : "",
-                       "code_challenge", codeChallenge != null ? codeChallenge : "")
+                null, null, Instant.now(), metadata
         );
         String authCode = store.createAuthCode(session);
 
@@ -349,7 +405,17 @@ public class IssuerRoutes {
         }
 
         Map<String, String> params = parseFormParams(ctx);
+
+        // Validate client attestation (HAIP: attest_jwt_client_auth)
+        clientAttestationValidator.validate(
+                params.get("client_assertion_type"),
+                params.get("client_assertion")
+        );
+
         String requestUri = "urn:ietf:params:oauth:request_uri:" + InMemoryStore.randomToken(16);
+        store.storeParRequest(requestUri, params);
+
+        log.info("PAR request stored: request_uri={}", requestUri);
 
         ctx.status(201).json(Map.of(
                 "request_uri", requestUri,

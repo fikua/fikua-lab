@@ -4,7 +4,7 @@ plugins {
 
 allprojects {
     group = property("group") as String
-    version = property("version") as String
+    version = "0.2.0"
 
     repositories {
         mavenCentral()

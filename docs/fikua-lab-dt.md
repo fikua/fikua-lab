@@ -937,7 +937,7 @@ Generated with OpenSSL, valid for 365 days. Stored in the Docker volume `lab-cer
 - [x] Configure DNS lab.fikua.com + issuer.lab.fikua.com + wallet.lab.fikua.com + verifier.lab.fikua.com
 - [ ] Generate self-signed X.509 certificates on VPS
 - [ ] Pass first OIDF test: Issuer pre-auth code (sd-jwt-vc)
-- [ ] Implement HAIP Issuer (DPoP, PKCE, PAR, authorization_code)
+- [x] Implement HAIP Issuer (DPoP, PKCE, PAR, authorization_code) — v0.2.0, 2026-02-18
 - [ ] Implement Verifier endpoints (OID4VP, DCQL, JAR signing)
 - [ ] Implement Wallet HTTP client
 - [ ] Pass all 12 OIDF tests

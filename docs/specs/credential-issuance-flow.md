@@ -517,19 +517,20 @@ HAIP imposa:
 7. Redirect de tornada amb ?code=<auth_code>&state=<state>
 ```
 
-**Implementació actual — Issuer backend:**
+**Implementació actual — Issuer backend:** Completat (v0.2.0).
 
-- `POST /par`: molt bàsic — retorna un `request_uri` random sense guardar paràmetres ni validar.
-- `GET /authorize`: genera auth code i redirigeix, però no resol `request_uri` ni el vincula als paràmetres del PAR.
-- No hi ha implementació de `client_attestation` / `attest_jwt_client_auth` (WIA/WUA).
-- PKCE: `handleAuthCodeToken` comprova `code_verifier` però **no verifica contra el `code_challenge` guardat**.
+- `POST /par`: guarda paràmetres a `InMemoryStore.parRequests` associats al `request_uri`. Valida client attestation (WIA~PoP).
+- `GET /authorize`: resol `request_uri` des del PAR store, recupera paràmetres (client_id, redirect_uri, code_challenge, state, issuer_state). Genera auth code amb metadata.
+- `ClientAttestationValidator`: parseja `client_assertion` (WIA~PoP format), extreu `client_id`. Integrat a PAR i token endpoints.
+- PKCE: `handleAuthCodeToken` verifica `code_verifier` contra `code_challenge` guardat amb `PkceUtil.verifyS256()`.
+- DPoP binding: `credential()` verifica que el thumbprint del DPoP proof coincideix amb el vinculat al token.
 
 **Gaps — Backend (Issuer):**
 
-- [ ] PAR: persistir els paràmetres rebuts a l'`InMemoryStore` associats al `request_uri`.
-- [ ] Authorize: recuperar els paràmetres del PAR quan arriba el `request_uri`.
-- [ ] PKCE: guardar `code_challenge` al crear l'auth code. Verificar amb `PkceUtil.verifyS256()` al token endpoint.
-- [ ] Client attestation: implementar validació de `attest_jwt_client_auth` (WIA JWT).
+- [x] PAR: persistir els paràmetres rebuts a l'`InMemoryStore` associats al `request_uri`. — 2026-02-18
+- [x] Authorize: recuperar els paràmetres del PAR quan arriba el `request_uri`. — 2026-02-18
+- [x] PKCE: guardar `code_challenge` al crear l'auth code. Verificar amb `PkceUtil.verifyS256()` al token endpoint. — 2026-02-18
+- [x] Client attestation: implementar validació de `attest_jwt_client_auth` (WIA JWT). — 2026-02-18
 
 **Gaps — Frontend (Wallet):**
 
@@ -594,12 +595,12 @@ Si DPoP, `token_type` és `"DPoP"`.
 **Implementació actual — Backend:**
 
 - `handlePreAuthToken`: funciona — consumeix pre-auth code, genera access token + c_nonce, retorna `TokenResponse.bearer()`. OK.
-- `handleAuthCodeToken`: funciona parcialment — valida DPoP si cal, intenta validar PKCE (sense verificar realment), retorna token.
+- `handleAuthCodeToken`: completat (v0.2.0) — valida client attestation, DPoP, consumeix auth code, verifica PKCE amb `PkceUtil.verifyS256()`, genera access token DPoP-bound.
 
 **Gaps — Backend:**
 
-- [ ] PKCE: verificar `code_verifier` contra `code_challenge` guardat (ja mencionat al pas 8).
-- [ ] DPoP binding: vincular el thumbprint de la clau DPoP a l'access token. Al credential endpoint, verificar que el DPoP proof usa la mateixa clau.
+- [x] PKCE: verificar `code_verifier` contra `code_challenge` guardat (ja mencionat al pas 8). — 2026-02-18
+- [x] DPoP binding: vincular el thumbprint de la clau DPoP a l'access token. Al credential endpoint, verificar que el DPoP proof usa la mateixa clau. — 2026-02-18
 - [ ] `tx_code` support al pre-auth flow.
 
 **Gaps — Wallet:**
@@ -1067,7 +1068,9 @@ suite/backend/
 │   ├── oauth2/
 │   │   ├── TokenResponse.java               ← OK
 │   │   ├── TokenRequest.java                ← P1: tx_code
-│   │   └── DPoPValidator.java               ← P2: binding
+│   │   ├── DPoPValidator.java               ← ✅ binding verificat al credential endpoint
+│   │   ├── ClientAttestationValidator.java  ← ✅ WIA~PoP parsing (stub per OIDF)
+│   │   └── PkceUtil.java                    ← ✅ verifyS256() integrat al token endpoint
 │   ├── sdjwt/
 │   │   ├── SdJwtBuilder.java                ← P0: typ dc+sd-jwt; P1: exp
 │   │   ├── SdJwt.java
@@ -1079,9 +1082,9 @@ suite/backend/
 │       └── ProfileConfig.java               ← OK
 ├── fikua-server/src/main/java/com/fikua/server/
 │   ├── issuer/
-│   │   └── IssuerRoutes.java                ← ✅ POST /issuance, claims dinàmics, fix metadata; P1-P2: endpoints
+│   │   └── IssuerRoutes.java                ← ✅ POST /issuance, claims dinàmics, HAIP flow complet (PAR, PKCE, DPoP, attestation)
 │   ├── state/
-│   │   └── InMemoryStore.java               ← P2: PAR storage
+│   │   └── InMemoryStore.java               ← ✅ PAR storage (storeParRequest/consumeParRequest)
 │   ├── db/
 │   │   ├── ProfileRepository.java
 │   │   └── IssuanceRecordRepository.java    ← ✅ CRUD amb credential_data JSONB
@@ -1659,13 +1662,13 @@ var responseEnc = Map.of(
 
 #### P2 — Checklist
 
-- [ ] P2.1: PAR persistence a `InMemoryStore`
-- [ ] P2.2: Authorize resol `request_uri` del PAR
-- [ ] P2.3: PKCE: guardar challenge, verificar amb `PkceUtil.verifyS256()`
-- [ ] P2.4: DPoP binding: verificar thumbprint al credential endpoint
-- [ ] P2.5: Client attestation validator (pot ser stub inicial)
-- [ ] P2.6: `credential_response_encryption` al metadata
-- [ ] Compilar i tests: `./gradlew build`
+- [x] P2.1: PAR persistence a `InMemoryStore` — 2026-02-18
+- [x] P2.2: Authorize resol `request_uri` del PAR — 2026-02-18
+- [x] P2.3: PKCE: guardar challenge, verificar amb `PkceUtil.verifyS256()` — 2026-02-18
+- [x] P2.4: DPoP binding: verificar thumbprint al credential endpoint — 2026-02-18
+- [x] P2.5: Client attestation validator (stub inicial, parseja WIA~PoP) — 2026-02-18
+- [x] P2.6: `credential_response_encryption` al metadata — 2026-02-18
+- [x] Compilar i tests: `./gradlew build` — 2026-02-18
 - [ ] Executar Test #1 OIDF
 
 #### P2 — Acceptance criteria

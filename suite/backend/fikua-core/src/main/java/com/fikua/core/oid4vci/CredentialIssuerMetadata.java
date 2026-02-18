@@ -3,8 +3,6 @@ package com.fikua.core.oid4vci;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fikua.core.profile.ProfileConfig;
-import com.fikua.core.profile.enums.CredentialFormat;
-
 import java.util.*;
 
 /**
@@ -17,6 +15,7 @@ public record CredentialIssuerMetadata(
         @JsonProperty("credential_endpoint") String credentialEndpoint,
         @JsonProperty("nonce_endpoint") String nonceEndpoint,
         @JsonProperty("notification_endpoint") String notificationEndpoint,
+        @JsonProperty("credential_response_encryption") Map<String, Object> credentialResponseEncryption,
         @JsonProperty("credential_configurations_supported") Map<String, Object> credentialConfigurationsSupported,
         @JsonProperty("display") List<Map<String, Object>> display
 ) {
@@ -60,6 +59,16 @@ public record CredentialIssuerMetadata(
                 "locale", "en"
         ));
 
+        // credential_response_encryption: advertise supported algorithms (HAIP)
+        Map<String, Object> responseEncryption = null;
+        if (config != null && config.isHaip()) {
+            responseEncryption = Map.of(
+                    "alg_values_supported", List.of("ECDH-ES"),
+                    "enc_values_supported", List.of("A128GCM", "A256GCM"),
+                    "encryption_required", false
+            );
+        }
+
         String apiPrefix = "/oid4vci/v1";
 
         return new CredentialIssuerMetadata(
@@ -67,6 +76,7 @@ public record CredentialIssuerMetadata(
                 baseUrl + apiPrefix + "/credential",
                 baseUrl + apiPrefix + "/nonce",
                 baseUrl + apiPrefix + "/notification",
+                responseEncryption,
                 Map.of(configId, credConfig),
                 display
         );

@@ -89,6 +89,39 @@ class CredentialIssuerMetadataTest {
     }
 
     @Test
+    void build_withHaipProfile_includesCredentialResponseEncryption() throws Exception {
+        var metadata = CredentialIssuerMetadata.build(BASE_URL, ProfilePresets.haipIssuer());
+        JsonNode json = MAPPER.valueToTree(metadata);
+
+        JsonNode encryption = json.get("credential_response_encryption");
+        assertNotNull(encryption, "HAIP profile must include credential_response_encryption");
+
+        // alg_values_supported: ECDH-ES (HAIP required)
+        JsonNode algs = encryption.get("alg_values_supported");
+        assertNotNull(algs);
+        assertEquals("ECDH-ES", algs.get(0).asText());
+
+        // enc_values_supported: A128GCM, A256GCM
+        JsonNode encs = encryption.get("enc_values_supported");
+        assertNotNull(encs);
+        assertEquals(2, encs.size());
+        assertEquals("A128GCM", encs.get(0).asText());
+        assertEquals("A256GCM", encs.get(1).asText());
+
+        // encryption_required: false
+        assertFalse(encryption.get("encryption_required").asBoolean());
+    }
+
+    @Test
+    void build_withPreAuthProfile_omitsCredentialResponseEncryption() throws Exception {
+        var metadata = CredentialIssuerMetadata.build(BASE_URL, ProfilePresets.plainPreAuthIssuer());
+        JsonNode json = MAPPER.valueToTree(metadata);
+
+        assertNull(json.get("credential_response_encryption"),
+                "Pre-auth profile must NOT include credential_response_encryption");
+    }
+
+    @Test
     void build_noOldFormatFields_present() throws Exception {
         var metadata = CredentialIssuerMetadata.build(BASE_URL, ProfilePresets.plainPreAuthIssuer());
         String json = MAPPER.writeValueAsString(metadata);

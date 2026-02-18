@@ -32,7 +32,7 @@ SCP_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -P ${SSH_PORT}"
 # Docker configuration (for deploy command)
 DOCKER_REGISTRY="oriolcanades"
 DOCKER_IMAGE="fikua-lab"
-GRADLE_VERSION=$(grep '^version=' suite/backend/gradle.properties | cut -d= -f2)
+GRADLE_VERSION=$(grep '^    version = ' suite/backend/build.gradle.kts | sed 's/.*"\(.*\)"/\1/')
 DOCKER_TAG="${FIKUA_VERSION:-${GRADLE_VERSION}}"
 FULL_IMAGE="${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}"
 
