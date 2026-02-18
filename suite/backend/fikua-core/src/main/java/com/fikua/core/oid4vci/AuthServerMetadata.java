@@ -22,8 +22,7 @@ public record AuthServerMetadata(
         @JsonProperty("code_challenge_methods_supported") List<String> codeChallengeMethodsSupported,
         @JsonProperty("token_endpoint_auth_methods_supported") List<String> tokenEndpointAuthMethodsSupported,
         @JsonProperty("dpop_signing_alg_values_supported") List<String> dpopSigningAlgValues,
-        @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess,
-        @JsonProperty("credential_nonce_endpoint") String credentialNonceEndpoint
+        @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess
 ) {
 
     private static final String API_PREFIX = "/oid4vci/v1";
@@ -41,8 +40,7 @@ public record AuthServerMetadata(
                 null, // no PKCE
                 List.of("none"),
                 null, // no DPoP
-                true,
-                baseUrl + API_PREFIX + "/nonce"
+                true
         );
     }
 
@@ -59,8 +57,7 @@ public record AuthServerMetadata(
                 List.of("S256"),
                 List.of("attest_jwt_client_auth"),
                 List.of("ES256"),
-                null,
-                baseUrl + API_PREFIX + "/nonce"
+                null
         );
     }
 
