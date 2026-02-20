@@ -40,6 +40,19 @@ public final class SdJwtVerifier {
                 }
             }
 
+            // H8: Validate that each disclosure's digest is present in the _sd array
+            @SuppressWarnings("unchecked")
+            List<String> sdDigests = (List<String>) claims.getClaim("_sd");
+            if (sdDigests == null) {
+                sdDigests = List.of();
+            }
+            for (Disclosure disclosure : sdJwt.disclosures()) {
+                if (!sdDigests.contains(disclosure.digest())) {
+                    throw new RuntimeException(
+                            "Disclosure digest not found in _sd array: " + disclosure.claimName());
+                }
+            }
+
             // Resolve claims
             Map<String, Object> resolved = new LinkedHashMap<>(claims.getClaims());
 

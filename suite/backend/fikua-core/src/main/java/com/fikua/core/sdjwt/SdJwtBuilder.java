@@ -24,6 +24,7 @@ public class SdJwtBuilder {
     private long validitySeconds = 86400 * 365; // 1 year default
     private ECKey holderKey;
     private List<Base64> x5cChain;
+    private Map<String, Object> status;
 
     public SdJwtBuilder(SigningKey issuerKey) {
         this.issuerKey = issuerKey;
@@ -73,8 +74,19 @@ public class SdJwtBuilder {
         return this;
     }
 
+    /** Set Token Status List reference per draft-ietf-oauth-status-list. */
+    public SdJwtBuilder statusList(String statusListUri, int statusListIdx) {
+        this.status = Map.of("status_list", Map.of("uri", statusListUri, "idx", statusListIdx));
+        return this;
+    }
+
     /** Build the SD-JWT VC. */
     public SdJwt build() {
+        // M6: vct is REQUIRED per SD-JWT VC draft-14 §3.2.2.2
+        if (vct == null || vct.isBlank()) {
+            throw new IllegalStateException("vct is required for SD-JWT VC");
+        }
+
         // Create disclosures
         List<Disclosure> disclosures = new ArrayList<>();
         List<String> sdDigests = new ArrayList<>();
@@ -101,17 +113,20 @@ public class SdJwtBuilder {
             claimsBuilder.claim("vct", vct);
         }
 
-        // _sd_alg
-        claimsBuilder.claim("_sd_alg", "sha-256");
-
-        // _sd array (digests of disclosures)
+        // _sd array and _sd_alg (only when there are selective disclosures)
         if (!sdDigests.isEmpty()) {
             claimsBuilder.claim("_sd", sdDigests);
+            claimsBuilder.claim("_sd_alg", "sha-256");
         }
 
         // Plain claims
         for (var entry : plainClaims.entrySet()) {
             claimsBuilder.claim(entry.getKey(), entry.getValue());
+        }
+
+        // status (Token Status List reference)
+        if (status != null) {
+            claimsBuilder.claim("status", status);
         }
 
         // cnf (confirmation) with holder key
