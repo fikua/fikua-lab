@@ -52,14 +52,14 @@ class TokenRequestTest {
 
     @Test
     void isPreAuthorizedCode_wrongGrantType_returnsFalse() {
-        var tr = new TokenRequest("client_credentials", null, null, null, null, null);
+        var tr = new TokenRequest("client_credentials", null, null, null, null, null, null);
         assertFalse(tr.isPreAuthorizedCode());
         assertFalse(tr.isAuthorizationCode());
     }
 
     @Test
     void isAuthorizationCode_exactMatch() {
-        var tr = new TokenRequest("authorization_code", null, null, null, null, null);
+        var tr = new TokenRequest("authorization_code", null, null, null, null, null, null);
         assertTrue(tr.isAuthorizationCode());
     }
 }

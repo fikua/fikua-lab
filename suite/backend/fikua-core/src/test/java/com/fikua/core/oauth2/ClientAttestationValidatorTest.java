@@ -10,6 +10,7 @@ import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -61,13 +62,41 @@ class ClientAttestationValidatorTest {
     @Test
     void validate_validWiaPoP_returnsClientId() throws Exception {
         String clientId = "https://wallet.example.com";
-        SignedJWT wia = createSignedJwt(clientId, "https://attestation-service.example.com");
-        SignedJWT pop = createSignedJwt(null, clientId);
+        // PoP key — the wallet instance key bound via cnf in WIA
+        ECKey popKey = new ECKeyGenerator(Curve.P_256).generate();
+
+        // WIA with cnf containing the PoP public key
+        SignedJWT wia = createWiaWithCnf(clientId, "https://attestation-service.example.com", popKey);
+
+        // PoP signed with the same key referenced in cnf
+        var popClaims = new JWTClaimsSet.Builder()
+                .issuer(clientId)
+                .audience("https://as.example.com")
+                .issueTime(new Date())
+                .expirationTime(new Date(System.currentTimeMillis() + 300_000))
+                .build();
+        var pop = new SignedJWT(
+                new JWSHeader.Builder(JWSAlgorithm.ES256).build(), popClaims);
+        pop.sign(new ECDSASigner(popKey));
 
         String assertion = wia.serialize() + "~" + pop.serialize();
         String result = validator.validate(EXPECTED_TYPE, assertion);
 
         assertEquals(clientId, result);
+    }
+
+    @Test
+    void validate_wiaMissingCnf_throwsInvalidClient() throws Exception {
+        String clientId = "https://wallet.example.com";
+        // WIA without cnf claim
+        SignedJWT wia = createSignedJwt(clientId, "https://attestation-service.example.com");
+        SignedJWT pop = createSignedJwt(null, clientId);
+
+        String assertion = wia.serialize() + "~" + pop.serialize();
+        var ex = assertThrows(OAuthErrorException.class,
+                () -> validator.validate(EXPECTED_TYPE, assertion));
+        assertEquals(400, ex.httpStatus());
+        assertTrue(ex.error().errorDescription().contains("cnf"));
     }
 
     @Test
@@ -92,6 +121,24 @@ class ClientAttestationValidatorTest {
                 claims
         );
         jwt.sign(new ECDSASigner(key));
+        return jwt;
+    }
+
+    /** Create a WIA with cnf claim containing the PoP public key. */
+    private SignedJWT createWiaWithCnf(String subject, String issuer, ECKey popKey) throws Exception {
+        ECKey wiaSigningKey = new ECKeyGenerator(Curve.P_256).generate();
+        var claims = new JWTClaimsSet.Builder()
+                .issuer(issuer)
+                .subject(subject)
+                .issueTime(new Date())
+                .expirationTime(new Date(System.currentTimeMillis() + 300_000))
+                .claim("cnf", Map.of("jwk", popKey.toPublicJWK().toJSONObject()))
+                .build();
+        var jwt = new SignedJWT(
+                new JWSHeader.Builder(JWSAlgorithm.ES256).jwk(wiaSigningKey.toPublicJWK()).build(),
+                claims
+        );
+        jwt.sign(new ECDSASigner(wiaSigningKey));
         return jwt;
     }
 }

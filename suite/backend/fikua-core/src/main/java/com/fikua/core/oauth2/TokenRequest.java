@@ -11,7 +11,8 @@ public record TokenRequest(
         String redirectUri,
         String codeVerifier,
         String preAuthorizedCode,
-        String txCode
+        String txCode,
+        String authorizationDetails
 ) {
 
     /** Parse from form parameters map. */
@@ -22,7 +23,8 @@ public record TokenRequest(
                 params.get("redirect_uri"),
                 params.get("code_verifier"),
                 params.get("pre-authorized_code"),
-                params.get("tx_code")
+                params.get("tx_code"),
+                params.get("authorization_details")
         );
     }
 
