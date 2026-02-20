@@ -125,11 +125,11 @@ public class IssuanceService {
         }
 
         String cNonce = sessionStore.generateNonce();
+        sessionStore.registerNonce(cNonce);
         SessionData tokenSession = new SessionData(
                 session.sessionId(), cNonce, null, Instant.now(), session.metadata()
         );
         String accessToken = sessionStore.createAccessToken(tokenSession);
-        sessionStore.createNonce(session.sessionId());
 
         return TokenResponse.bearer(accessToken);
     }
@@ -169,11 +169,11 @@ public class IssuanceService {
         }
 
         String cNonce = sessionStore.generateNonce();
+        sessionStore.registerNonce(cNonce);
         SessionData tokenSession = new SessionData(
                 session.sessionId(), cNonce, dpopKey, Instant.now(), session.metadata()
         );
         String accessToken = sessionStore.createAccessToken(tokenSession);
-        sessionStore.createNonce(session.sessionId());
 
         if (config.requiresDPoP()) {
             return TokenResponse.dpop(accessToken);
@@ -193,9 +193,18 @@ public class IssuanceService {
                 "Unsupported grant type: " + request.grantType());
     }
 
-    /** Generate a new nonce and update the session if an access token is provided (OID4VCI §7). */
+    /**
+     * Generate a new nonce (OID4VCI 1.0 Final §7 — Nonce Endpoint).
+     * The nonce is always registered in the global nonce store so it can be validated
+     * at the credential endpoint regardless of whether an access token was provided.
+     * If an access token IS provided, also update the session's c_nonce.
+     */
     public Map<String, Object> generateNonce(String accessToken, String dpopHeader) {
         String nonce = sessionStore.generateNonce();
+
+        // Always register nonce in the global store for validation at credential endpoint
+        sessionStore.registerNonce(nonce);
+        log.info("Nonce generated and registered: accessToken present={}", accessToken != null);
 
         // If access token provided, validate DPoP and update the session's c_nonce
         if (accessToken != null) {
@@ -226,7 +235,8 @@ public class IssuanceService {
             }
         }
 
-        return Map.of("c_nonce", nonce, "c_nonce_expires_in", 86400);
+        // OID4VCI 1.0 Final §7.2: Nonce Response only contains c_nonce (no c_nonce_expires_in)
+        return Map.of("c_nonce", nonce);
     }
 
     /** Issue a credential. */
@@ -276,7 +286,31 @@ public class IssuanceService {
             if (proofJwt == null) {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "proof_type must be jwt");
             }
-            ECKey walletKey = ProofValidator.validateJwt(proofJwt, baseUrl, session.cNonce());
+
+            // Validate proof: signature, typ, alg, aud, iat (nonce checked separately below)
+            ECKey walletKey = ProofValidator.validateJwt(proofJwt, baseUrl, null);
+
+            // Validate nonce against the global nonce store (covers both token and nonce endpoint nonces).
+            // The wallet may have obtained the nonce from the Nonce Endpoint (§7) without an access token,
+            // so we cannot rely solely on session.cNonce() which only tracks the token endpoint nonce.
+            String proofNonce = extractProofNonce(proofJwt);
+            log.info("Nonce validation: proofNonce={}, session.cNonce={}", proofNonce, session.cNonce());
+            boolean nonceValid = proofNonce != null && sessionStore.validateNonce(proofNonce);
+            if (!nonceValid) {
+                // Fallback: check against session.cNonce() (token endpoint nonce)
+                nonceValid = proofNonce != null && proofNonce.equals(session.cNonce());
+                if (nonceValid) {
+                    log.info("Nonce validated via session.cNonce() fallback");
+                }
+            } else {
+                log.info("Nonce validated via global nonce store");
+            }
+            if (!nonceValid) {
+                log.warn("Nonce validation failed: proofNonce={}, session.cNonce={}", proofNonce, session.cNonce());
+                // OID4VCI 1.0 Final §8.3.1: invalid_nonce when c_nonce is invalid/expired
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_NONCE,
+                        "Proof nonce does not match c_nonce");
+            }
 
             SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
                     .vct("eu.europa.ec.eudi.pid.1")
@@ -469,6 +503,16 @@ public class IssuanceService {
     }
 
     // --- Private helpers ---
+
+    /** Extract the nonce claim from a JWT proof string. */
+    private String extractProofNonce(String jwtString) {
+        try {
+            var jwt = com.nimbusds.jwt.SignedJWT.parse(jwtString);
+            return jwt.getJWTClaimsSet().getStringClaim("nonce");
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     /** Compute ath = BASE64URL(SHA-256(access_token)) per RFC 9449 §4.3. */
     private String computeAth(String accessToken) {

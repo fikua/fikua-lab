@@ -37,6 +37,8 @@ public interface SessionStore {
 
     // --- Nonces ---
     String createNonce(String sessionId);
+    /** Register a nonce in the global store (not linked to a session). */
+    void registerNonce(String nonce);
     boolean validateNonce(String nonce);
     void invalidateNonce(String nonce);
 

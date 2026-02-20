@@ -72,6 +72,11 @@ public class InMemorySessionStore implements SessionStore {
     }
 
     @Override
+    public void registerNonce(String nonce) {
+        nonces.put(nonce, "global");
+    }
+
+    @Override
     public boolean validateNonce(String nonce) {
         // M10: Nonce is single-use — consume on validation (OID4VCI 1.0 Final §7)
         return nonces.remove(nonce) != null;
