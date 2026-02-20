@@ -16,8 +16,12 @@ import java.util.function.Predicate;
  */
 public class DPoPValidator {
 
+    /** RFC 9449 §8: use_dpop_nonce error for DPoP-Nonce enforcement. */
+    public static final String USE_DPOP_NONCE = "use_dpop_nonce";
+
     private static final long MAX_AGE_SECONDS = 300; // 5 minutes
     private final Predicate<String> jtiChecker;
+    private final Predicate<String> nonceChecker;
 
     /**
      * @param jtiChecker returns true if the JTI is new (accepted), false if replayed.
@@ -25,6 +29,16 @@ public class DPoPValidator {
      */
     public DPoPValidator(Predicate<String> jtiChecker) {
         this.jtiChecker = jtiChecker;
+        this.nonceChecker = null; // DPoP-Nonce not enforced
+    }
+
+    /**
+     * @param jtiChecker returns true if the JTI is new (accepted), false if replayed.
+     * @param nonceChecker returns true if the nonce is valid (accepted). Null to disable.
+     */
+    public DPoPValidator(Predicate<String> jtiChecker, Predicate<String> nonceChecker) {
+        this.jtiChecker = jtiChecker;
+        this.nonceChecker = nonceChecker;
     }
 
     /**
@@ -100,6 +114,14 @@ public class DPoPValidator {
                 String ath = claims.getStringClaim("ath");
                 if (!accessTokenHash.equals(ath)) {
                     throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "DPoP ath mismatch");
+                }
+            }
+
+            // H6: Validate DPoP-Nonce if server enforces it (RFC 9449 §8)
+            if (nonceChecker != null) {
+                String nonce = claims.getStringClaim("nonce");
+                if (nonce == null || !nonceChecker.test(nonce)) {
+                    throw new DPoPNonceRequiredException();
                 }
             }
 
