@@ -7,6 +7,9 @@ import com.fikua.issuer.app.IssuanceService;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -16,6 +19,7 @@ import java.util.Map;
  */
 public class IssuerController {
 
+    private static final Logger log = LoggerFactory.getLogger(IssuerController.class);
     private static final String API_PREFIX = "/oid4vci/v1";
 
     private final IssuanceService service;
@@ -90,20 +94,32 @@ public class IssuerController {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
         String dpopHeader = ctx.header("DPoP");
+        log.info("POST /token — grant_type={}, DPoP present: {}", params.get("grant_type"), dpopHeader != null);
         ctx.header("Cache-Control", "no-store");
-        ctx.json(service.handleToken(params, config, dpopHeader));
+        var response = service.handleToken(params, config, dpopHeader);
+        log.info("POST /token — response: token_type={}", response.tokenType());
+        ctx.json(response);
     }
 
     private void nonce(Context ctx) {
         String accessToken = extractAccessToken(ctx.header("Authorization"));
         String dpopHeader = ctx.header("DPoP");
+        log.info("POST /nonce — accessToken present: {}, DPoP present: {}", accessToken != null, dpopHeader != null);
         ctx.header("Cache-Control", "no-store");
-        ctx.json(service.generateNonce(accessToken, dpopHeader));
+        var response = service.generateNonce(accessToken, dpopHeader);
+        log.info("POST /nonce — c_nonce generated");
+        ctx.json(response);
     }
 
     private void credential(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         String authHeader = ctx.header("Authorization");
+        String body = ctx.body();
+        log.info("POST /credential — Authorization: {}, DPoP present: {}, body length: {}",
+                authHeader != null ? authHeader.substring(0, Math.min(20, authHeader.length())) + "..." : "null",
+                ctx.header("DPoP") != null, body != null ? body.length() : 0);
+        log.debug("POST /credential — body: {}", body);
+
         String accessToken = extractAccessToken(authHeader);
         if (accessToken == null) {
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Missing access token");
@@ -115,7 +131,11 @@ public class IssuerController {
         }
         String dpopHeader = ctx.header("DPoP");
         ctx.header("Cache-Control", "no-store");
-        ctx.json(service.issueCredential(accessToken, ctx.body(), config, dpopHeader));
+        var response = service.issueCredential(accessToken, body, config, dpopHeader);
+        log.info("POST /credential — response: credentials={}, transaction_id={}",
+                response.credentials() != null ? response.credentials().size() : "null",
+                response.transactionId());
+        ctx.json(response);
     }
 
     private void authorize(Context ctx) {

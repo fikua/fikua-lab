@@ -68,6 +68,8 @@ public class FikuaLab {
         });
 
         app.exception(OAuthErrorException.class, (e, ctx) -> {
+            log.warn("OAuth error on {} {}: {} — {}",
+                    ctx.method(), ctx.path(), e.error().error(), e.error().errorDescription());
             if (e.httpStatus() == 401) {
                 ctx.header("WWW-Authenticate", "DPoP error=\"" + e.error().error() + "\"");
             }
