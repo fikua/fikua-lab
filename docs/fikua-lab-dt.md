@@ -2,7 +2,7 @@
 
 **Project source of truth. Claude agents must read this before working and update it when making significant changes.**
 
-**Last updated:** 2026-02-18
+**Last updated:** 2026-02-19
 
 ---
 
@@ -83,16 +83,101 @@ Fikua Lab shares a visual system with oriolcanades.com. The Fikua ID Suite brand
 
 ## Architecture
 
-### Key principle: core/server separation
+### Key principle: Infrastructure-Application-Domain
+
+The backend follows a layered architecture inspired by hexagonal/ports-and-adapters, organized as independent service modules that share a common protocol library:
 
 ```text
-fikua-core     Pure domain logic. ZERO framework dependencies.
-               OAuth2, OID4VCI, OID4VP, SD-JWT, crypto, profiles.
-               Reusable with any framework (Javalin, Quarkus, Spring, CLI).
+fikua-core        Domain — Pure protocol library. ZERO I/O, ZERO state, ZERO framework deps.
+                  OID4VCI, OID4VP, SD-JWT, OAuth2, crypto types and validators.
+                  Publishable as a standalone JAR. Reusable by any service or framework.
 
-fikua-server   HTTP adapter (Javalin) + database + configuration.
-               Calls core logic, exposes endpoints, manages state.
-               Swappable without touching the core.
+fikua-issuer      Service — Credential Issuer (OID4VCI server-side).
+                  Application layer: IssuanceService, ports (NonceStore, JtiStore, etc.)
+                  Infrastructure layer: Javalin HTTP controllers, JDBC adapters, PEM key loader.
+
+fikua-wallet      Service — Wallet / Holder (OID4VCI client-side, OID4VP responder).
+                  Application layer: HolderService, ports (CredentialStore, IssuerClient, etc.)
+                  Infrastructure layer: Javalin HTTP controllers, HTTP client adapters.
+
+fikua-verifier    Service — Verifier (OID4VP server-side).
+                  Application layer: VerificationService, ports (SessionStore, etc.)
+                  Infrastructure layer: Javalin HTTP controllers, JDBC adapters.
+
+fikua-lab         Orchestrator — Starts 1..N roles in a single process.
+                  Reads FIKUA_ROLES env var. Preserves single-Docker deployment.
+```
+
+### Layered architecture
+
+Each service module (issuer, wallet, verifier) follows three internal layers:
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Infrastructure (per service)                     │
+│  HTTP Controllers (Javalin) │ JDBC Adapters │ Filesystem loaders    │
+│  Thin: parse HTTP, delegate to Application, serialize response      │
+└──────────────────────────────────┬──────────────────────────────────┘
+                                   │ implements ports
+┌──────────────────────────────────▼──────────────────────────────────┐
+│                     Application (per service)                       │
+│  Use case services │ Port interfaces │ Application models           │
+│  Orchestrates domain objects. No HTTP, no SQL, no I/O.              │
+│  Ports defined HERE — each service owns its contracts.              │
+└──────────────────────────────────┬──────────────────────────────────┘
+                                   │ depends on
+┌──────────────────────────────────▼──────────────────────────────────┐
+│                     Domain (fikua-core, shared)                      │
+│  Protocol types │ Validators │ Builders │ Crypto abstractions       │
+│  ZERO I/O. ZERO state. ZERO framework deps.                        │
+│  Only exception: SigningKey interface (crypto abstraction).          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Port ownership:** Each service defines its own port interfaces (e.g., `NonceStore`, `JtiStore` in fikua-issuer). If two services need a similar port, they define their own — no shared port module. This maximizes independence between services.
+
+**SigningKey exception:** The `SigningKey` interface lives in `fikua-core` because domain objects (`SdJwtBuilder`, `DPoPValidator`) need it directly for cryptographic operations.
+
+### Gradle dependency graph
+
+```text
+fikua-core              ← nimbus-jose-jwt, jackson, bouncycastle (ZERO framework deps)
+    ↑
+    ├── fikua-issuer     ← core + Javalin + PostgreSQL + HikariCP
+    ├── fikua-wallet     ← core + Javalin (+ HTTP client for OID4VCI)
+    ├── fikua-verifier   ← core + Javalin + PostgreSQL + HikariCP
+    │
+    └── fikua-lab        ← issuer + wallet + verifier (orchestrator)
+```
+
+### Deployment modes
+
+A single Docker image supports all three roles. The `FIKUA_ROLES` environment variable controls which services start:
+
+| Mode | FIKUA_ROLES | Docker containers | Use case |
+|------|-------------|-------------------|----------|
+| Development | `issuer,wallet,verifier` | 1 (all roles) | Local dev, `make local-up` |
+| OIDF Testing | One per container | 3 (one role each) | Conformance tests with isolated services |
+| Production | Single role | 1 per deployment | Deploy only the role needed |
+
+```yaml
+# Example: 3 containers from same image, each with one role
+services:
+  issuer:
+    image: oriolcanades/fikua-lab:latest
+    environment:
+      FIKUA_ROLES: issuer
+      FIKUA_BASE_URL: https://issuer.lab.fikua.com
+  wallet:
+    image: oriolcanades/fikua-lab:latest
+    environment:
+      FIKUA_ROLES: wallet
+      FIKUA_BASE_URL: https://wallet.lab.fikua.com
+  verifier:
+    image: oriolcanades/fikua-lab:latest
+    environment:
+      FIKUA_ROLES: verifier
+      FIKUA_BASE_URL: https://verifier.lab.fikua.com
 ```
 
 ### Mono-repo structure
@@ -125,27 +210,38 @@ fikua-lab/
 │       ├── build.gradle.kts                       # Root: Java 25 toolchain
 │       ├── gradle.properties                      # Centralized versions
 │       │
-│       ├── fikua-core/                            # Protocol library (ZERO framework deps)
+│       ├── fikua-core/                            # Domain — protocol library (ZERO framework deps)
 │       │   ├── build.gradle.kts                   # nimbus-jose-jwt, jackson, bouncycastle
 │       │   └── src/main/java/com/fikua/core/
-│       │       ├── crypto/                        # EC P-256 keys, X.509, JWK utils
+│       │       ├── crypto/                        # SigningKey (interface), KeyOps, JwkUtils
 │       │       ├── oauth2/                        # TokenGrant, DPoP, PKCE, errors
 │       │       ├── oid4vci/                       # Metadata, offers, credentials, proofs
 │       │       ├── oid4vp/                        # VP authorization, DCQL, JAR signing
 │       │       ├── sdjwt/                         # SD-JWT build, parse, verify
 │       │       └── profile/                       # ProfileConfig, presets, enums
 │       │
-│       └── fikua-server/                          # HTTP endpoints (Javalin)
-│           ├── build.gradle.kts                   # javalin, postgresql, hikari, flyway
-│           └── src/main/java/com/fikua/server/
-│               ├── FikuaLab.java                  # main() — bootstrap
-│               ├── config/                        # LabConfig (YAML + env vars)
-│               ├── db/                            # DatabaseManager, ProfileRepository
-│               ├── state/                         # InMemoryStore (ConcurrentHashMap + TTL)
-│               ├── admin/                         # AdminRoutes (profile CRUD API)
-│               ├── issuer/                        # IssuerRoutes (OID4VCI endpoints)
-│               ├── holder/                        # (Pending)
-│               └── verifier/                      # (Pending)
+│       ├── fikua-issuer/                          # Issuer service (app + infra)
+│       │   ├── build.gradle.kts                   # core + javalin + postgresql + hikari
+│       │   └── src/main/java/com/fikua/issuer/
+│       │       ├── app/                           # IssuanceService, ports, models
+│       │       └── infra/                         # IssuerServer, controllers, JDBC adapters
+│       │
+│       ├── fikua-wallet/                          # Wallet service (app + infra)
+│       │   ├── build.gradle.kts                   # core + javalin + HTTP client
+│       │   └── src/main/java/com/fikua/wallet/
+│       │       ├── app/                           # HolderService, ports, models
+│       │       └── infra/                         # WalletServer, controllers, HTTP client
+│       │
+│       ├── fikua-verifier/                        # Verifier service (app + infra)
+│       │   ├── build.gradle.kts                   # core + javalin + postgresql + hikari
+│       │   └── src/main/java/com/fikua/verifier/
+│       │       ├── app/                           # VerificationService, ports, models
+│       │       └── infra/                         # VerifierServer, controllers, JDBC adapters
+│       │
+│       └── fikua-lab/                             # Orchestrator (starts 1..N roles)
+│           ├── build.gradle.kts                   # issuer + wallet + verifier
+│           └── src/main/java/com/fikua/lab/
+│               └── FikuaLab.java                  # main() — reads FIKUA_ROLES, starts services
 │
 ├── deployment/
 │   ├── docker/
@@ -720,6 +816,7 @@ Run `make help` to see all available commands. Full reference:
 | `FIKUA_DB_URL` | `compose.yaml` | JDBC connection string |
 | `FIKUA_DB_USER` | `.env` | PostgreSQL user |
 | `FIKUA_DB_PASSWORD` | `.env` | PostgreSQL password |
+| `FIKUA_ROLES` | `compose.yaml` | Comma-separated roles to start: `issuer`, `wallet`, `verifier` (default: all) |
 | `FIKUA_CERTS_DIR` | `compose.yaml` | X.509 certificates directory inside container |
 | `FIKUA_VERSION` | `.env` / shell | Docker image tag (`latest` or `vX.Y.Z`) |
 | `DOCKER_REGISTRY` | `.env` | DockerHub registry (`oriolcanades`) |
@@ -897,17 +994,18 @@ Generated with OpenSSL, valid for 365 days. Stored in the Docker volume `lab-cer
 
 ### Completed
 
-- [x] Gradle mono-repo (Java 25, fikua-core + fikua-server)
+- [x] Gradle mono-repo (Java 25, fikua-core + fikua-issuer + fikua-lab)
 - [x] fikua-core: crypto (EcKeyManager, X509CertUtil, JwkUtils)
 - [x] fikua-core: OAuth2 (TokenGrant, DPoP, PKCE, errors)
 - [x] fikua-core: OID4VCI (metadata, offers, credentials, proofs)
 - [x] fikua-core: SD-JWT (build, parse, verify)
 - [x] fikua-core: profiles (config, presets, enums)
-- [x] fikua-server: bootstrap (FikuaLab.java, LabConfig)
-- [x] fikua-server: database (HikariCP, Flyway, ProfileRepository)
-- [x] fikua-server: admin API (AdminRoutes — profile CRUD)
-- [x] fikua-server: issuer endpoints (IssuerRoutes — metadata, token, credential, nonce, jwks, offers, authorize, par)
-- [x] fikua-server: state management (InMemoryStore)
+- [x] fikua-lab: orchestrator (FikuaLab.java, LabConfig, FIKUA_ROLES)
+- [x] fikua-lab: database (HikariCP, Flyway, ProfileRepository)
+- [x] fikua-lab: admin API (AdminRoutes — profile CRUD)
+- [x] fikua-issuer: issuer endpoints (IssuerController — metadata, token, credential, nonce, jwks, offers, authorize, par)
+- [x] fikua-issuer: application layer (IssuanceService + ports: SessionStore, IssuanceStore, ProfileStore)
+- [x] fikua-issuer: infrastructure adapters (InMemorySessionStore, JdbcIssuanceStore, JdbcProfileStore, PemKeyLoader)
 - [x] Frontend: Portal (profile management, presets, health)
 - [x] Frontend: Landing page (teal + berry, light/dark mode)
 - [x] Frontend: Issuer UI (credential offers, certificate identification)
@@ -933,6 +1031,13 @@ Generated with OpenSSL, valid for 365 days. Stored in the Docker volume `lab-cer
 
 ### Pending
 
+- [x] **Architecture refactor: Infrastructure-Application-Domain**
+  - [x] Purify fikua-core (extract I/O, add SigningKey interface, remove hardcoded paths/schemas)
+  - [x] Create fikua-issuer module (IssuanceService + ports + infra adapters from fikua-server)
+  - [x] Create fikua-lab orchestrator (FIKUA_ROLES-based startup)
+  - [ ] Create fikua-wallet module (HTTP client for OID4VCI)
+  - [ ] Create fikua-verifier module (OID4VP endpoints)
+  - [x] Retire fikua-server (replaced by fikua-issuer + fikua-lab)
 - [ ] Deploy to OVH VPS (Docker Compose)
 - [x] Configure DNS lab.fikua.com + issuer.lab.fikua.com + wallet.lab.fikua.com + verifier.lab.fikua.com
 - [ ] Generate self-signed X.509 certificates on VPS

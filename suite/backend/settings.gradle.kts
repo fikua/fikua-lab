@@ -5,4 +5,5 @@ plugins {
 rootProject.name = "fikua-lab"
 
 include("fikua-core")
-include("fikua-server")
+include("fikua-issuer")
+include("fikua-lab")

@@ -5,7 +5,8 @@ bin/
 suite/backend/.gradle/
 suite/backend/build/
 suite/backend/fikua-core/build/
-suite/backend/fikua-server/build/
+suite/backend/fikua-issuer/build/
+suite/backend/fikua-lab/build/
 
 # IDE
 .idea/

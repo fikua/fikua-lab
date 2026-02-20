@@ -1,24 +1,25 @@
-package com.fikua.server;
+package com.fikua.lab;
 
-import com.fikua.core.crypto.EcKeyManager;
 import com.fikua.core.oauth2.OAuthError;
 import com.fikua.core.oauth2.OAuthErrorException;
-import com.fikua.server.admin.AdminRoutes;
-import com.fikua.server.config.LabConfig;
-import com.fikua.core.crypto.X509CertUtil;
-import com.fikua.server.db.DatabaseManager;
-import com.fikua.server.db.IssuanceRecordRepository;
-import com.fikua.server.db.ProfileRepository;
-import com.fikua.server.issuer.IssuerRoutes;
-import com.fikua.server.state.InMemoryStore;
+import com.fikua.issuer.IssuerService;
+import com.fikua.lab.admin.AdminRoutes;
+import com.fikua.lab.config.LabConfig;
+import com.fikua.lab.db.DatabaseManager;
+import com.fikua.lab.db.ProfileRepository;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 /**
  * Fikua Lab — OIDF Conformance Testing Platform.
- * Main entry point: boots Javalin server with all routes.
+ * Orchestrator: reads FIKUA_ROLES env var and starts the requested services.
  */
 public class FikuaLab {
 
@@ -26,6 +27,10 @@ public class FikuaLab {
 
     public static void main(String[] args) {
         log.info("Starting Fikua Lab...");
+
+        // Parse roles
+        Set<String> roles = parseRoles(System.getenv("FIKUA_ROLES"));
+        log.info("Active roles: {}", roles);
 
         // Load configuration
         LabConfig config = LabConfig.load();
@@ -35,25 +40,6 @@ public class FikuaLab {
         // Initialize database
         DatabaseManager db = new DatabaseManager(config);
         db.migrate();
-
-        // Load issuer signing key (PEM if available, otherwise generate)
-        EcKeyManager issuerKey;
-        var certPath = java.nio.file.Path.of(config.certsDir(), "issuer-cert.pem");
-        var keyPath = java.nio.file.Path.of(config.certsDir(), "issuer-key.pem");
-        if (java.nio.file.Files.exists(certPath) && java.nio.file.Files.exists(keyPath)) {
-            var cert = X509CertUtil.loadCertificate(certPath);
-            var privKey = X509CertUtil.loadPrivateKey(keyPath);
-            issuerKey = EcKeyManager.fromPem(privKey, cert);
-            log.info("Issuer key loaded from PEM, kid={}, subject={}", issuerKey.kid(), cert.getSubjectX500Principal());
-        } else {
-            issuerKey = EcKeyManager.generate();
-            log.warn("No PEM certs at {}, using generated key (kid={}). x5c will be empty.", config.certsDir(), issuerKey.kid());
-        }
-
-        // Initialize stores
-        InMemoryStore store = new InMemoryStore();
-        ProfileRepository profileRepo = new ProfileRepository(db);
-        IssuanceRecordRepository issuanceRepo = new IssuanceRecordRepository(db);
 
         // Create Javalin app
         Javalin app = Javalin.create(javalinConfig -> {
@@ -70,7 +56,7 @@ public class FikuaLab {
             javalinConfig.http.defaultContentType = "application/json";
         });
 
-        // Global error handling for OAuth errors
+        // Global error handling
         app.exception(OAuthErrorException.class, (e, ctx) -> {
             ctx.status(e.httpStatus()).json(e.error());
         });
@@ -80,24 +66,36 @@ public class FikuaLab {
             ctx.status(500).json(OAuthError.invalidRequest("Internal server error"));
         });
 
-        // Register routes
+        // Admin routes (always available)
+        ProfileRepository profileRepo = new ProfileRepository(db);
         new AdminRoutes(profileRepo).register(app);
-        new IssuerRoutes(profileRepo, issuanceRepo, issuerKey, store, config.baseUrl()).register(app);
+
+        // Start services based on roles
+        IssuerService issuerService = null;
+        if (roles.contains("issuer")) {
+            issuerService = new IssuerService();
+            issuerService.start(app, db.dataSource(), config.baseUrl(), config.certsDir());
+            log.info("Issuer service started");
+        }
+
+        // future: if (roles.contains("wallet")) { ... }
+        // future: if (roles.contains("verifier")) { ... }
 
         // Health check
-        app.get("/health", ctx -> ctx.json(java.util.Map.of("status", "up")));
+        app.get("/health", ctx -> ctx.json(Map.of("status", "up", "roles", roles)));
 
-        // State reset (for between test runs) — only enabled in dev/test
+        // State reset (dev/test only)
         if (!"production".equalsIgnoreCase(System.getenv("FIKUA_ENV"))) {
+            final IssuerService issuer = issuerService;
             app.post("/reset", ctx -> {
-                store.clear();
-                ctx.json(java.util.Map.of("status", "reset"));
+                if (issuer != null) issuer.issuanceService().resetState();
+                ctx.json(Map.of("status", "reset"));
             });
         }
 
         // Start server
         app.start(config.port());
-        log.info("Fikua Lab running on port {}", config.port());
+        log.info("Fikua Lab running on port {} with roles: {}", config.port(), roles);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -105,5 +103,16 @@ public class FikuaLab {
             app.stop();
             db.close();
         }));
+    }
+
+    /** Parse FIKUA_ROLES env var (comma-separated). Defaults to "issuer". */
+    static Set<String> parseRoles(String rolesEnv) {
+        if (rolesEnv == null || rolesEnv.isBlank()) {
+            return Set.of("issuer");
+        }
+        return Arrays.stream(rolesEnv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 }

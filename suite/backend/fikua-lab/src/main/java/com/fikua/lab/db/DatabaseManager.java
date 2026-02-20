@@ -1,6 +1,6 @@
-package com.fikua.server.db;
+package com.fikua.lab.db;
 
-import com.fikua.server.config.LabConfig;
+import com.fikua.lab.config.LabConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;

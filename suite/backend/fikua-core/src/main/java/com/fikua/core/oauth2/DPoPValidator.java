@@ -7,17 +7,25 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 import java.time.Instant;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /**
  * DPoP proof validation per RFC 9449.
  * Validates proof structure, signature, claims, and prevents replay.
+ * JTI replay protection is delegated to the caller via a Predicate.
  */
 public class DPoPValidator {
 
     private static final long MAX_AGE_SECONDS = 300; // 5 minutes
-    private final Set<String> usedJtis = ConcurrentHashMap.newKeySet();
+    private final Predicate<String> jtiChecker;
+
+    /**
+     * @param jtiChecker returns true if the JTI is new (accepted), false if replayed.
+     *                   Typical usage: {@code ConcurrentHashMap.newKeySet()::add}
+     */
+    public DPoPValidator(Predicate<String> jtiChecker) {
+        this.jtiChecker = jtiChecker;
+    }
 
     /**
      * Validate a DPoP proof JWT.
@@ -83,7 +91,7 @@ public class DPoPValidator {
 
             // Validate jti uniqueness (replay protection)
             String jti = claims.getJWTID();
-            if (jti == null || !usedJtis.add(jti)) {
+            if (jti == null || !jtiChecker.test(jti)) {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "DPoP jti replay detected");
             }
 

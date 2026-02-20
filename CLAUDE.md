@@ -30,7 +30,7 @@ Fikua Lab és una plataforma d'aprenentatge i testing de conformitat per protoco
 | Frontend | Vanilla HTML/CSS/JS (no build step, no frameworks) |
 | Base de dades | PostgreSQL 17, Flyway migrations |
 | Tests | JUnit 5 |
-| Build | Gradle (multi-module: fikua-core, fikua-server) |
+| Build | Gradle (multi-module: fikua-core, fikua-issuer, fikua-lab) |
 
 ## Constitució — regles immutables
 
@@ -38,9 +38,9 @@ Aquestes regles NO es poden violar. Si un gap o spec entra en conflicte amb una 
 
 ### Arquitectura
 
-- **`fikua-core` té zero dependències de framework.** No Javalin, no servlets, no Spring. Només nimbus-jose-jwt i Jackson.
-- **`fikua-server` depèn de `fikua-core`, mai a l'inrevés.**
-- **Tota la lògica de validació de protocols va a `fikua-core`.** El server només fa routing, parsing HTTP i state management.
+- **`fikua-core` té zero dependències de framework, zero I/O, zero estat.** Només nimbus-jose-jwt, Jackson i slf4j-api.
+- **`fikua-issuer` depèn de `fikua-core`. `fikua-lab` depèn de `fikua-issuer`.** Mai dependències inverses.
+- **Tota la lògica de validació de protocols va a `fikua-core`.** Els serveis (issuer, wallet, verifier) tenen capa Application (use cases + ports) i Infrastructure (HTTP, DB, crypto).
 - **No ORM.** Queries SQL directes amb JDBC + Flyway migrations.
 - **No caching implícit.** State management explícit via `InMemoryStore` (dev) o PostgreSQL (prod).
 - **Un fitxer, una responsabilitat.** No helper classes genèriques. No `Utils.java`.
@@ -63,7 +63,7 @@ Aquestes regles NO es poden violar. Si un gap o spec entra en conflicte amb una 
 
 ## Convencions de codi
 
-- Packages: `com.fikua.core.*` (lògica pura, zero dependencies de framework), `com.fikua.server.*` (Javalin, DB, state)
+- Packages: `com.fikua.core.*` (domini pur), `com.fikua.issuer.*` (servei issuer: app + infra), `com.fikua.lab.*` (orchestrador)
 - Endpoints: prefix `/oid4vci/v1/` per issuer, `.well-known/` per metadata
 - Frontend: IIFE pattern `(() => { ... })()`, no modules
 

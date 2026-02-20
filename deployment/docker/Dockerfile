@@ -4,7 +4,7 @@ FROM eclipse-temurin:25-jdk AS builder
 WORKDIR /build
 COPY suite/backend/ .
 RUN chmod +x gradlew \
-    && ./gradlew :fikua-server:fatJar --no-daemon
+    && ./gradlew :fikua-lab:fatJar --no-daemon
 
 FROM eclipse-temurin:25-jre
 
@@ -17,8 +17,8 @@ RUN addgroup --gid 1001 fikua && adduser --uid 1001 --gid 1001 --disabled-passwo
 WORKDIR /app
 
 # Copy fat jar and migrations
-COPY --from=builder /build/fikua-server/build/libs/fikua-server-*-all.jar app.jar
-COPY --from=builder /build/fikua-server/src/main/resources/db/migration/ /app/migrations/
+COPY --from=builder /build/fikua-lab/build/libs/fikua-lab-*-all.jar app.jar
+COPY --from=builder /build/fikua-lab/src/main/resources/db/migration/ /app/migrations/
 
 # Certs directory (mounted at runtime)
 RUN mkdir -p /app/certs && chown -R fikua:fikua /app

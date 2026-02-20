@@ -1,46 +1,34 @@
-package com.fikua.server.db;
+package com.fikua.issuer.infra;
 
+import com.fikua.issuer.app.port.IssuanceStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.UUID;
 
 /**
- * Repository for issuance records stored in PostgreSQL.
- * Uses JSONB credential_data for extensibility across credential types.
+ * JDBC implementation of IssuanceStore using PostgreSQL.
  */
-public class IssuanceRecordRepository {
+public class JdbcIssuanceStore implements IssuanceStore {
 
-    private static final Logger log = LoggerFactory.getLogger(IssuanceRecordRepository.class);
-    private final DatabaseManager db;
+    private static final Logger log = LoggerFactory.getLogger(JdbcIssuanceStore.class);
+    private final DataSource dataSource;
 
-    public IssuanceRecordRepository(DatabaseManager db) {
-        this.db = db;
+    public JdbcIssuanceStore(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
-    public record IssuanceRecordRow(
-            String id,
-            String credentialType,
-            String credentialData,
-            String sourceType,
-            String sourceRef,
-            String status,
-            String preAuthCode,
-            String offerId,
-            Timestamp createdAt,
-            Timestamp updatedAt
-    ) {}
-
-    /** Create a new issuance record with abstract credential data. */
-    public IssuanceRecordRow create(String credentialType, String credentialData,
-                                     String sourceType, String sourceRef) {
+    @Override
+    public IssuanceRecord create(String credentialType, String credentialData,
+                                  String sourceType, String sourceRef) {
         String id = UUID.randomUUID().toString();
         String sql = """
                 INSERT INTO issuance_records (id, credential_type, credential_data, source_type, source_ref)
                 VALUES (?::uuid, ?, ?::jsonb, ?, ?)
                 """;
-        try (Connection conn = db.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, id);
             ps.setString(2, credentialType);
@@ -55,14 +43,14 @@ public class IssuanceRecordRepository {
         }
     }
 
-    /** Find an issuance record by ID. */
-    public IssuanceRecordRow findById(String id) {
+    @Override
+    public IssuanceRecord findById(String id) {
         String sql = """
                 SELECT id, credential_type, credential_data, source_type, source_ref,
                        status, pre_auth_code, offer_id, created_at, updated_at
                 FROM issuance_records WHERE id = ?::uuid
                 """;
-        try (Connection conn = db.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -74,10 +62,10 @@ public class IssuanceRecordRepository {
         }
     }
 
-    /** Update issuance record status. */
+    @Override
     public void updateStatus(String id, String status) {
         String sql = "UPDATE issuance_records SET status = ?, updated_at = now() WHERE id = ?::uuid";
-        try (Connection conn = db.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);
             ps.setString(2, id);
@@ -87,10 +75,10 @@ public class IssuanceRecordRepository {
         }
     }
 
-    /** Link a pre-auth code to the issuance record. */
+    @Override
     public void updatePreAuthCode(String id, String preAuthCode) {
         String sql = "UPDATE issuance_records SET pre_auth_code = ?, updated_at = now() WHERE id = ?::uuid";
-        try (Connection conn = db.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, preAuthCode);
             ps.setString(2, id);
@@ -100,10 +88,10 @@ public class IssuanceRecordRepository {
         }
     }
 
-    /** Link a credential offer ID to the issuance record. */
+    @Override
     public void updateOfferId(String id, String offerId) {
         String sql = "UPDATE issuance_records SET offer_id = ?, updated_at = now() WHERE id = ?::uuid";
-        try (Connection conn = db.getConnection();
+        try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, offerId);
             ps.setString(2, id);
@@ -113,8 +101,8 @@ public class IssuanceRecordRepository {
         }
     }
 
-    private IssuanceRecordRow mapRow(ResultSet rs) throws SQLException {
-        return new IssuanceRecordRow(
+    private IssuanceRecord mapRow(ResultSet rs) throws SQLException {
+        return new IssuanceRecord(
                 rs.getString("id"),
                 rs.getString("credential_type"),
                 rs.getString("credential_data"),

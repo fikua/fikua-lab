@@ -20,7 +20,7 @@ import java.util.Map;
  * EC P-256 key management for signing and verification.
  * Wraps nimbus-jose-jwt ECKey operations.
  */
-public final class EcKeyManager {
+public final class EcKeyManager implements SigningKey {
 
     private final ECKey ecKey;
 
@@ -148,6 +148,13 @@ public final class EcKeyManager {
         } catch (JOSEException e) {
             throw new RuntimeException("Failed to export public key", e);
         }
+    }
+
+    /** Get the x5c certificate chain (empty list if no certificates). */
+    @Override
+    public List<Base64> x5cChain() {
+        List<Base64> chain = ecKey.getX509CertChain();
+        return chain != null ? chain : List.of();
     }
 
     /** Get the EC private key as java.security type. */

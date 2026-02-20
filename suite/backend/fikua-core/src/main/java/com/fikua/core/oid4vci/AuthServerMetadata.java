@@ -2,7 +2,6 @@ package com.fikua.core.oid4vci;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fikua.core.profile.ProfileConfig;
 
 import java.util.*;
 
@@ -25,16 +24,14 @@ public record AuthServerMetadata(
         @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess
 ) {
 
-    private static final String API_PREFIX = "/oid4vci/v1";
-
     /** Build metadata for pre-authorized code profile. */
-    public static AuthServerMetadata forPreAuthProfile(String baseUrl) {
+    public static AuthServerMetadata forPreAuthProfile(String issuer, String tokenEndpoint, String jwksUri) {
         return new AuthServerMetadata(
-                baseUrl,
-                baseUrl + API_PREFIX + "/token",
+                issuer,
+                tokenEndpoint,
                 null, // no authorization endpoint for pre-auth
                 null, // no PAR
-                baseUrl + API_PREFIX + "/jwks",
+                jwksUri,
                 List.of("none"),
                 List.of("urn:ietf:params:oauth:grant-type:pre-authorized_code"),
                 null, // no PKCE
@@ -45,13 +42,15 @@ public record AuthServerMetadata(
     }
 
     /** Build metadata for authorization_code (HAIP) profile. */
-    public static AuthServerMetadata forHaipProfile(String baseUrl) {
+    public static AuthServerMetadata forHaipProfile(String issuer, String tokenEndpoint,
+                                                     String authorizationEndpoint, String parEndpoint,
+                                                     String jwksUri) {
         return new AuthServerMetadata(
-                baseUrl,
-                baseUrl + API_PREFIX + "/token",
-                baseUrl + API_PREFIX + "/authorize",
-                baseUrl + API_PREFIX + "/par",
-                baseUrl + API_PREFIX + "/jwks",
+                issuer,
+                tokenEndpoint,
+                authorizationEndpoint,
+                parEndpoint,
+                jwksUri,
                 List.of("code"),
                 List.of("authorization_code"),
                 List.of("S256"),
@@ -59,13 +58,5 @@ public record AuthServerMetadata(
                 List.of("ES256"),
                 null
         );
-    }
-
-    /** Build metadata based on profile config. */
-    public static AuthServerMetadata fromProfile(String baseUrl, ProfileConfig config) {
-        if (config.isHaip()) {
-            return forHaipProfile(baseUrl);
-        }
-        return forPreAuthProfile(baseUrl);
     }
 }

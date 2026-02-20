@@ -967,7 +967,7 @@ Content-Type: application/statuslist+jwt
 |-----------|--------|------------|
 | `StatusList` | `fikua-core/sdjwt/StatusList.java` | Bit array comprimit (DEFLATE+ZLIB), assignació d'índexs |
 | `StatusListToken` | `fikua-core/sdjwt/StatusListToken.java` | Generació del JWT `statuslist+jwt` |
-| `StatusListRepository` | `fikua-server/db/StatusListRepository.java` | Persistència del bit array a PostgreSQL |
+| `StatusListRepository` | `fikua-issuer/infra/StatusListRepository.java` | Persistència del bit array a PostgreSQL |
 | Endpoint | `IssuerRoutes` | `GET /oid4vci/v1/statuslist/{id}` |
 | `SdJwtBuilder` | Modificar | Afegir claim `status` amb `idx` i `uri` |
 
@@ -1080,16 +1080,28 @@ suite/backend/
 │   │   └── X509CertUtil.java                ← OK (loadCertificate, loadPrivateKey, buildX5cChain)
 │   └── profile/
 │       └── ProfileConfig.java               ← OK
-├── fikua-server/src/main/java/com/fikua/server/
-│   ├── issuer/
-│   │   └── IssuerRoutes.java                ← ✅ POST /issuance, claims dinàmics, HAIP flow complet (PAR, PKCE, DPoP, attestation)
-│   ├── state/
-│   │   └── InMemoryStore.java               ← ✅ PAR storage (storeParRequest/consumeParRequest)
-│   ├── db/
-│   │   ├── ProfileRepository.java
-│   │   └── IssuanceRecordRepository.java    ← ✅ CRUD amb credential_data JSONB
-│   └── FikuaLab.java                        ← ✅ PEM loading, IssuanceRecordRepository wiring
-├── fikua-server/src/main/resources/db/migration/
+├── fikua-issuer/src/main/java/com/fikua/issuer/
+│   ├── app/
+│   │   ├── IssuanceService.java             ← ✅ OID4VCI orchestration (pre-auth, HAIP, PAR, PKCE, DPoP)
+│   │   └── port/
+│   │       ├── SessionStore.java            ← ✅ Ephemeral session state (PAR, nonces, tokens)
+│   │       ├── IssuanceStore.java           ← ✅ Persistent issuance records
+│   │       └── ProfileStore.java            ← ✅ Active profile access
+│   ├── infra/
+│   │   ├── InMemorySessionStore.java        ← ✅ PAR storage, nonces, tokens
+│   │   ├── JdbcIssuanceStore.java           ← ✅ CRUD amb credential_data JSONB
+│   │   ├── JdbcProfileStore.java
+│   │   ├── PemKeyLoader.java               ← ✅ PEM loading
+│   │   └── http/IssuerController.java       ← ✅ Thin HTTP layer
+│   └── IssuerService.java                   ← ✅ Wiring entry point
+├── fikua-lab/src/main/java/com/fikua/lab/
+│   ├── FikuaLab.java                        ← ✅ Orchestrator (FIKUA_ROLES)
+│   ├── config/LabConfig.java
+│   ├── admin/AdminRoutes.java
+│   └── db/
+│       ├── DatabaseManager.java
+│       └── ProfileRepository.java
+├── fikua-lab/src/main/resources/db/migration/
 │   ├── V1__initial_schema.sql
 │   ├── V2__seed_profiles.sql
 │   └── V3__issuance_records.sql             ← ✅ credential_data JSONB abstracte
@@ -1292,7 +1304,7 @@ var headerBuilder = new JWSHeader.Builder(JWSAlgorithm.ES256)
 
 #### P0.6 — IssuerRoutes: x5c i constant
 
-**Fitxer:** `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java`
+**Fitxer:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/http/IssuerController.java` + `IssuanceService.java`
 **Spec:** OID4VCI 1.0, SD-JWT VC draft-14 §3.5
 
 **Actual:**
@@ -1409,7 +1421,7 @@ public record CredentialRequest(
 
 #### P1.3 — `tx_code` al pre-auth flow
 
-**Fitxer:** `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java`
+**Fitxer:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/app/IssuanceService.java`
 **Spec:** OID4VCI 1.0 §6.1
 
 **Actual** — `handlePreAuthToken` no comprova `tx_code`:
@@ -1482,8 +1494,8 @@ P1 es considera COMPLETAT quan:
 
 #### P2.1 — PAR: persistir paràmetres
 
-**Fitxer:** `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java`
-**Fitxer auxiliar:** `suite/backend/fikua-server/src/main/java/com/fikua/server/state/InMemoryStore.java`
+**Fitxer:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/app/IssuanceService.java`
+**Fitxer auxiliar:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/InMemorySessionStore.java`
 **Spec:** RFC 9126, HAIP 1.0
 
 **Actual** — `par()` genera un `request_uri` random sense guardar res:
@@ -1509,11 +1521,11 @@ private void par(Context ctx) {
 }
 ```
 
-**Nota:** Cal afegir `storeParRequest(String uri, Map<String, String> params)` i `getParRequest(String uri)` a `InMemoryStore`.
+**Nota:** Cal afegir `storeParRequest(String uri, Map<String, String> params)` i `consumeParRequest(String uri)` a `SessionStore`.
 
 #### P2.2 — Authorize: recuperar paràmetres del PAR
 
-**Fitxer:** `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java`
+**Fitxer:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/app/IssuanceService.java`
 **Spec:** RFC 9126 §4
 
 **Actual** — `authorize()` llegeix els paràmetres directament dels query params, ignorant `request_uri`:
@@ -1554,8 +1566,8 @@ String codeChallenge = params.get("code_challenge");
 #### P2.3 — PKCE: guardar i verificar code_challenge
 
 **Fitxers:**
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java` (authorize + token)
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/state/InMemoryStore.java` (session data)
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/app/IssuanceService.java` (authorize + token)
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/InMemorySessionStore.java` (session data)
 **Spec:** RFC 7636, HAIP 1.0
 
 **Actual** — `handleAuthCodeToken` comprova que `code_verifier` existeix però no el verifica contra `code_challenge`:
@@ -1595,8 +1607,8 @@ if (config.requiresPkce()) {
 #### P2.4 — DPoP binding: vincular thumbprint al token
 
 **Fitxers:**
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java` (token + credential)
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/state/InMemoryStore.java`
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/app/IssuanceService.java` (token + credential)
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/InMemorySessionStore.java`
 **Spec:** RFC 9449 §6
 
 **Actual** — `handleAuthCodeToken` guarda `dpopKey` al `SessionData` però `credential()` no verifica que el DPoP proof al credential endpoint usi la mateixa clau:
@@ -1737,15 +1749,15 @@ P3 es considera COMPLETAT quan:
 
 #### P4.1 — IssuanceRecord
 
-**Fitxer nou:** `suite/backend/fikua-server/src/main/java/com/fikua/server/db/IssuanceRecordRepository.java`
-**Fitxer nou:** `suite/backend/fikua-server/src/main/resources/db/migration/V*.sql`
+**Fitxer nou:** `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/JdbcIssuanceStore.java`
+**Fitxer nou:** `suite/backend/fikua-lab/src/main/resources/db/migration/V*.sql`
 **Model:** Veure secció "IssuanceRecord — Model" d'aquest document.
 
 #### P4.2 — Connectar issuer frontend amb backend
 
 **Fitxers:**
 - `suite/frontend/issuer/app.js` — enviar dades cert al backend via POST
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java` — nou endpoint POST per rebre dades cert i retornar credential offer
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/http/IssuerController.java` — endpoint POST per rebre dades cert i retornar credential offer
 
 #### P4.3 — Presentació de l'offer
 
@@ -1783,12 +1795,12 @@ P4 es considera COMPLETAT quan:
 **Fitxers nous:**
 - `suite/backend/fikua-core/src/main/java/com/fikua/core/sdjwt/StatusList.java`
 - `suite/backend/fikua-core/src/main/java/com/fikua/core/sdjwt/StatusListToken.java`
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/db/StatusListRepository.java`
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/StatusListRepository.java`
 
 **Fitxers a modificar:**
 - `suite/backend/fikua-core/src/main/java/com/fikua/core/sdjwt/SdJwtBuilder.java` — afegir claim `status`
 - `suite/backend/fikua-core/src/main/java/com/fikua/core/oid4vci/CredentialResponse.java` — afegir `notification_id`
-- `suite/backend/fikua-server/src/main/java/com/fikua/server/issuer/IssuerRoutes.java` — endpoint statuslist + notification
+- `suite/backend/fikua-issuer/src/main/java/com/fikua/issuer/infra/http/IssuerController.java` — endpoint statuslist + notification
 
 **Spec:** Token Status List draft-12, OID4VCI 1.0 §11
 **Detall:** Veure seccions "Token Status List — Implementació" i "IssuanceRecord — Model" d'aquest document.

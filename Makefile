@@ -73,11 +73,11 @@ help: ## Show available commands
 
 # Build the fat jar
 build:
-	cd suite/backend && ./gradlew :fikua-server:fatJar
+	cd suite/backend && ./gradlew :fikua-lab:fatJar
 
 # Run locally (requires PostgreSQL running)
 run: build
-	cd suite/backend && java -jar fikua-server/build/libs/fikua-server-*-all.jar
+	cd suite/backend && java -jar fikua-lab/build/libs/fikua-lab-*-all.jar
 
 # Compile only (quick check)
 compile:

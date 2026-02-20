@@ -1,6 +1,6 @@
 package com.fikua.core.sdjwt;
 
-import com.fikua.core.crypto.EcKeyManager;
+import com.fikua.core.crypto.SigningKey;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.util.Base64;
@@ -15,7 +15,7 @@ import java.util.*;
  */
 public class SdJwtBuilder {
 
-    private final EcKeyManager issuerKey;
+    private final SigningKey issuerKey;
     private final Map<String, Object> plainClaims = new LinkedHashMap<>();
     private final Map<String, Object> selectiveClaims = new LinkedHashMap<>();
     private String vct;
@@ -25,7 +25,7 @@ public class SdJwtBuilder {
     private ECKey holderKey;
     private List<Base64> x5cChain;
 
-    public SdJwtBuilder(EcKeyManager issuerKey) {
+    public SdJwtBuilder(SigningKey issuerKey) {
         this.issuerKey = issuerKey;
     }
 

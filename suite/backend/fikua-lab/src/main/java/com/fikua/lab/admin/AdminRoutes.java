@@ -1,10 +1,10 @@
-package com.fikua.server.admin;
+package com.fikua.lab.admin;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fikua.core.profile.ProfileConfig;
 import com.fikua.core.profile.ProfilePresets;
-import com.fikua.server.db.ProfileRepository;
-import com.fikua.server.db.ProfileRepository.ProfileRow;
+import com.fikua.lab.db.ProfileRepository;
+import com.fikua.lab.db.ProfileRepository.ProfileRow;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 

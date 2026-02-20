@@ -10,10 +10,15 @@ class AuthServerMetadataTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://issuer.lab.fikua.com";
+    private static final String API_PREFIX = "/oid4vci/v1";
 
     @Test
     void forPreAuthProfile_returnsCorrectFields() throws Exception {
-        var metadata = AuthServerMetadata.forPreAuthProfile(BASE_URL);
+        var metadata = AuthServerMetadata.forPreAuthProfile(
+                BASE_URL,
+                BASE_URL + API_PREFIX + "/token",
+                BASE_URL + API_PREFIX + "/jwks"
+        );
         JsonNode json = MAPPER.valueToTree(metadata);
 
         assertEquals(BASE_URL, json.get("issuer").asText());
@@ -28,7 +33,13 @@ class AuthServerMetadataTest {
 
     @Test
     void forHaipProfile_returnsCorrectFields() throws Exception {
-        var metadata = AuthServerMetadata.forHaipProfile(BASE_URL);
+        var metadata = AuthServerMetadata.forHaipProfile(
+                BASE_URL,
+                BASE_URL + API_PREFIX + "/token",
+                BASE_URL + API_PREFIX + "/authorize",
+                BASE_URL + API_PREFIX + "/par",
+                BASE_URL + API_PREFIX + "/jwks"
+        );
         JsonNode json = MAPPER.valueToTree(metadata);
 
         assertEquals(BASE_URL, json.get("issuer").asText());
@@ -43,8 +54,18 @@ class AuthServerMetadataTest {
     @Test
     void noProfile_containsNoCredentialNonceEndpoint() throws Exception {
         // credential_nonce_endpoint belongs in Credential Issuer Metadata, NOT in AS Metadata
-        var preAuth = AuthServerMetadata.forPreAuthProfile(BASE_URL);
-        var haip = AuthServerMetadata.forHaipProfile(BASE_URL);
+        var preAuth = AuthServerMetadata.forPreAuthProfile(
+                BASE_URL,
+                BASE_URL + API_PREFIX + "/token",
+                BASE_URL + API_PREFIX + "/jwks"
+        );
+        var haip = AuthServerMetadata.forHaipProfile(
+                BASE_URL,
+                BASE_URL + API_PREFIX + "/token",
+                BASE_URL + API_PREFIX + "/authorize",
+                BASE_URL + API_PREFIX + "/par",
+                BASE_URL + API_PREFIX + "/jwks"
+        );
 
         String preAuthJson = MAPPER.writeValueAsString(preAuth);
         String haipJson = MAPPER.writeValueAsString(haip);

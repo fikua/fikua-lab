@@ -3,12 +3,13 @@ plugins {
 }
 
 application {
-    mainClass.set("com.fikua.server.FikuaLab")
+    mainClass.set("com.fikua.lab.FikuaLab")
     applicationDefaultJvmArgs = emptyList()
 }
 
 dependencies {
     implementation(project(":fikua-core"))
+    implementation(project(":fikua-issuer"))
 
     // HTTP server
     implementation("io.javalin:javalin:${property("javalinVersion")}")
@@ -16,16 +17,12 @@ dependencies {
     // Database
     implementation("org.postgresql:postgresql:${property("postgresqlVersion")}")
     implementation("com.zaxxer:HikariCP:${property("hikariVersion")}")
-    // Flyway removed — migrations run via plain JDBC (see DatabaseManager.migrate())
 
     // YAML config loading
     implementation("org.yaml:snakeyaml:${property("snakeyamlVersion")}")
 
-    // JSON (transitive from core, but explicit for server-specific use)
+    // JSON
     implementation("com.fasterxml.jackson.core:jackson-databind:${property("jacksonVersion")}")
-
-    // Nimbus JOSE (needed for ECKey references in server code)
-    implementation("com.nimbusds:nimbus-jose-jwt:${property("nimbusVersion")}")
 
     // Logging
     implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
@@ -34,7 +31,7 @@ dependencies {
 
 tasks.named<Jar>("jar") {
     manifest {
-        attributes["Main-Class"] = "com.fikua.server.FikuaLab"
+        attributes["Main-Class"] = "com.fikua.lab.FikuaLab"
     }
 }
 
@@ -42,7 +39,7 @@ tasks.register<Jar>("fatJar") {
     archiveClassifier.set("all")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
-        attributes["Main-Class"] = "com.fikua.server.FikuaLab"
+        attributes["Main-Class"] = "com.fikua.lab.FikuaLab"
     }
     from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }) {
         exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")

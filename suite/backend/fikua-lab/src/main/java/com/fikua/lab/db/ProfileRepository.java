@@ -1,4 +1,4 @@
-package com.fikua.server.db;
+package com.fikua.lab.db;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fikua.core.profile.ProfileConfig;
@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /**
  * Repository for test profiles stored in PostgreSQL.
- * Each profile has a name, role, JSON config, and active status.
+ * Full CRUD operations for admin management.
  */
 public class ProfileRepository {
 
@@ -34,7 +34,6 @@ public class ProfileRepository {
             Timestamp updatedAt
     ) {}
 
-    /** List all profiles ordered by creation date. */
     public List<ProfileRow> findAll() {
         var profiles = new ArrayList<ProfileRow>();
         String sql = "SELECT id, name, role, config, is_active, created_at, updated_at FROM profiles ORDER BY created_at";
@@ -50,7 +49,6 @@ public class ProfileRepository {
         return profiles;
     }
 
-    /** Find a profile by ID. */
     public ProfileRow findById(String id) {
         String sql = "SELECT id, name, role, config, is_active, created_at, updated_at FROM profiles WHERE id = ?";
         try (Connection conn = db.getConnection();
@@ -65,7 +63,6 @@ public class ProfileRepository {
         }
     }
 
-    /** Find the currently active profile. */
     public ProfileRow findActive() {
         String sql = "SELECT id, name, role, config, is_active, created_at, updated_at FROM profiles WHERE is_active = true LIMIT 1";
         try (Connection conn = db.getConnection();
@@ -78,7 +75,6 @@ public class ProfileRepository {
         }
     }
 
-    /** Create a new profile. */
     public ProfileRow create(String name, String role, ProfileConfig config) {
         String id = UUID.randomUUID().toString();
         String sql = "INSERT INTO profiles (id, name, role, config) VALUES (?::uuid, ?, ?, ?::jsonb)";
@@ -96,7 +92,6 @@ public class ProfileRepository {
         }
     }
 
-    /** Update an existing profile. */
     public ProfileRow update(String id, String name, String role, ProfileConfig config) {
         String sql = "UPDATE profiles SET name = ?, role = ?, config = ?::jsonb, updated_at = now() WHERE id = ?::uuid";
         try (Connection conn = db.getConnection();
@@ -113,7 +108,6 @@ public class ProfileRepository {
         }
     }
 
-    /** Delete a profile by ID. */
     public boolean delete(String id) {
         String sql = "DELETE FROM profiles WHERE id = ?::uuid";
         try (Connection conn = db.getConnection();
@@ -126,7 +120,6 @@ public class ProfileRepository {
         }
     }
 
-    /** Activate a profile (deactivate all others first). */
     public void activate(String id) {
         String deactivate = "UPDATE profiles SET is_active = false WHERE is_active = true";
         String activate = "UPDATE profiles SET is_active = true, updated_at = now() WHERE id = ?::uuid";

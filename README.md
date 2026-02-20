@@ -15,11 +15,15 @@ Fikua Lab is a conformance testing platform built to pass the 12 OIDF conformanc
 ## Architecture
 
 ```text
-fikua-core     Pure domain logic (OAuth2, OID4VCI, OID4VP, SD-JWT, crypto)
-               Zero framework dependencies. Reusable in any context.
+fikua-core     Pure protocol library (OAuth2, OID4VCI, OID4VP, SD-JWT, crypto)
+               Zero I/O, zero state, zero framework dependencies.
 
-fikua-server   HTTP layer (Javalin) + database + configuration
-               Calls core logic, exposes endpoints, manages state.
+fikua-issuer   Issuer service (application layer + infrastructure adapters)
+               IssuanceService, ports (SessionStore, IssuanceStore, ProfileStore),
+               HTTP controller, JDBC adapters, PEM key loading.
+
+fikua-lab      Orchestrator — reads FIKUA_ROLES and starts services.
+               Database, config, admin API, Javalin server.
 ```
 
 Profiles are stored in PostgreSQL and switchable at runtime via an admin UI — no redeployment needed to switch between OIDF test configurations.
@@ -58,7 +62,8 @@ make landing
 suite/
   backend/
     fikua-core/       Protocol library (crypto, OAuth2, OID4VCI, SD-JWT)
-    fikua-server/     HTTP endpoints (Javalin, PostgreSQL, admin API)
+    fikua-issuer/     Issuer service (use cases, ports, adapters, controller)
+    fikua-lab/        Orchestrator (config, DB, admin API, role-based startup)
   frontend/
     landing/          Public landing page
     admin/            Profile management UI
@@ -66,11 +71,12 @@ suite/
     holder/           Wallet UI
     verifier/         Verifier UI
 deployment/
-  Dockerfile          Multi-stage build (Java 25)
-  docker-compose.yaml Full stack: backend + postgres + nginx
+  docker/             Dockerfile (multi-stage Java 25)
+  envs/               Environment configs (local, dev/VPS)
   nginx/              Reverse proxy + TLS termination
 docs/
-  architecture/       Implementation plan
+  fikua-lab-dt.md     Technical document (source of truth)
+  specs/              Protocol specs and flow docs
   analysis/           OIDF test configurations
 ```
 

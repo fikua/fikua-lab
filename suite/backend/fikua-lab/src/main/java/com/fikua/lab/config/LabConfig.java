@@ -1,4 +1,4 @@
-package com.fikua.server.config;
+package com.fikua.lab.config;
 
 import org.yaml.snakeyaml.Yaml;
 
@@ -37,7 +37,6 @@ public record LabConfig(
 
     @SuppressWarnings("unchecked")
     private static Map<String, Object> loadYaml() {
-        // Try external config first, then classpath
         Path external = Path.of("config.yaml");
         if (Files.exists(external)) {
             try (InputStream is = Files.newInputStream(external)) {
