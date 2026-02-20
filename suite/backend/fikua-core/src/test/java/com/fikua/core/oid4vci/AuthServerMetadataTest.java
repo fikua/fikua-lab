@@ -53,6 +53,9 @@ class AuthServerMetadataTest {
         // OAuth ATCA §10.1: required when attest_jwt_client_auth is supported
         assertEquals("ES256", json.get("client_attestation_signing_alg_values_supported").get(0).asText());
         assertEquals("ES256", json.get("client_attestation_pop_signing_alg_values_supported").get(0).asText());
+
+        // RFC 9207: authorization response issuer identification
+        assertTrue(json.get("authorization_response_iss_parameter_supported").asBoolean());
     }
 
     @Test

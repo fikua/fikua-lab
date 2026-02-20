@@ -21,7 +21,7 @@ public final class ProofValidator {
     /**
      * Validate a JWT proof and return the wallet's public key.
      *
-     * @param proof the proof object from the credential request
+     * @param proof the proof object from the credential request (singular format)
      * @param expectedIssuer expected credential issuer URL (aud claim)
      * @param expectedNonce expected c_nonce (nonce claim)
      * @return the wallet's ECKey (public key) extracted from the proof
@@ -35,8 +35,25 @@ public final class ProofValidator {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Missing jwt in proof");
         }
 
+        return validateJwt(proof.jwt(), expectedIssuer, expectedNonce);
+    }
+
+    /**
+     * Validate a raw JWT proof string and return the wallet's public key.
+     * Used by the "proofs" (plural) path where the JWT is extracted from the list.
+     *
+     * @param jwtString the serialized JWT proof
+     * @param expectedIssuer expected credential issuer URL (aud claim)
+     * @param expectedNonce expected c_nonce (nonce claim)
+     * @return the wallet's ECKey (public key) extracted from the proof
+     */
+    public static ECKey validateJwt(String jwtString, String expectedIssuer, String expectedNonce) {
+        if (jwtString == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Missing jwt in proof");
+        }
+
         try {
-            SignedJWT jwt = SignedJWT.parse(proof.jwt());
+            SignedJWT jwt = SignedJWT.parse(jwtString);
             JWSHeader header = jwt.getHeader();
 
             // Must be typ: openid4vci-proof+jwt

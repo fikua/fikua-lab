@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-20
+
+OIDF conformance fixes for credential endpoint, token endpoint, and authorization response.
+
+### Fixed
+
+- **Credential request `proofs` (plural):** Parse OID4VCI 1.0 Final §7.2.2 format `{"proofs": {"jwt": ["eyJ..."]}}` in addition to draft singular `{"proof": {"proof_type": "jwt", "jwt": "eyJ..."}}`. New `extractProofJwt()` method normalizes both formats.
+- **`Cache-Control: no-store` header:** Added to `/token` and `/credential` responses (OID4VCI §7.3, RFC 6749 §5.1)
+- **`iss` in authorization response:** Added `&iss=<issuer>` URL-encoded parameter to authorize redirect (RFC 9207)
+- **`authorization_response_iss_parameter_supported`:** Advertised in AS Metadata for HAIP profile (RFC 9207 §3)
+
+### Added
+
+- **5 new tests** in `CredentialRequestTest` — `proofs` deserialization, `extractProofJwt()` singular/plural/precedence/null
+- **1 new assertion** in `AuthServerMetadataTest` — `authorization_response_iss_parameter_supported`
+
+### Spec references
+
+- OID4VCI 1.0 Final §7.2.2, RFC 9207 (Authorization Server Issuer Identification), RFC 6749 §5.1
+
 ## [0.4.0] - 2026-02-20
 
 RFC 9457 error handling, comprehensive test coverage, and issuer state management.

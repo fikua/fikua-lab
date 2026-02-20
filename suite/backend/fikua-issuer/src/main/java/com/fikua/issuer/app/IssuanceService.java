@@ -234,7 +234,11 @@ public class IssuanceService {
                         "Unsupported credential_configuration_id: " + request.credentialConfigurationId());
             }
 
-            ECKey walletKey = ProofValidator.validate(request.proof(), baseUrl, session.cNonce());
+            String proofJwt = request.extractProofJwt();
+            if (proofJwt == null) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "proof_type must be jwt");
+            }
+            ECKey walletKey = ProofValidator.validateJwt(proofJwt, baseUrl, session.cNonce());
 
             SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
                     .vct("eu.europa.ec.eudi.pid.1")

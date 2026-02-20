@@ -23,7 +23,8 @@ public record AuthServerMetadata(
         @JsonProperty("dpop_signing_alg_values_supported") List<String> dpopSigningAlgValues,
         @JsonProperty("client_attestation_signing_alg_values_supported") List<String> clientAttestationSigningAlgValues,
         @JsonProperty("client_attestation_pop_signing_alg_values_supported") List<String> clientAttestationPopSigningAlgValues,
-        @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess
+        @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess,
+        @JsonProperty("authorization_response_iss_parameter_supported") Boolean authorizationResponseIssParameterSupported
 ) {
 
     /** Build metadata for pre-authorized code profile. */
@@ -41,7 +42,8 @@ public record AuthServerMetadata(
                 null, // no DPoP
                 null, // no client attestation
                 null,
-                true
+                true,
+                null  // no iss parameter for pre-auth
         );
     }
 
@@ -62,7 +64,8 @@ public record AuthServerMetadata(
                 List.of("ES256"),
                 List.of("ES256"),
                 List.of("ES256"),
-                null
+                null,
+                true  // RFC 9207
         );
     }
 }

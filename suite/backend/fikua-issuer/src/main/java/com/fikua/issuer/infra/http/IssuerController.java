@@ -19,9 +19,11 @@ public class IssuerController {
     private static final String API_PREFIX = "/oid4vci/v1";
 
     private final IssuanceService service;
+    private final String baseUrl;
 
-    public IssuerController(IssuanceService service) {
+    public IssuerController(IssuanceService service, String baseUrl) {
         this.service = service;
+        this.baseUrl = baseUrl;
     }
 
     public void register(Javalin app) {
@@ -88,6 +90,7 @@ public class IssuerController {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
         String dpopHeader = ctx.header("DPoP");
+        ctx.header("Cache-Control", "no-store");
         ctx.json(service.handleToken(params, config, dpopHeader));
     }
 
@@ -104,6 +107,7 @@ public class IssuerController {
             return;
         }
         String dpopHeader = ctx.header("DPoP");
+        ctx.header("Cache-Control", "no-store");
         ctx.json(service.issueCredential(accessToken, ctx.body(), config, dpopHeader));
     }
 
@@ -122,6 +126,7 @@ public class IssuerController {
         if (result.redirectUri() != null) {
             String redirect = result.redirectUri() + "?code=" + result.code();
             if (result.state() != null) redirect += "&state=" + result.state();
+            redirect += "&iss=" + java.net.URLEncoder.encode(baseUrl, java.nio.charset.StandardCharsets.UTF_8);
             ctx.redirect(redirect);
         } else {
             ctx.json(Map.of("code", result.code()));

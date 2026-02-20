@@ -446,6 +446,8 @@ The backend listens on `127.0.0.1:8090` (exposed by Docker Compose, mapped inter
 | `https://issuer.lab.fikua.com/oid4vci/v1/token` | Token endpoint |
 | `https://issuer.lab.fikua.com/oid4vci/v1/credential` | Credential endpoint |
 
+**Credential request format:** Supports both OID4VCI 1.0 Final `proofs` (plural: `{"proofs": {"jwt": ["eyJ..."]}}`) and draft `proof` (singular: `{"proof": {"proof_type": "jwt", "jwt": "eyJ..."}}`). The plural format takes precedence when both are present.
+
 ### mTLS flow — cert.lab.fikua.com
 
 The `cert.lab` subdomain handles client certificate selection (mTLS). The browser shows the native certificate selection dialog and data is sent back to the Issuer.
@@ -533,6 +535,9 @@ The backend uses a dual error format:
 - **404/405** at the Javalin level return `ProblemDetail` (not HTML)
 - **500** unhandled exceptions return `ProblemDetail.internalError()` with stack trace logged server-side
 - `OAuthErrorException` is the transport for all protocol-level errors (carries HTTP status + `OAuthError`)
+- **`Cache-Control: no-store`** on `/token` and `/credential` responses (OID4VCI §7.3, RFC 6749 §5.1)
+- **`iss` parameter** in authorization response redirect (RFC 9207)
+- **`authorization_response_iss_parameter_supported: true`** in AS Metadata for HAIP profile (RFC 9207 §3)
 
 **Records:**
 
@@ -541,11 +546,11 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-109 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
+114 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
 
 | Test class | Tests | Coverage |
 | ---------- | ----- | -------- |
-| `AuthServerMetadataTest` | 6 | HAIP + pre-auth metadata, JSON contract |
+| `AuthServerMetadataTest` | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
 | `CredentialIssuerMetadataTest` | 12 | HAIP + plain metadata, credential configs |
 | `ClientAttestationValidatorTest` | 7 | WIA~PoP parsing, assertion types |
 | `DPoPValidatorTest` | 14 | All RFC 9449 validation branches |
@@ -556,6 +561,7 @@ The backend uses a dual error format:
 | `TokenResponseTest` | 4 | Bearer/DPoP, JSON contract |
 | `TokenRequestTest` | 5 | Form parsing, grant type detection |
 | `CredentialOfferTest` | 6 | Pre-auth + auth_code, tx_code |
+| `CredentialRequestTest` | 9 | Singular/plural proofs, extractProofJwt, JSON contract |
 | `CredentialResponseTest` | 4 | JSON contract, NON_NULL |
 | `DisclosureTest` | 9 | Create/digest/parse round-trip |
 | `SdJwtVerifierTest` | 5 | Signature verification, expiry, claim resolution |

@@ -43,7 +43,7 @@ public class IssuerService {
         issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl);
 
         // Register HTTP controller
-        new IssuerController(issuanceService).register(app);
+        new IssuerController(issuanceService, baseUrl).register(app);
     }
 
     /** Get the issuance service (for orchestrator-level operations like reset). */
