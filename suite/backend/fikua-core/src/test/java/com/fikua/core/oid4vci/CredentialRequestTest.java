@@ -13,7 +13,7 @@ class CredentialRequestTest {
     void deserialize_withCredentialConfigurationId() throws Exception {
         String json = """
                 {
-                  "credential_configuration_id": "eu.europa.ec.eudi.pid_dc+sd-jwt",
+                  "credential_configuration_id": "eu.europa.ec.eudi.pid.1",
                   "proof": {
                     "proof_type": "jwt",
                     "jwt": "eyJ..."
@@ -23,7 +23,7 @@ class CredentialRequestTest {
 
         CredentialRequest request = MAPPER.readValue(json, CredentialRequest.class);
 
-        assertEquals("eu.europa.ec.eudi.pid_dc+sd-jwt", request.credentialConfigurationId());
+        assertEquals("eu.europa.ec.eudi.pid.1", request.credentialConfigurationId());
         assertNull(request.format(), "format should be null when credential_configuration_id is used");
         assertNotNull(request.proof());
         assertEquals("jwt", request.proof().proofType());
@@ -51,7 +51,7 @@ class CredentialRequestTest {
     void deserialize_withBothFields() throws Exception {
         String json = """
                 {
-                  "credential_configuration_id": "eu.europa.ec.eudi.pid_dc+sd-jwt",
+                  "credential_configuration_id": "eu.europa.ec.eudi.pid.1",
                   "format": "dc+sd-jwt",
                   "proof": {
                     "proof_type": "jwt",
@@ -62,14 +62,14 @@ class CredentialRequestTest {
 
         CredentialRequest request = MAPPER.readValue(json, CredentialRequest.class);
 
-        assertEquals("eu.europa.ec.eudi.pid_dc+sd-jwt", request.credentialConfigurationId());
+        assertEquals("eu.europa.ec.eudi.pid.1", request.credentialConfigurationId());
         assertEquals("dc+sd-jwt", request.format());
     }
 
     @Test
     void serialize_credentialConfigurationId_usesSnakeCase() throws Exception {
         CredentialRequest request = new CredentialRequest(
-                null, "eu.europa.ec.eudi.pid_dc+sd-jwt", null, null, null
+                null, "eu.europa.ec.eudi.pid.1", null, null, null
         );
 
         String json = MAPPER.writeValueAsString(request);

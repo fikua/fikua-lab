@@ -30,7 +30,7 @@ public class IssuanceService {
 
     private static final Logger log = LoggerFactory.getLogger(IssuanceService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid_dc+sd-jwt";
+    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid.1";
     private static final String API_PREFIX = "/oid4vci/v1";
 
     private final SigningKey issuerKey;
@@ -465,7 +465,7 @@ public class IssuanceService {
     private Map<String, Object> buildCredentialConfigurations() {
         var credConfig = new LinkedHashMap<String, Object>();
         credConfig.put("format", "dc+sd-jwt");
-        credConfig.put("scope", "eu.europa.ec.eudi.pid_dc+sd-jwt");
+        credConfig.put("scope", "eu.europa.ec.eudi.pid.1");
         credConfig.put("cryptographic_binding_methods_supported", List.of("jwk"));
         credConfig.put("credential_signing_alg_values_supported", List.of("ES256"));
         credConfig.put("proof_types_supported", Map.of(

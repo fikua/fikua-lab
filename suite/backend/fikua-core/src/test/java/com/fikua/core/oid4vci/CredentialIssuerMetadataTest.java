@@ -15,7 +15,7 @@ class CredentialIssuerMetadataTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://issuer.lab.fikua.com";
     private static final String API_PREFIX = "/oid4vci/v1";
-    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid_dc+sd-jwt";
+    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid.1";
 
     @Test
     void build_returnsCorrectTopLevelFields() throws Exception {
@@ -40,7 +40,7 @@ class CredentialIssuerMetadataTest {
 
         JsonNode config = configs.get(CREDENTIAL_CONFIG_ID);
         assertEquals("dc+sd-jwt", config.get("format").asText());
-        assertEquals("eu.europa.ec.eudi.pid_dc+sd-jwt", config.get("scope").asText());
+        assertEquals("eu.europa.ec.eudi.pid.1", config.get("scope").asText());
     }
 
     @Test
@@ -152,7 +152,7 @@ class CredentialIssuerMetadataTest {
     private Map<String, Object> buildPidCredentialConfigurations() {
         var credConfig = new LinkedHashMap<String, Object>();
         credConfig.put("format", "dc+sd-jwt");
-        credConfig.put("scope", "eu.europa.ec.eudi.pid_dc+sd-jwt");
+        credConfig.put("scope", "eu.europa.ec.eudi.pid.1");
         credConfig.put("cryptographic_binding_methods_supported", List.of("jwk"));
         credConfig.put("credential_signing_alg_values_supported", List.of("ES256"));
         credConfig.put("proof_types_supported", Map.of(
