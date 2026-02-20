@@ -95,16 +95,23 @@ public class IssuerController {
     }
 
     private void nonce(Context ctx) {
-        ctx.json(service.generateNonce());
+        String accessToken = extractAccessToken(ctx.header("Authorization"));
+        String dpopHeader = ctx.header("DPoP");
+        ctx.header("Cache-Control", "no-store");
+        ctx.json(service.generateNonce(accessToken, dpopHeader));
     }
 
     private void credential(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         String authHeader = ctx.header("Authorization");
-        String accessToken = extractBearerToken(authHeader);
+        String accessToken = extractAccessToken(authHeader);
         if (accessToken == null) {
-            ctx.status(401).json(OAuthError.invalidRequest("Missing access token"));
-            return;
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Missing access token");
+        }
+        // H10: Reject Bearer scheme for DPoP-bound tokens
+        if (config.requiresDPoP() && authHeader != null && authHeader.toLowerCase().startsWith("bearer ")) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN,
+                    "DPoP-bound tokens must use DPoP authorization scheme, not Bearer");
         }
         String dpopHeader = ctx.header("DPoP");
         ctx.header("Cache-Control", "no-store");
@@ -146,7 +153,7 @@ public class IssuerController {
 
     // --- Helpers ---
 
-    private String extractBearerToken(String authHeader) {
+    private String extractAccessToken(String authHeader) {
         if (authHeader == null) return null;
         if (authHeader.toLowerCase().startsWith("bearer ")) {
             return authHeader.substring(7).trim();

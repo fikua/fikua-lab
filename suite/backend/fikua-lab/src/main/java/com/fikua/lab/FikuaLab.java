@@ -1,6 +1,7 @@
 package com.fikua.lab;
 
 import com.fikua.core.http.ProblemDetail;
+import com.fikua.core.oauth2.DPoPNonceRequiredException;
 import com.fikua.core.oauth2.OAuthErrorException;
 import com.fikua.issuer.IssuerService;
 import com.fikua.lab.admin.AdminRoutes;
@@ -57,6 +58,15 @@ public class FikuaLab {
         });
 
         // Global error handling
+
+        // H6: DPoP-Nonce required — return 401 with DPoP-Nonce header (RFC 9449 §8)
+        app.exception(DPoPNonceRequiredException.class, (e, ctx) -> {
+            String freshNonce = java.util.UUID.randomUUID().toString();
+            ctx.header("DPoP-Nonce", freshNonce);
+            ctx.header("WWW-Authenticate", "DPoP error=\"use_dpop_nonce\"");
+            ctx.status(401).json(e.error());
+        });
+
         app.exception(OAuthErrorException.class, (e, ctx) -> {
             if (e.httpStatus() == 401) {
                 ctx.header("WWW-Authenticate", "DPoP error=\"" + e.error().error() + "\"");
