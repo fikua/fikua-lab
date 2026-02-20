@@ -37,13 +37,15 @@ public record CredentialOffer(
         );
     }
 
-    /** Create an authorization code offer. */
+    /** Create an authorization code offer (OID4VCI 1.0 Final §4.1.1). */
     public static CredentialOffer authorizationCode(String issuerUrl, String configId,
                                                      String issuerState) {
         var grant = new java.util.LinkedHashMap<String, Object>();
         if (issuerState != null) {
             grant.put("issuer_state", issuerState);
         }
+        // M3: authorization_server in grant object per OID4VCI 1.0 Final §4.1.1
+        grant.put("authorization_server", issuerUrl);
 
         return new CredentialOffer(
                 issuerUrl,

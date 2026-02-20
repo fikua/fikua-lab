@@ -23,8 +23,11 @@ public record AuthServerMetadata(
         @JsonProperty("dpop_signing_alg_values_supported") List<String> dpopSigningAlgValues,
         @JsonProperty("client_attestation_signing_alg_values_supported") List<String> clientAttestationSigningAlgValues,
         @JsonProperty("client_attestation_pop_signing_alg_values_supported") List<String> clientAttestationPopSigningAlgValues,
+        @JsonProperty("require_pushed_authorization_requests") Boolean requirePar,
+        @JsonProperty("token_endpoint_auth_signing_alg_values_supported") List<String> tokenEndpointAuthSigningAlgValues,
         @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess,
-        @JsonProperty("authorization_response_iss_parameter_supported") Boolean authorizationResponseIssParameterSupported
+        @JsonProperty("authorization_response_iss_parameter_supported") Boolean authorizationResponseIssParameterSupported,
+        @JsonProperty("subject_types_supported") List<String> subjectTypesSupported
 ) {
 
     /** Build metadata for pre-authorized code profile. */
@@ -42,8 +45,11 @@ public record AuthServerMetadata(
                 null, // no DPoP
                 null, // no client attestation
                 null,
+                null, // no require_par
+                null, // no signing alg
                 true,
-                null  // no iss parameter for pre-auth
+                null, // no iss parameter for pre-auth
+                List.of("public")
         );
     }
 
@@ -64,8 +70,11 @@ public record AuthServerMetadata(
                 List.of("ES256"),
                 List.of("ES256"),
                 List.of("ES256"),
+                true,                // HAIP §5.1.3: PAR required
+                List.of("ES256"),    // RFC 8414 §2: signing alg for client auth
                 null,
-                true  // RFC 9207
+                true, // RFC 9207
+                List.of("public")
         );
     }
 }

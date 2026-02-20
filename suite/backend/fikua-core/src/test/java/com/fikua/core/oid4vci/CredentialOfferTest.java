@@ -60,6 +60,8 @@ class CredentialOfferTest {
         JsonNode grant = json.get("grants").get("authorization_code");
         assertNotNull(grant);
         assertEquals("state-123", grant.get("issuer_state").asText());
+        // M3: authorization_server in grant object per OID4VCI 1.0 Final §4.1.1
+        assertEquals("https://issuer.example.com", grant.get("authorization_server").asText());
     }
 
     @Test
