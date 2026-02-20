@@ -12,33 +12,40 @@ class TokenResponseTest {
 
     @Test
     void bearer_hasCorrectTokenType() {
-        var tr = TokenResponse.bearer("tok-123", "nonce-abc");
+        var tr = TokenResponse.bearer("tok-123");
         assertEquals("Bearer", tr.tokenType());
         assertEquals("tok-123", tr.accessToken());
-        assertEquals("nonce-abc", tr.cNonce());
     }
 
     @Test
     void dpop_hasCorrectTokenType() {
-        var tr = TokenResponse.dpop("tok-456", "nonce-def");
+        var tr = TokenResponse.dpop("tok-456");
         assertEquals("DPoP", tr.tokenType());
     }
 
     @Test
     void serialize_usesSnakeCaseFields() throws Exception {
-        var tr = TokenResponse.bearer("tok", "nonce");
+        var tr = TokenResponse.bearer("tok");
         JsonNode json = MAPPER.valueToTree(tr);
 
         assertEquals("tok", json.get("access_token").asText());
         assertEquals("Bearer", json.get("token_type").asText());
         assertEquals(86400, json.get("expires_in").asInt());
-        assertEquals("nonce", json.get("c_nonce").asText());
-        assertEquals(86400, json.get("c_nonce_expires_in").asInt());
+    }
+
+    @Test
+    void serialize_noCNonce_inTokenResponse() throws Exception {
+        // OID4VCI 1.0 Final: c_nonce is NOT in token response (moved to Nonce Endpoint §7)
+        var tr = TokenResponse.bearer("tok");
+        JsonNode json = MAPPER.valueToTree(tr);
+
+        assertNull(json.get("c_nonce"), "c_nonce must NOT be in token response");
+        assertNull(json.get("c_nonce_expires_in"), "c_nonce_expires_in must NOT be in token response");
     }
 
     @Test
     void serialize_nullAuthorizationDetails_omitted() throws Exception {
-        var tr = TokenResponse.bearer("tok", "nonce");
+        var tr = TokenResponse.bearer("tok");
         JsonNode json = MAPPER.valueToTree(tr);
 
         assertNull(json.get("authorization_details"));

@@ -37,7 +37,7 @@ class ProofValidatorTest {
     void validate_nullProof_throws() {
         var ex = assertThrows(OAuthErrorException.class,
                 () -> ProofValidator.validate(null, ISSUER_URL, C_NONCE));
-        assertEquals(OAuthError.INVALID_PROOF, ex.error().error());
+        assertEquals(OAuthError.INVALID_OR_MISSING_PROOF, ex.error().error());
         assertTrue(ex.error().errorDescription().contains("proof_type"));
     }
 
@@ -46,7 +46,7 @@ class ProofValidatorTest {
         var proof = new CredentialRequest.Proof("cwt", null);
         var ex = assertThrows(OAuthErrorException.class,
                 () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
-        assertEquals(OAuthError.INVALID_PROOF, ex.error().error());
+        assertEquals(OAuthError.INVALID_OR_MISSING_PROOF, ex.error().error());
     }
 
     @Test
@@ -193,7 +193,7 @@ class ProofValidatorTest {
         var proof = new CredentialRequest.Proof("jwt", "not.a.valid.jwt");
         var ex = assertThrows(OAuthErrorException.class,
                 () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
-        assertEquals(OAuthError.INVALID_PROOF, ex.error().error());
+        assertEquals(OAuthError.INVALID_OR_MISSING_PROOF, ex.error().error());
     }
 
     // --- valid proof ---

@@ -41,7 +41,7 @@ class OAuthErrorTest {
 
     @Test
     void invalidProof_hasCorrectCode() {
-        assertEquals("invalid_proof", OAuthError.invalidProof("x").error());
+        assertEquals("invalid_or_missing_proof", OAuthError.invalidProof("x").error());
     }
 
     @Test

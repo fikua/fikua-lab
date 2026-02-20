@@ -17,9 +17,11 @@ public record OAuthError(
     public static final String INVALID_CLIENT = "invalid_client";
     public static final String UNSUPPORTED_GRANT_TYPE = "unsupported_grant_type";
     public static final String INVALID_TOKEN = "invalid_token";
-    public static final String INVALID_PROOF = "invalid_proof";
     public static final String UNSUPPORTED_CREDENTIAL_TYPE = "unsupported_credential_type";
     public static final String UNSUPPORTED_CREDENTIAL_FORMAT = "unsupported_credential_format";
+
+    /** OID4VCI 1.0 Final §8.4 — replaces draft "invalid_proof". */
+    public static final String INVALID_OR_MISSING_PROOF = "invalid_or_missing_proof";
 
     public static OAuthError invalidRequest(String description) {
         return new OAuthError(INVALID_REQUEST, description);
@@ -30,7 +32,7 @@ public record OAuthError(
     }
 
     public static OAuthError invalidProof(String description) {
-        return new OAuthError(INVALID_PROOF, description);
+        return new OAuthError(INVALID_OR_MISSING_PROOF, description);
     }
 
     public static OAuthError invalidToken(String description) {
