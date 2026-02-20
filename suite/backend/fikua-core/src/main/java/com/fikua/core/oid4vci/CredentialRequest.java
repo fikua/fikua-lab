@@ -12,6 +12,7 @@ import java.util.Map;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CredentialRequest(
         @JsonProperty("format") String format,
+        @JsonProperty("credential_configuration_id") String credentialConfigurationId,
         @JsonProperty("credential_identifier") String credentialIdentifier,
         @JsonProperty("proof") Proof proof,
         @JsonProperty("credential_response_encryption") Map<String, Object> credentialResponseEncryption

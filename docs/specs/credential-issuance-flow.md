@@ -1344,11 +1344,11 @@ String sdJwt = new SdJwtBuilder(issuerKey)
 
 #### P0 — Checklist
 
-- [ ] P0.1: Afegir `nonce_endpoint` i `notification_endpoint` al record `CredentialIssuerMetadata`
-- [ ] P0.2: Canviar `vc+sd-jwt` → `dc+sd-jwt` a `CredentialIssuerMetadata.build()`
-- [ ] P0.3: Migrar claims a array amb `path` dins `credential_metadata`
-- [ ] P0.4: Treure `credential_nonce_endpoint` de `AuthServerMetadata`
-- [ ] P0.5: Canviar `typ` header a `dc+sd-jwt` a `SdJwtBuilder`
+- [x] P0.1: Afegir `nonce_endpoint` i `notification_endpoint` al record `CredentialIssuerMetadata` — 2026-02-20
+- [x] P0.2: Canviar `vc+sd-jwt` → `dc+sd-jwt` a `CredentialIssuerMetadata.build()` — 2026-02-20
+- [x] P0.3: Migrar claims a array amb `path` dins `credential_metadata` — 2026-02-20
+- [x] P0.4: Treure `credential_nonce_endpoint` de `AuthServerMetadata` — 2026-02-20
+- [x] P0.5: Canviar `typ` header a `dc+sd-jwt` a `SdJwtBuilder` — 2026-02-20
 - [x] P0.6: Actualitzar constant `CREDENTIAL_CONFIG_ID` i passar `x5c` a `IssuerRoutes`
 - [ ] Compilar: `cd suite/backend && ./gradlew build`
 - [ ] Tests unitaris passen: `./gradlew test`
@@ -1469,10 +1469,10 @@ private void handlePreAuthToken(Context ctx, TokenRequest request, ProfileConfig
 
 #### P1 — Checklist
 
-- [ ] P1.1: Verificar que `exp` es genera correctament a `SdJwtBuilder`
-- [ ] P1.2: Afegir `credential_configuration_id` a `CredentialRequest`; validar a `IssuerRoutes.credential()`
-- [ ] P1.3: Afegir validació de `tx_code` a `handlePreAuthToken`; afegir `tx_code` a `TokenRequest`
-- [ ] Compilar i tests: `./gradlew build`
+- [x] P1.1: Verificar que `exp` es genera correctament a `SdJwtBuilder` — 2026-02-20
+- [x] P1.2: Afegir `credential_configuration_id` a `CredentialRequest`; validar a `IssuanceService.issueCredential()` — 2026-02-20
+- [x] P1.3: Afegir validació de `tx_code` a `handlePreAuthToken`; afegir `tx_code` a `TokenRequest` — 2026-02-20
+- [x] Compilar i tests: `./gradlew build` — 2026-02-20
 - [ ] Executar Test #2 OIDF
 
 #### P1 — Acceptance criteria

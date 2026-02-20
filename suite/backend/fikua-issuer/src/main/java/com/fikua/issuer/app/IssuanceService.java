@@ -97,17 +97,28 @@ public class IssuanceService {
 
     /** Create a credential offer based on profile config. Returns offer JSON or offer URI map. */
     public Map<String, Object> createCredentialOffer(ProfileConfig config) {
+        return createCredentialOffer(config, false);
+    }
+
+    /** Create a credential offer with optional tx_code. */
+    public Map<String, Object> createCredentialOffer(ProfileConfig config, boolean txCodeRequired) {
         try {
             CredentialOffer offer;
             if (config.isHaip()) {
                 String issuerState = sessionStore.randomToken(16);
                 offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
             } else {
+                var metadata = new LinkedHashMap<String, Object>();
+                String txCodeValue = null;
+                if (txCodeRequired) {
+                    txCodeValue = generateTxCode();
+                    metadata.put("tx_code", txCodeValue);
+                }
                 SessionData session = new SessionData(
-                        sessionStore.randomToken(16), null, null, Instant.now(), Map.of()
+                        sessionStore.randomToken(16), null, null, Instant.now(), Map.copyOf(metadata)
                 );
                 String preAuthCode = sessionStore.createPreAuthCode(session);
-                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, false);
+                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, txCodeRequired);
             }
 
             String offerJson = MAPPER.writeValueAsString(offer);
@@ -140,6 +151,14 @@ public class IssuanceService {
         SessionData session = sessionStore.consumePreAuthCode(request.preAuthorizedCode());
         if (session == null) {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Invalid or expired pre-authorized_code");
+        }
+
+        // Validate tx_code if the session requires it (OID4VCI §4.1.1)
+        String expectedTxCode = (String) session.metadata().get("tx_code");
+        if (expectedTxCode != null) {
+            if (request.txCode() == null || !expectedTxCode.equals(request.txCode())) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Invalid or missing tx_code");
+            }
         }
 
         String cNonce = sessionStore.generateNonce();
@@ -245,7 +264,15 @@ public class IssuanceService {
 
         try {
             CredentialRequest request = MAPPER.readValue(body, CredentialRequest.class);
-            log.info("Credential request: format={}", request.format());
+            log.info("Credential request: format={}, credential_configuration_id={}",
+                    request.format(), request.credentialConfigurationId());
+
+            // Validate credential_configuration_id (OID4VCI 1.0 Final §7.2)
+            if (request.credentialConfigurationId() != null
+                    && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                        "Unsupported credential_configuration_id: " + request.credentialConfigurationId());
+            }
 
             ECKey walletKey = ProofValidator.validate(request.proof(), baseUrl, session.cNonce());
 
@@ -363,35 +390,50 @@ public class IssuanceService {
 
             String sourceType = bodyNode.has("source_type") ? bodyNode.get("source_type").asText() : null;
             String sourceRef = bodyNode.has("source_ref") ? bodyNode.get("source_ref").asText() : null;
+            boolean txCodeRequired = bodyNode.has("tx_code_required")
+                    && bodyNode.get("tx_code_required").asBoolean(false);
 
             var record = issuanceStore.create(credentialType, credentialData, sourceType, sourceRef);
             log.info("IssuanceRecord created: id={}, type={}, source={}", record.id(), credentialType, sourceType);
 
             CredentialOffer offer;
+            String txCodeValue = null;
             if (config.isHaip()) {
                 String issuerState = sessionStore.randomToken(16);
                 offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
             } else {
+                var metadata = new LinkedHashMap<String, Object>();
+                metadata.put("issuanceRecordId", record.id());
+                if (txCodeRequired) {
+                    txCodeValue = generateTxCode();
+                    metadata.put("tx_code", txCodeValue);
+                }
                 SessionData session = new SessionData(
                         sessionStore.randomToken(16), null, null, Instant.now(),
-                        Map.of("issuanceRecordId", record.id())
+                        Map.copyOf(metadata)
                 );
                 String preAuthCode = sessionStore.createPreAuthCode(session);
                 issuanceStore.updatePreAuthCode(record.id(), preAuthCode);
-                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, false);
+                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, txCodeRequired);
             }
 
             issuanceStore.updateStatus(record.id(), "offer_created");
             String offerJson = MAPPER.writeValueAsString(offer);
 
+            var result = new LinkedHashMap<String, Object>();
             if (config.credentialOffer() == CredentialOfferVariant.BY_REFERENCE) {
                 String offerId = sessionStore.storeCredentialOffer(offerJson);
                 issuanceStore.updateOfferId(record.id(), offerId);
                 String offerUri = baseUrl + API_PREFIX + "/credential-offer/" + offerId;
-                return Map.of("credential_offer_uri", offerUri, "issuance_id", record.id());
+                result.put("credential_offer_uri", offerUri);
             } else {
-                return Map.of("credential_offer", MAPPER.readTree(offerJson), "issuance_id", record.id());
+                result.put("credential_offer", MAPPER.readTree(offerJson));
             }
+            result.put("issuance_id", record.id());
+            if (txCodeValue != null) {
+                result.put("tx_code", txCodeValue);
+            }
+            return result;
 
         } catch (Exception e) {
             log.error("Issuance trigger error", e);
@@ -405,6 +447,12 @@ public class IssuanceService {
     }
 
     // --- Private helpers ---
+
+    private String generateTxCode() {
+        // 6-digit numeric code as specified in CredentialOffer.preAuthorized()
+        int code = new java.security.SecureRandom().nextInt(900000) + 100000;
+        return String.valueOf(code);
+    }
 
     private void addDefaultClaims(SdJwtBuilder builder) {
         builder.selectiveClaim("given_name", "Jan")

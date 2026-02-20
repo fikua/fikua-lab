@@ -60,6 +60,8 @@ class SdJwtBuilderTest {
         assertEquals("urn:fikua:pid:test", claims.getSubject());
         assertNotNull(claims.getIssueTime(), "iat must be present");
         assertNotNull(claims.getExpirationTime(), "exp must be present");
+        assertTrue(claims.getExpirationTime().toInstant().isAfter(java.time.Instant.now()),
+                "exp must be in the future");
         assertEquals("sha-256", claims.getStringClaim("_sd_alg"));
     }
 }
