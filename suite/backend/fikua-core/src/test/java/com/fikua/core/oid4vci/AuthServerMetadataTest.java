@@ -49,6 +49,10 @@ class AuthServerMetadataTest {
         assertEquals("S256", json.get("code_challenge_methods_supported").get(0).asText());
         assertEquals("attest_jwt_client_auth", json.get("token_endpoint_auth_methods_supported").get(0).asText());
         assertEquals("ES256", json.get("dpop_signing_alg_values_supported").get(0).asText());
+
+        // OAuth ATCA §10.1: required when attest_jwt_client_auth is supported
+        assertEquals("ES256", json.get("client_attestation_signing_alg_values_supported").get(0).asText());
+        assertEquals("ES256", json.get("client_attestation_pop_signing_alg_values_supported").get(0).asText());
     }
 
     @Test

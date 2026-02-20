@@ -21,6 +21,8 @@ public record AuthServerMetadata(
         @JsonProperty("code_challenge_methods_supported") List<String> codeChallengeMethodsSupported,
         @JsonProperty("token_endpoint_auth_methods_supported") List<String> tokenEndpointAuthMethodsSupported,
         @JsonProperty("dpop_signing_alg_values_supported") List<String> dpopSigningAlgValues,
+        @JsonProperty("client_attestation_signing_alg_values_supported") List<String> clientAttestationSigningAlgValues,
+        @JsonProperty("client_attestation_pop_signing_alg_values_supported") List<String> clientAttestationPopSigningAlgValues,
         @JsonProperty("pre-authorized_grant_anonymous_access_supported") Boolean preAuthAnonymousAccess
 ) {
 
@@ -37,6 +39,8 @@ public record AuthServerMetadata(
                 null, // no PKCE
                 List.of("none"),
                 null, // no DPoP
+                null, // no client attestation
+                null,
                 true
         );
     }
@@ -55,6 +59,8 @@ public record AuthServerMetadata(
                 List.of("authorization_code"),
                 List.of("S256"),
                 List.of("attest_jwt_client_auth"),
+                List.of("ES256"),
+                List.of("ES256"),
                 List.of("ES256"),
                 null
         );
