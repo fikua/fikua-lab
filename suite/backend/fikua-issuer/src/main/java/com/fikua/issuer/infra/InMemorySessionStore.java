@@ -21,6 +21,7 @@ public class InMemorySessionStore implements SessionStore {
     private final Map<String, String> credentialOffers = new ConcurrentHashMap<>();
     private final Map<String, SessionData> authCodes = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> parRequests = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Object>> issuerStates = new ConcurrentHashMap<>();
 
     @Override
     public String randomToken(int bytes) {
@@ -93,6 +94,16 @@ public class InMemorySessionStore implements SessionStore {
     }
 
     @Override
+    public void storeIssuerState(String issuerState, Map<String, Object> metadata) {
+        issuerStates.put(issuerState, metadata);
+    }
+
+    @Override
+    public Map<String, Object> consumeIssuerState(String issuerState) {
+        return issuerStates.remove(issuerState);
+    }
+
+    @Override
     public String createAuthCode(SessionData session) {
         String code = randomToken(32);
         authCodes.put(code, session);
@@ -112,5 +123,6 @@ public class InMemorySessionStore implements SessionStore {
         credentialOffers.clear();
         authCodes.clear();
         parRequests.clear();
+        issuerStates.clear();
     }
 }

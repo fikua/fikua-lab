@@ -70,8 +70,8 @@ public class IssuerController {
     }
 
     private void credentialOffer(Context ctx) {
-        ProfileConfig config = service.getActiveConfig();
-        ctx.json(service.createCredentialOffer(config));
+        throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                "Use POST /oid4vci/v1/issuance with credential_data to trigger issuance");
     }
 
     private void credentialOfferById(Context ctx) {

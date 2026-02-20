@@ -32,4 +32,20 @@ public record OAuthError(
     public static OAuthError invalidProof(String description) {
         return new OAuthError(INVALID_PROOF, description);
     }
+
+    public static OAuthError invalidToken(String description) {
+        return new OAuthError(INVALID_TOKEN, description);
+    }
+
+    public static OAuthError invalidClient(String description) {
+        return new OAuthError(INVALID_CLIENT, description);
+    }
+
+    public static OAuthError unsupportedGrantType(String description) {
+        return new OAuthError(UNSUPPORTED_GRANT_TYPE, description);
+    }
+
+    public static OAuthError unsupportedCredentialFormat(String description) {
+        return new OAuthError(UNSUPPORTED_CREDENTIAL_FORMAT, description);
+    }
 }

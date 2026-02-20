@@ -7,11 +7,79 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-20
+
+RFC 9457 error handling, comprehensive test coverage, and issuer state management.
+
+### Added
+
+- **RFC 9457 ProblemDetail:** New `com.fikua.core.http.ProblemDetail` record for non-protocol errors (404, 405, 500) with `application/problem+json` content type
+- **OAuthError factory methods:** `invalidToken()`, `invalidClient()`, `unsupportedGrantType()`, `unsupportedCredentialFormat()`
+- **Issuer state binding:** `storeIssuerState()`/`consumeIssuerState()` on `SessionStore` port — links credential offer to issuance record through the HAIP authorization flow
+- **85 new unit tests** (24 → 109 total):
+  - `DPoPValidatorTest` (14) — all RFC 9449 validation branches
+  - `ProofValidatorTest` (12) — OID4VCI §7.2.1 proof of possession
+  - `PkceUtilTest` (9) — RFC 7636 test vector, S256 challenge
+  - `OAuthErrorTest` (10) — all error codes, JSON contract
+  - `ProblemDetailTest` (7) — RFC 9457 factories, serialization
+  - `TokenResponseTest` (4) — Bearer/DPoP, JSON contract
+  - `TokenRequestTest` (5) — form parsing, grant type detection
+  - `CredentialOfferTest` (6) — pre-auth + auth_code, tx_code
+  - `CredentialResponseTest` (4) — JSON contract, NON_NULL
+  - `DisclosureTest` (9) — create/digest/parse round-trip
+  - `SdJwtVerifierTest` (5) — signature verification, expiry, claim resolution
+
+### Changed
+
+- **Error handlers in `FikuaLab.java`:** 404/405 return `ProblemDetail` (was Javalin HTML), 500 returns `ProblemDetail.internalError()`, 401 includes `WWW-Authenticate: DPoP error="..."` header (RFC 9449 §7.1)
+- **`IssuerController.credentialOffer()`:** Throws `OAuthErrorException` (was raw `Map.of()`)
+- **`IssuanceService.issueCredential()`:** Fails explicitly when no `issuanceRecordId` or empty `credential_data` (was falling back to hardcoded data)
+
+### Removed
+
+- **`addDefaultClaims()` method** — no more hardcoded credential data
+- **`createCredentialOffer()` methods** — replaced by `POST /issuance` trigger flow
+- **`GET /oid4vci/v1/credential-offer`** — returns 400 (use `POST /issuance` with `credential_data`)
+
+### Spec references
+
+- RFC 9457 (Problem Details for HTTP APIs), RFC 9449 (DPoP), RFC 7636 (PKCE), RFC 6749 §5.2 (OAuth2 errors)
+
+## [0.3.1] - 2026-02-20
+
+OIDF conformance fixes for HAIP Issuer test.
+
+### Fixed
+
+- **Credential configuration ID:** Align `credential_configuration_id` with OIDF test expectation
+- **ATCA metadata:** Add `client_attestation_signing_alg_values_supported` and `client_attestation_pop_signing_alg_values_supported` to Authorization Server Metadata (OAuth Attestation-Based Client Authentication §10.1)
+
+## [0.3.0] - 2026-02-20
+
+Architecture refactor to Infrastructure-Application-Domain pattern.
+
+### Added
+
+- **3-module architecture:** `fikua-core` (domain), `fikua-issuer` (application + infra), `fikua-lab` (orchestrator)
+- **Port interfaces:** `SessionStore`, `IssuanceStore`, `ProfileStore` in `fikua-issuer`
+- **Infrastructure adapters:** `InMemorySessionStore`, `JdbcIssuanceStore`, `JdbcProfileStore`, `PemKeyLoader`
+- **P1 pre-auth spec compliance:** `credential_configuration_id` in token response, `tx_code` validation, `exp` claim in SD-JWT VC
+
+### Changed
+
+- **fikua-core purified:** zero I/O, zero state, zero framework dependencies
+- **fikua-server retired:** replaced by `fikua-issuer` + `fikua-lab`
+
+### Spec references
+
+- OID4VCI 1.0 Final, HAIP 1.0, SD-JWT VC draft-14
+
 ## [0.2.0] - 2026-02-18
 
 HAIP authorization_code flow for OIDF Test #1 (OID4VCI Issuer Final/HAIP).
 
 ### Added
+
 - **P2.1 — PAR persistence:** `InMemoryStore` stores PAR request parameters keyed by `request_uri`, consumed on authorize
 - **P2.2 — Authorize resolves PAR:** `GET /authorize` resolves `request_uri` from the PAR store, extracting `client_id`, `redirect_uri`, `code_challenge`, `state`, `issuer_state`
 - **P2.3 — PKCE verification:** `handleAuthCodeToken` verifies `code_verifier` against stored `code_challenge` using `PkceUtil.verifyS256()` (RFC 7636)
@@ -20,6 +88,7 @@ HAIP authorization_code flow for OIDF Test #1 (OID4VCI Issuer Final/HAIP).
 - **P2.6 — Credential response encryption metadata:** `CredentialIssuerMetadata` advertises `credential_response_encryption` with `ECDH-ES` / `A128GCM` / `A256GCM` for HAIP profiles
 
 ### Spec references
+
 - RFC 9126 (PAR), RFC 7636 (PKCE), RFC 9449 (DPoP), HAIP 1.0, OAuth Attestation-Based Client Authentication
 
 ## [0.1.0] - 2026-02-18
@@ -27,6 +96,7 @@ HAIP authorization_code flow for OIDF Test #1 (OID4VCI Issuer Final/HAIP).
 Initial OID4VCI implementation with pre-authorized code flow and metadata conformity.
 
 ### Added
+
 - **P0.1 — Credential Issuer Metadata:** `nonce_endpoint` and `notification_endpoint` top-level fields
 - **P0.2 — Format migration:** `vc+sd-jwt` → `dc+sd-jwt` across metadata, credential config ID, and scope
 - **P0.3 — Credential metadata structure:** Claims migrated to array with `path` format inside `credential_metadata` wrapper (OID4VCI 1.0 Final)
@@ -40,4 +110,5 @@ Initial OID4VCI implementation with pre-authorized code flow and metadata confor
 - **Infrastructure:** Java 25 + Gradle 9.1.0, PostgreSQL 17 + Flyway, Javalin 6.6.0, Docker deployment, nginx reverse proxy with mTLS
 
 ### Spec references
+
 - OID4VCI 1.0 Final, SD-JWT VC draft-14, RFC 8414 (AS Metadata), HAIP 1.0

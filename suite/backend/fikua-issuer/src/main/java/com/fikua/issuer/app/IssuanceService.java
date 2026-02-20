@@ -95,46 +95,6 @@ public class IssuanceService {
         return JwkUtils.jwkSetToJson(issuerKey.jwkSet());
     }
 
-    /** Create a credential offer based on profile config. Returns offer JSON or offer URI map. */
-    public Map<String, Object> createCredentialOffer(ProfileConfig config) {
-        return createCredentialOffer(config, false);
-    }
-
-    /** Create a credential offer with optional tx_code. */
-    public Map<String, Object> createCredentialOffer(ProfileConfig config, boolean txCodeRequired) {
-        try {
-            CredentialOffer offer;
-            if (config.isHaip()) {
-                String issuerState = sessionStore.randomToken(16);
-                offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
-            } else {
-                var metadata = new LinkedHashMap<String, Object>();
-                String txCodeValue = null;
-                if (txCodeRequired) {
-                    txCodeValue = generateTxCode();
-                    metadata.put("tx_code", txCodeValue);
-                }
-                SessionData session = new SessionData(
-                        sessionStore.randomToken(16), null, null, Instant.now(), Map.copyOf(metadata)
-                );
-                String preAuthCode = sessionStore.createPreAuthCode(session);
-                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, txCodeRequired);
-            }
-
-            String offerJson = MAPPER.writeValueAsString(offer);
-
-            if (config.credentialOffer() == CredentialOfferVariant.BY_REFERENCE) {
-                String offerId = sessionStore.storeCredentialOffer(offerJson);
-                String offerUri = baseUrl + API_PREFIX + "/credential-offer/" + offerId;
-                return Map.of("credential_offer_uri", offerUri);
-            } else {
-                return Map.of("credential_offer", MAPPER.readTree(offerJson));
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create offer", e);
-        }
-    }
-
     public String getCredentialOffer(String offerId) {
         return sessionStore.getCredentialOffer(offerId);
     }
@@ -241,7 +201,7 @@ public class IssuanceService {
                                                ProfileConfig config, String dpopHeader) {
         SessionData session = sessionStore.getAccessTokenSession(accessToken);
         if (session == null) {
-            throw new OAuthErrorException(401, new OAuthError(OAuthError.INVALID_TOKEN, "Invalid access token"));
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Invalid access token");
         }
 
         // Validate DPoP for resource request if required
@@ -252,12 +212,12 @@ public class IssuanceService {
                     String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
                     String actualThumbprint = resourceDpopKey.computeThumbprint().toString();
                     if (!expectedThumbprint.equals(actualThumbprint)) {
-                        throw new OAuthErrorException(401, new OAuthError(OAuthError.INVALID_TOKEN, "DPoP key mismatch"));
+                        throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP key mismatch");
                     }
                 } catch (OAuthErrorException e) {
                     throw e;
                 } catch (Exception e) {
-                    throw new OAuthErrorException(401, new OAuthError(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed"));
+                    throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed");
                 }
             }
         }
@@ -284,24 +244,27 @@ public class IssuanceService {
                     .x5cChain(issuerKey.x5cChain());
 
             String issuanceRecordId = (String) session.metadata().get("issuanceRecordId");
-            if (issuanceRecordId != null) {
-                var record = issuanceStore.findById(issuanceRecordId);
-                if (record != null && record.credentialData() != null) {
-                    var dataNode = MAPPER.readTree(record.credentialData());
-                    var fields = dataNode.fields();
-                    while (fields.hasNext()) {
-                        var field = fields.next();
-                        builder.selectiveClaim(field.getKey(), field.getValue().asText());
-                    }
-                    builder.plainClaim("issuing_authority", "Fikua Lab");
-                    builder.plainClaim("issuing_country", "ES");
-                    issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
-                } else {
-                    addDefaultClaims(builder);
-                }
-            } else {
-                addDefaultClaims(builder);
+            if (issuanceRecordId == null) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                        "No issuance record linked to this session. Use POST /oid4vci/v1/issuance to trigger credential issuance.");
             }
+
+            var record = issuanceStore.findById(issuanceRecordId);
+            if (record == null || record.credentialData() == null
+                    || record.credentialData().equals("{}")) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                        "Issuance record has no credential data. Provide credential_data when triggering issuance.");
+            }
+
+            var dataNode = MAPPER.readTree(record.credentialData());
+            var fields = dataNode.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                builder.selectiveClaim(field.getKey(), field.getValue().asText());
+            }
+            builder.plainClaim("issuing_authority", "Fikua Lab");
+            builder.plainClaim("issuing_country", "ES");
+            issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
 
             String sdJwt = builder.build().serialize();
             String newNonce = sessionStore.generateNonce();
@@ -343,7 +306,14 @@ public class IssuanceService {
         if (clientId != null) metadata.put("client_id", clientId);
         if (redirectUri != null) metadata.put("redirect_uri", redirectUri);
         if (codeChallenge != null) metadata.put("code_challenge", codeChallenge);
-        if (issuerState != null) metadata.put("issuer_state", issuerState);
+        if (issuerState != null) {
+            metadata.put("issuer_state", issuerState);
+            // Resolve issuanceRecordId linked to this issuerState
+            Map<String, Object> issuerMeta = sessionStore.consumeIssuerState(issuerState);
+            if (issuerMeta != null && issuerMeta.containsKey("issuanceRecordId")) {
+                metadata.put("issuanceRecordId", issuerMeta.get("issuanceRecordId"));
+            }
+        }
 
         SessionData session = new SessionData(
                 sessionStore.randomToken(16), null, null, Instant.now(), metadata
@@ -400,6 +370,7 @@ public class IssuanceService {
             String txCodeValue = null;
             if (config.isHaip()) {
                 String issuerState = sessionStore.randomToken(16);
+                sessionStore.storeIssuerState(issuerState, Map.of("issuanceRecordId", record.id()));
                 offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
             } else {
                 var metadata = new LinkedHashMap<String, Object>();
@@ -452,14 +423,6 @@ public class IssuanceService {
         // 6-digit numeric code as specified in CredentialOffer.preAuthorized()
         int code = new java.security.SecureRandom().nextInt(900000) + 100000;
         return String.valueOf(code);
-    }
-
-    private void addDefaultClaims(SdJwtBuilder builder) {
-        builder.selectiveClaim("given_name", "Jan")
-               .selectiveClaim("family_name", "Kowalski")
-               .selectiveClaim("birth_date", "1990-01-15")
-               .plainClaim("issuing_authority", "Fikua Lab")
-               .plainClaim("issuing_country", "EU");
     }
 
     private Map<String, Object> buildCredentialConfigurations() {

@@ -2,7 +2,7 @@
 
 **Project source of truth. Claude agents must read this before working and update it when making significant changes.**
 
-**Last updated:** 2026-02-19
+**Last updated:** 2026-02-20
 
 ---
 
@@ -518,6 +518,49 @@ OIDF endpoints don't have fixed paths per spec — the suite reads URLs from `.w
 
 `.well-known` endpoints always stay at the root path (per RFC 8615 spec).
 
+### Error handling
+
+The backend uses a dual error format:
+
+| Scope | Format | Content-Type | Standard |
+| ----- | ------ | ------------ | -------- |
+| Protocol endpoints (`/oid4vci/v1/*`, `/.well-known/*`) | `OAuthError` (`error` + `error_description`) | `application/json` | RFC 6749 §5.2 |
+| Non-protocol endpoints (`/admin/*`, 404, 405, 500) | `ProblemDetail` (`type`, `status`, `title`, `detail`, `instance`) | `application/problem+json` | RFC 9457 |
+
+**Key behaviors:**
+
+- **401 responses** include `WWW-Authenticate: DPoP error="..."` header (RFC 9449 §7.1)
+- **404/405** at the Javalin level return `ProblemDetail` (not HTML)
+- **500** unhandled exceptions return `ProblemDetail.internalError()` with stack trace logged server-side
+- `OAuthErrorException` is the transport for all protocol-level errors (carries HTTP status + `OAuthError`)
+
+**Records:**
+
+- `com.fikua.core.oauth2.OAuthError` — OAuth2 error codes: `invalid_request`, `invalid_grant`, `invalid_client`, `invalid_token`, `invalid_proof`, `unsupported_grant_type`, `unsupported_credential_type`, `unsupported_credential_format`
+- `com.fikua.core.http.ProblemDetail` — RFC 9457 with factory methods: `notFound()`, `methodNotAllowed()`, `internalError()`, `badRequest()`
+
+### Test coverage
+
+109 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
+
+| Test class | Tests | Coverage |
+| ---------- | ----- | -------- |
+| `AuthServerMetadataTest` | 6 | HAIP + pre-auth metadata, JSON contract |
+| `CredentialIssuerMetadataTest` | 12 | HAIP + plain metadata, credential configs |
+| `ClientAttestationValidatorTest` | 7 | WIA~PoP parsing, assertion types |
+| `DPoPValidatorTest` | 14 | All RFC 9449 validation branches |
+| `ProofValidatorTest` | 12 | OID4VCI §7.2.1 proof of possession |
+| `PkceUtilTest` | 9 | RFC 7636 test vector, S256 challenge |
+| `OAuthErrorTest` | 10 | All error codes, JSON snake_case |
+| `ProblemDetailTest` | 7 | RFC 9457 factories, serialization |
+| `TokenResponseTest` | 4 | Bearer/DPoP, JSON contract |
+| `TokenRequestTest` | 5 | Form parsing, grant type detection |
+| `CredentialOfferTest` | 6 | Pre-auth + auth_code, tx_code |
+| `CredentialResponseTest` | 4 | JSON contract, NON_NULL |
+| `DisclosureTest` | 9 | Create/digest/parse round-trip |
+| `SdJwtVerifierTest` | 5 | Signature verification, expiry, claim resolution |
+| `SdJwtBuilderTest` | ~3 | SD-JWT building (pre-existing) |
+
 ### Error pages
 
 Shared error pages for all subdomains, served from `/opt/vps/frontends/lab/shared/`.
@@ -682,7 +725,7 @@ GET  /admin/health                Health check for endpoints
 |--------|------|---------|
 | GET | `/.well-known/openid-credential-issuer` | Credential Issuer Metadata |
 | GET | `/.well-known/oauth-authorization-server` | Authorization Server Metadata |
-| GET | `/oid4vci/v1/credential-offer` | Generate credential offer |
+| POST | `/oid4vci/v1/issuance` | Trigger issuance (creates offer + links credential_data) |
 | GET | `/oid4vci/v1/credential-offer/{id}` | Credential Offer by reference |
 | POST | `/oid4vci/v1/token` | Pre-auth code or auth code → access_token |
 | POST | `/oid4vci/v1/credential` | SD-JWT VC issuance |
@@ -690,6 +733,8 @@ GET  /admin/health                Health check for endpoints
 | GET | `/oid4vci/v1/jwks` | JWK Set (EC P-256) |
 | GET | `/oid4vci/v1/authorize` | Authorization endpoint (HAIP) |
 | POST | `/oid4vci/v1/par` | Pushed Authorization Request (HAIP) |
+
+> **Note:** `GET /oid4vci/v1/credential-offer` returns 400 — use `POST /issuance` with `credential_data` to trigger issuance.
 
 ## X.509 certificates
 

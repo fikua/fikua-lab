@@ -46,6 +46,10 @@ public interface SessionStore {
     void storeParRequest(String requestUri, Map<String, String> params);
     Map<String, String> consumeParRequest(String requestUri);
 
+    // --- Issuer state (links credential offer to issuance record) ---
+    void storeIssuerState(String issuerState, Map<String, Object> metadata);
+    Map<String, Object> consumeIssuerState(String issuerState);
+
     // --- Authorization codes ---
     String createAuthCode(SessionData session);
     SessionData consumeAuthCode(String code);

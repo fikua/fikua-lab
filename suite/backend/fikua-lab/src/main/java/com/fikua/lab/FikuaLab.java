@@ -1,6 +1,6 @@
 package com.fikua.lab;
 
-import com.fikua.core.oauth2.OAuthError;
+import com.fikua.core.http.ProblemDetail;
 import com.fikua.core.oauth2.OAuthErrorException;
 import com.fikua.issuer.IssuerService;
 import com.fikua.lab.admin.AdminRoutes;
@@ -58,12 +58,27 @@ public class FikuaLab {
 
         // Global error handling
         app.exception(OAuthErrorException.class, (e, ctx) -> {
+            if (e.httpStatus() == 401) {
+                ctx.header("WWW-Authenticate", "DPoP error=\"" + e.error().error() + "\"");
+            }
             ctx.status(e.httpStatus()).json(e.error());
         });
 
         app.exception(Exception.class, (e, ctx) -> {
-            log.error("Unhandled error", e);
-            ctx.status(500).json(OAuthError.invalidRequest("Internal server error"));
+            log.error("Unhandled error on {}", ctx.path(), e);
+            ctx.status(500)
+               .contentType(ProblemDetail.CONTENT_TYPE)
+               .json(ProblemDetail.internalError(ctx.path()));
+        });
+
+        app.error(404, ctx -> {
+            ctx.contentType(ProblemDetail.CONTENT_TYPE)
+               .json(ProblemDetail.notFound(ctx.path()));
+        });
+
+        app.error(405, ctx -> {
+            ctx.contentType(ProblemDetail.CONTENT_TYPE)
+               .json(ProblemDetail.methodNotAllowed(ctx.path()));
         });
 
         // Admin routes (always available)
