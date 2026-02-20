@@ -35,9 +35,19 @@ public class IssuerService {
         IssuanceStore issuances = new JdbcIssuanceStore(dataSource);
         ProfileStore profiles = new JdbcProfileStore(dataSource);
 
-        // DPoP validator with JTI replay protection
+        // M9: DPoP JTI replay protection with bounded size (evicts oldest entries)
         Set<String> jtiSet = ConcurrentHashMap.newKeySet();
-        DPoPValidator dpop = new DPoPValidator(jtiSet::add);
+        DPoPValidator dpop = new DPoPValidator(jti -> {
+            // Evict oldest entries when set grows too large (DPoP proofs expire after 5 min)
+            if (jtiSet.size() > 10_000) {
+                var iter = jtiSet.iterator();
+                for (int i = 0; i < 1_000 && iter.hasNext(); i++) {
+                    iter.next();
+                    iter.remove();
+                }
+            }
+            return jtiSet.add(jti);
+        });
 
         // Create application service
         issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl);

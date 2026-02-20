@@ -33,10 +33,12 @@ public interface SessionStore {
     // --- Access tokens ---
     String createAccessToken(SessionData session);
     SessionData getAccessTokenSession(String token);
+    void updateAccessTokenSession(String token, SessionData session);
 
     // --- Nonces ---
     String createNonce(String sessionId);
     boolean validateNonce(String nonce);
+    void invalidateNonce(String nonce);
 
     // --- Credential offers ---
     String storeCredentialOffer(String offerJson);

@@ -13,9 +13,12 @@ import com.fikua.issuer.app.port.ProfileStore;
 import com.fikua.issuer.app.port.SessionStore;
 import com.fikua.issuer.app.port.SessionStore.SessionData;
 import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.util.Base64URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -128,7 +131,7 @@ public class IssuanceService {
         String accessToken = sessionStore.createAccessToken(tokenSession);
         sessionStore.createNonce(session.sessionId());
 
-        return TokenResponse.bearer(accessToken, cNonce);
+        return TokenResponse.bearer(accessToken);
     }
 
     /** Handle authorization_code token request (HAIP). */
@@ -173,9 +176,9 @@ public class IssuanceService {
         sessionStore.createNonce(session.sessionId());
 
         if (config.requiresDPoP()) {
-            return TokenResponse.dpop(accessToken, cNonce);
+            return TokenResponse.dpop(accessToken);
         }
-        return TokenResponse.bearer(accessToken, cNonce);
+        return TokenResponse.bearer(accessToken);
     }
 
     /** Handle token request (dispatches to pre-auth or auth_code). */
@@ -190,9 +193,39 @@ public class IssuanceService {
                 "Unsupported grant type: " + request.grantType());
     }
 
-    /** Generate a new nonce. */
-    public Map<String, Object> generateNonce() {
+    /** Generate a new nonce and update the session if an access token is provided (OID4VCI §7). */
+    public Map<String, Object> generateNonce(String accessToken, String dpopHeader) {
         String nonce = sessionStore.generateNonce();
+
+        // If access token provided, validate DPoP and update the session's c_nonce
+        if (accessToken != null) {
+            SessionData session = sessionStore.getAccessTokenSession(accessToken);
+            if (session != null) {
+                // H9: Validate DPoP at nonce endpoint if session is DPoP-bound
+                if (session.dpopKey() != null && dpopHeader != null) {
+                    String ath = computeAth(accessToken);
+                    ECKey dpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/nonce", ath);
+                    try {
+                        String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
+                        String actualThumbprint = dpopKey.computeThumbprint().toString();
+                        if (!expectedThumbprint.equals(actualThumbprint)) {
+                            throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP key mismatch at nonce endpoint");
+                        }
+                    } catch (OAuthErrorException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed");
+                    }
+                }
+
+                SessionData updated = new SessionData(
+                        session.sessionId(), nonce, session.dpopKey(),
+                        session.createdAt(), session.metadata()
+                );
+                sessionStore.updateAccessTokenSession(accessToken, updated);
+            }
+        }
+
         return Map.of("c_nonce", nonce, "c_nonce_expires_in", 86400);
     }
 
@@ -204,9 +237,10 @@ public class IssuanceService {
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Invalid access token");
         }
 
-        // Validate DPoP for resource request if required
+        // Validate DPoP for resource request if required (RFC 9449 §4.3: ath required)
         if (config.requiresDPoP()) {
-            ECKey resourceDpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/credential", null);
+            String ath = computeAth(accessToken);
+            ECKey resourceDpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/credential", ath);
             if (session.dpopKey() != null) {
                 try {
                     String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
@@ -227,7 +261,11 @@ public class IssuanceService {
             log.info("Credential request: format={}, credential_configuration_id={}",
                     request.format(), request.credentialConfigurationId());
 
-            // Validate credential_configuration_id (OID4VCI 1.0 Final §7.2)
+            // M8: credential_configuration_id is REQUIRED per OID4VCI 1.0 Final §8.2
+            if (request.credentialConfigurationId() == null && request.credentialIdentifier() == null) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                        "credential_configuration_id or credential_identifier is required");
+            }
             if (request.credentialConfigurationId() != null
                     && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
@@ -236,7 +274,7 @@ public class IssuanceService {
 
             String proofJwt = request.extractProofJwt();
             if (proofJwt == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "proof_type must be jwt");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "proof_type must be jwt");
             }
             ECKey walletKey = ProofValidator.validateJwt(proofJwt, baseUrl, session.cNonce());
 
@@ -271,9 +309,11 @@ public class IssuanceService {
             issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
 
             String sdJwt = builder.build().serialize();
-            String newNonce = sessionStore.generateNonce();
 
-            return CredentialResponse.success(sdJwt, newNonce);
+            // H11: Invalidate nonce after successful issuance (one-time use)
+            sessionStore.invalidateNonce(session.cNonce());
+
+            return CredentialResponse.success(sdJwt);
 
         } catch (OAuthErrorException e) {
             throw e;
@@ -337,6 +377,13 @@ public class IssuanceService {
                 params.get("client_assertion_type"),
                 params.get("client_assertion")
         );
+
+        // M7: HAIP requires code_challenge_method=S256
+        String codeChallengeMethod = params.get("code_challenge_method");
+        if (codeChallengeMethod != null && !"S256".equals(codeChallengeMethod)) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Only S256 code_challenge_method is supported");
+        }
 
         String requestUri = "urn:ietf:params:oauth:request_uri:" + sessionStore.randomToken(16);
         sessionStore.storeParRequest(requestUri, params);
@@ -422,6 +469,17 @@ public class IssuanceService {
     }
 
     // --- Private helpers ---
+
+    /** Compute ath = BASE64URL(SHA-256(access_token)) per RFC 9449 §4.3. */
+    private String computeAth(String accessToken) {
+        try {
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            byte[] hash = sha256.digest(accessToken.getBytes(StandardCharsets.US_ASCII));
+            return Base64URL.encode(hash).toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to compute ath", e);
+        }
+    }
 
     private String generateTxCode() {
         // 6-digit numeric code as specified in CredentialOffer.preAuthorized()

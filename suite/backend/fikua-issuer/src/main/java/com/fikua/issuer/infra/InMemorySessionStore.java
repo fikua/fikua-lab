@@ -60,6 +60,11 @@ public class InMemorySessionStore implements SessionStore {
     }
 
     @Override
+    public void updateAccessTokenSession(String token, SessionData session) {
+        accessTokens.put(token, session);
+    }
+
+    @Override
     public String createNonce(String sessionId) {
         String nonce = generateNonce();
         nonces.put(nonce, sessionId);
@@ -68,7 +73,13 @@ public class InMemorySessionStore implements SessionStore {
 
     @Override
     public boolean validateNonce(String nonce) {
-        return nonces.containsKey(nonce);
+        // M10: Nonce is single-use — consume on validation (OID4VCI 1.0 Final §7)
+        return nonces.remove(nonce) != null;
+    }
+
+    @Override
+    public void invalidateNonce(String nonce) {
+        nonces.remove(nonce);
     }
 
     @Override
