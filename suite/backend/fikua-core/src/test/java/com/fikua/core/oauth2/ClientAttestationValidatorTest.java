@@ -30,7 +30,7 @@ class ClientAttestationValidatorTest {
     void validate_wrongAssertionType_throwsInvalidClient() {
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate("wrong_type", "dummy"));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertEquals(OAuthError.INVALID_CLIENT, ex.error().error());
     }
 
@@ -38,7 +38,7 @@ class ClientAttestationValidatorTest {
     void validate_missingAssertion_throwsInvalidClient() {
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate(EXPECTED_TYPE, null));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertEquals(OAuthError.INVALID_CLIENT, ex.error().error());
     }
 
@@ -46,7 +46,7 @@ class ClientAttestationValidatorTest {
     void validate_blankAssertion_throwsInvalidClient() {
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate(EXPECTED_TYPE, "   "));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertEquals(OAuthError.INVALID_CLIENT, ex.error().error());
     }
 
@@ -55,7 +55,7 @@ class ClientAttestationValidatorTest {
         String singleJwt = createSignedJwt("test-client", "https://as.example.com").serialize();
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate(EXPECTED_TYPE, singleJwt));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertTrue(ex.error().errorDescription().contains("WIA~PoP"));
     }
 
@@ -95,7 +95,7 @@ class ClientAttestationValidatorTest {
         String assertion = wia.serialize() + "~" + pop.serialize();
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate(EXPECTED_TYPE, assertion));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertTrue(ex.error().errorDescription().contains("cnf"));
     }
 
@@ -104,7 +104,7 @@ class ClientAttestationValidatorTest {
         String assertion = "not-a-jwt~also-not-a-jwt";
         var ex = assertThrows(OAuthErrorException.class,
                 () -> validator.validate(EXPECTED_TYPE, assertion));
-        assertEquals(400, ex.httpStatus());
+        assertEquals(401, ex.httpStatus());
         assertEquals(OAuthError.INVALID_CLIENT, ex.error().error());
     }
 

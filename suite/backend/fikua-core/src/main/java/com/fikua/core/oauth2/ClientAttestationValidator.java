@@ -40,19 +40,19 @@ public class ClientAttestationValidator {
         }
 
         if (!EXPECTED_ASSERTION_TYPE.equals(clientAssertionType)) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Unsupported client_assertion_type: " + clientAssertionType);
         }
 
         if (clientAssertion == null || clientAssertion.isBlank()) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Missing client_assertion");
         }
 
         // Split WIA~PoP
         String[] parts = clientAssertion.split("~");
         if (parts.length != 2) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "client_assertion must contain WIA~PoP (two JWTs separated by ~)");
         }
 
@@ -70,7 +70,7 @@ public class ClientAttestationValidator {
             // Extract cnf key from WIA for PoP verification — REQUIRED
             ECKey wiaKey = extractCnfKey(wiaClaims);
             if (wiaKey == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+                throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "WIA missing cnf key for PoP verification");
             }
 
@@ -80,7 +80,7 @@ public class ClientAttestationValidator {
 
             // Verify PoP signature using the cnf key from WIA
             if (!pop.verify(new ECDSAVerifier(wiaKey))) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+                throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "PoP signature verification failed");
             }
 
@@ -89,7 +89,7 @@ public class ClientAttestationValidator {
                 long iat = popClaims.getIssueTime().getTime() / 1000;
                 long now = Instant.now().getEpochSecond();
                 if (Math.abs(now - iat) > MAX_AGE_SECONDS) {
-                    throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+                    throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                             "PoP JWT expired (iat too old)");
                 }
             }
@@ -97,7 +97,7 @@ public class ClientAttestationValidator {
             // Validate PoP exp if present
             if (popClaims.getExpirationTime() != null) {
                 if (Instant.now().isAfter(popClaims.getExpirationTime().toInstant())) {
-                    throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+                    throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                             "PoP JWT has expired");
                 }
             }
@@ -110,7 +110,7 @@ public class ClientAttestationValidator {
         } catch (OAuthErrorException e) {
             throw e;
         } catch (Exception e) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_CLIENT,
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Invalid client_assertion: " + e.getMessage());
         }
     }

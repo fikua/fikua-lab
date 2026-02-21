@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-02-21
+
+PAR endpoint client attestation enforcement and HTTP status fix.
+
+### Fixed
+
+- **PAR requires client attestation (OAuth ATCA §4):** PAR endpoint now rejects requests without `client_assertion` / `client_assertion_type` with HTTP 401 `invalid_client`. Previously, missing attestation was silently accepted and the PAR returned 201. Fixes OIDF test `OAuth2-ATCA07-1` (`EnsureHttpStatusCodeIs400or401`).
+- **HTTP 401 for `invalid_client` errors:** `ClientAttestationValidator` now returns HTTP 401 (was 400) for all client authentication failures. Per RFC 6749 §5.2, `invalid_client` indicates failed client authentication which maps to 401.
+
+### Spec references
+
+- OAuth Attestation-Based Client Authentication §4, RFC 6749 §5.2 (invalid_client → 401), RFC 9126 (PAR)
+
 ## [0.4.5] - 2026-02-21
 
 Fix credential error response error code per OID4VCI 1.0 Final.

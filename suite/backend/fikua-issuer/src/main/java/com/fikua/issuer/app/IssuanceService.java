@@ -407,10 +407,14 @@ public class IssuanceService {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "PAR not available for this profile");
         }
 
-        clientAttestationValidator.validate(
-                params.get("client_assertion_type"),
-                params.get("client_assertion")
-        );
+        // HAIP: client attestation is REQUIRED at PAR (OAuth ATCA §4)
+        String clientAssertionType = params.get("client_assertion_type");
+        String clientAssertion = params.get("client_assertion");
+        if (clientAssertionType == null && clientAssertion == null) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Client attestation is required for PAR");
+        }
+        clientAttestationValidator.validate(clientAssertionType, clientAssertion);
 
         // M7: HAIP requires code_challenge_method=S256
         String codeChallengeMethod = params.get("code_challenge_method");
