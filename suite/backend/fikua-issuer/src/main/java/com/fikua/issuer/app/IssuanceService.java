@@ -139,11 +139,14 @@ public class IssuanceService {
         TokenRequest request = TokenRequest.fromParams(params);
         log.info("Token request: grant_type={}", request.grantType());
 
-        // Validate client attestation for HAIP
-        clientAttestationValidator.validate(
-                params.get("client_assertion_type"),
-                params.get("client_assertion")
-        );
+        // HAIP: client attestation is REQUIRED at token endpoint (OAuth ATCA §4)
+        String clientAssertionType = params.get("client_assertion_type");
+        String clientAssertion = params.get("client_assertion");
+        if (clientAssertionType == null && clientAssertion == null) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Client attestation is required for token endpoint");
+        }
+        clientAttestationValidator.validate(clientAssertionType, clientAssertion);
 
         // Validate DPoP if required
         ECKey dpopKey = null;
