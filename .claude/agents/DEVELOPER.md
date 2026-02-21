@@ -220,6 +220,62 @@ Si l'spec document té un error o contradicció amb la normativa:
 - `docs/fikua-lab-dt.md` — marcar checkboxes Pending → completat, actualitzar seccions afectades pels canvis.
 - `CHANGELOG.md` — afegir entrada amb la nova versió.
 
+## Fixes ad-hoc — Fallades OIDF no previstes a l'spec
+
+Quan l'usuari reporta una fallada d'un test OIDF que no correspon a cap gap numerat (P0.X, P1.X...) a `credential-issuance-flow.md`, segueix aquest protocol:
+
+### Flux de treball per fix ad-hoc
+
+```
+1. Analitzar el failure → identificar causa arrel i spec normativa afectada
+2. Informar l'usuari → descriure el problema, la causa i el fix proposat
+3. Implementar → modificar els fitxers necessaris
+4. Compilar → ./gradlew build
+5. Escriure test → verificar el comportament corregit
+6. Executar tests → ./gradlew test
+7. Commit → format: fix(component): descripció (TEST-NAME)
+8. Versionar → bump PATCH (ex: 0.4.2 → 0.4.3)
+9. Documentar:
+   a. CHANGELOG.md → afegir entrada amb la nova versió
+   b. fikua-lab-dt.md → actualitzar seccions afectades si aplica
+10. Commit documentació → chore: update docs for vX.Y.Z
+11. Demanar confirmació → push a main?
+```
+
+### Commit format per fixes ad-hoc
+
+```
+fix(component): descripció del fix (TEST-NAME)
+
+- Canvi concret 1
+- Canvi concret 2
+- Spec: HAIP 1.0 §X.Y.Z / RFC XXXX §X
+```
+
+Exemple:
+```
+fix(issuer): generate CA-signed cert chain when no PEM files (HAIP-6.1.1)
+
+- Replace self-signed cert fallback with CA-signed certificate chain
+- Only issuer cert included in x5c (CA trust anchor excluded per HAIP)
+- Spec: HAIP 1.0 §6.1.1, SD-JWT VC §3.5
+```
+
+### Diferències amb el flux per gap
+
+| Aspecte | Flux per gap | Flux ad-hoc |
+|---------|-------------|-------------|
+| Origen | Gap definit a l'spec | Failure d'un test OIDF |
+| Prefix commit | `feat(oid4vci): P0.X — ...` | `fix(component): ... (TEST-NAME)` |
+| Versió | MINOR (per prioritat) | PATCH (per fix) |
+| Spec doc checkboxes | Sí | No (no hi ha gap) |
+| CHANGELOG + dt.md | Sí | Sí |
+| Tests | Obligatoris | Obligatoris |
+
+### Regla clau
+
+**Cada fix ad-hoc ha de seguir TOTS els passos del flux.** No és acceptable implementar un fix sense tests, sense documentació o sense version bump. El Reviewer validarà els mateixos 5 quality gates que per un gap normal.
+
 ## Protocol d'autonomia
 
 ### Quan pots decidir sol
@@ -238,6 +294,7 @@ Si l'spec document té un error o contradicció amb la normativa:
 - **Canvi fora d'abast:** Per implementar el gap necessites canviar codi que no està definit al gap
 - **Decisió de disseny:** Hi ha múltiples formes vàlides d'implementar-ho i l'spec no n'especifica una
 - **Test OIDF falla:** El test de conformitat falla per un motiu que no entens
+- **Fix ad-hoc sense context:** L'usuari reporta un test OIDF que falla però no proporciona el nom del test ni l'error
 
 ### Cicle de treball
 
