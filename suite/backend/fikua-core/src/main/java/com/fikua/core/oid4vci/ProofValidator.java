@@ -28,11 +28,11 @@ public final class ProofValidator {
      */
     public static ECKey validate(CredentialRequest.Proof proof, String expectedIssuer, String expectedNonce) {
         if (proof == null || !"jwt".equals(proof.proofType())) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "proof_type must be jwt");
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "proof_type must be jwt");
         }
 
         if (proof.jwt() == null) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Missing jwt in proof");
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Missing jwt in proof");
         }
 
         return validateJwt(proof.jwt(), expectedIssuer, expectedNonce);
@@ -49,7 +49,7 @@ public final class ProofValidator {
      */
     public static ECKey validateJwt(String jwtString, String expectedIssuer, String expectedNonce) {
         if (jwtString == null) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Missing jwt in proof");
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Missing jwt in proof");
         }
 
         try {
@@ -59,13 +59,13 @@ public final class ProofValidator {
             // Must be typ: openid4vci-proof+jwt
             JOSEObjectType expectedType = new JOSEObjectType("openid4vci-proof+jwt");
             if (!expectedType.equals(header.getType())) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Proof typ must be openid4vci-proof+jwt");
             }
 
             // Must use ES256
             if (!JWSAlgorithm.ES256.equals(header.getAlgorithm())) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Proof must use ES256");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Proof must use ES256");
             }
 
             // Key reference: exactly one of jwk, x5c, kid (OID4VCI 1.0 Final Appendix F.1)
@@ -75,17 +75,17 @@ public final class ProofValidator {
             if (header.getKeyID() != null) keyRefCount++;
 
             if (keyRefCount == 0) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Proof must contain exactly one of jwk, x5c, or kid header parameters");
             }
             if (keyRefCount > 1) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Proof must contain exactly one of jwk, x5c, or kid — multiple key references found");
             }
 
             // Currently only jwk binding method is supported
             if (header.getJWK() == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Only jwk key binding method is supported");
             }
 
@@ -93,32 +93,32 @@ public final class ProofValidator {
 
             // Verify signature
             if (!jwt.verify(new ECDSAVerifier(walletKey))) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Proof signature invalid");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Proof signature invalid");
             }
 
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
 
             // Validate aud = credential issuer
             if (claims.getAudience() == null || !claims.getAudience().contains(expectedIssuer)) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Proof aud must be the credential issuer");
             }
 
             // Validate nonce = c_nonce
             String nonce = claims.getStringClaim("nonce");
             if (expectedNonce != null && !expectedNonce.equals(nonce)) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                         "Proof nonce does not match c_nonce");
             }
 
             // Validate iat — REQUIRED per OID4VCI 1.0 Final §8.2.1.1
             if (claims.getIssueTime() == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Proof must contain iat claim");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Proof must contain iat claim");
             }
             long iat = claims.getIssueTime().getTime() / 1000;
             long now = Instant.now().getEpochSecond();
             if (Math.abs(now - iat) > 300) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Proof expired");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "Proof expired");
             }
 
             return walletKey;
@@ -126,7 +126,7 @@ public final class ProofValidator {
         } catch (OAuthErrorException e) {
             throw e;
         } catch (Exception e) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF,
                     "Invalid proof: " + e.getMessage());
         }
     }

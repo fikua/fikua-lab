@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-02-21
+
+Fix credential error response error code per OID4VCI 1.0 Final.
+
+### Fixed
+
+- **Error code `invalid_proof` (OID4VCI §8.3.1):** Renamed `invalid_or_missing_proof` → `invalid_proof` to match OID4VCI 1.0 Final §8.3.1. The old code was from a pre-final draft. Fixes OIDF test `VCIValidateCredentialErrorResponse`.
+
+### Spec references
+
+- OID4VCI 1.0 Final §8.3.1 (Credential Error Response — `invalid_proof` error code)
+
 ## [0.4.4] - 2026-02-21
 
 Proof JWT header parameter mutual exclusivity validation per OID4VCI 1.0 Final.

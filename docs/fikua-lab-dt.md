@@ -541,7 +541,7 @@ The backend uses a dual error format:
 
 **Records:**
 
-- `com.fikua.core.oauth2.OAuthError` — OAuth2 error codes: `invalid_request`, `invalid_grant`, `invalid_client`, `invalid_token`, `invalid_or_missing_proof`, `invalid_nonce`, `unsupported_grant_type`, `unsupported_credential_type`, `unsupported_credential_format`
+- `com.fikua.core.oauth2.OAuthError` — OAuth2 error codes: `invalid_request`, `invalid_grant`, `invalid_client`, `invalid_token`, `invalid_proof`, `invalid_nonce`, `unsupported_grant_type`, `unsupported_credential_type`, `unsupported_credential_format`
 - `com.fikua.core.http.ProblemDetail` — RFC 9457 with factory methods: `notFound()`, `methodNotAllowed()`, `internalError()`, `badRequest()`
 
 ### Test coverage

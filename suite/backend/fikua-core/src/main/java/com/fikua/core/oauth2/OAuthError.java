@@ -20,8 +20,8 @@ public record OAuthError(
     public static final String UNSUPPORTED_CREDENTIAL_TYPE = "unsupported_credential_type";
     public static final String UNSUPPORTED_CREDENTIAL_FORMAT = "unsupported_credential_format";
 
-    /** OID4VCI 1.0 Final §8.3.1 — proof is missing, invalid, or does not contain c_nonce. */
-    public static final String INVALID_OR_MISSING_PROOF = "invalid_or_missing_proof";
+    /** OID4VCI 1.0 Final §8.3.1 — proof is missing or invalid. */
+    public static final String INVALID_PROOF = "invalid_proof";
 
     /** OID4VCI 1.0 Final §8.3.1 — c_nonce in proof is invalid/expired. Wallet should request a new nonce. */
     public static final String INVALID_NONCE = "invalid_nonce";
@@ -35,7 +35,7 @@ public record OAuthError(
     }
 
     public static OAuthError invalidProof(String description) {
-        return new OAuthError(INVALID_OR_MISSING_PROOF, description);
+        return new OAuthError(INVALID_PROOF, description);
     }
 
     public static OAuthError invalidToken(String description) {

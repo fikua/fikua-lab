@@ -284,7 +284,7 @@ public class IssuanceService {
 
             String proofJwt = request.extractProofJwt();
             if (proofJwt == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "proof_type must be jwt");
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "proof_type must be jwt");
             }
 
             // Validate proof: signature, typ, alg, aud, iat (nonce checked separately below)
