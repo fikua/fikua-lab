@@ -1,7 +1,7 @@
 # Credential Issuance Flow — Especificació tècnica
 
 **Created:** 2026-02-18
-**Updated:** 2026-02-18
+**Updated:** 2026-02-21
 **Status:** Draft
 **Normativa:** OID4VCI 1.0 Final, HAIP 1.0, ARF 2.8, SD-JWT VC draft-14, Token Status List draft-12
 
@@ -578,23 +578,21 @@ Amb HAIP, a més:
 - Header `DPoP: <dpop-proof-jwt>` (RFC 9449)
 - Header de client attestation
 
-**Token Response:**
+**Token Response (OID4VCI 1.0 Final — c_nonce removed from token response):**
 
 ```json
 {
   "access_token": "<token>",
   "token_type": "Bearer",
-  "expires_in": 86400,
-  "c_nonce": "<nonce>",
-  "c_nonce_expires_in": 86400
+  "expires_in": 86400
 }
 ```
 
-Si DPoP, `token_type` és `"DPoP"`.
+Si DPoP, `token_type` és `"DPoP"`. El wallet ha de demanar el `c_nonce` al Nonce Endpoint (pas 11).
 
 **Implementació actual — Backend:**
 
-- `handlePreAuthToken`: funciona — consumeix pre-auth code, genera access token + c_nonce, retorna `TokenResponse.bearer()`. OK.
+- `handlePreAuthToken`: funciona — consumeix pre-auth code, genera access token, retorna `TokenResponse.bearer()`. OK.
 - `handleAuthCodeToken`: completat (v0.2.0) — valida client attestation, DPoP, consumeix auth code, verifica PKCE amb `PkceUtil.verifyS256()`, genera access token DPoP-bound.
 
 **Gaps — Backend:**
@@ -607,7 +605,7 @@ Si DPoP, `token_type` és `"DPoP"`.
 
 - [ ] Wallet: construir i enviar token request (pre-auth o auth code).
 - [ ] Wallet: generar DPoP proof per al token request (HAIP).
-- [ ] Wallet: guardar la token response (access_token, c_nonce).
+- [ ] Wallet: guardar la token response (access_token).
 
 ---
 
@@ -617,8 +615,8 @@ El wallet guarda:
 
 - `access_token` (per autenticar-se al credential endpoint)
 - `token_type` (`"Bearer"` o `"DPoP"`)
-- `c_nonce` (per al proof of possession)
-- `c_nonce_expires_in`
+
+**Nota OID4VCI 1.0 Final:** El `c_nonce` ja NO es retorna al token response. El wallet ha d'obtenir-lo del Nonce Endpoint (pas 11).
 
 **Gaps:**
 
@@ -626,31 +624,28 @@ El wallet guarda:
 
 ---
 
-### Pas 11 — Wallet demana nonce si cal
+### Pas 11 — Wallet demana nonce al Nonce Endpoint
 
-El wallet analitza si necessita un nonce fresc:
-
-- Si la token response ja conté `c_nonce`, normalment és suficient.
-- Si el c_nonce ha expirat o no n'hi ha, el wallet fa `POST /nonce` per obtenir-ne un de nou.
-
-**Spec OID4VCI §7:** El nonce endpoint (`nonce_endpoint` al CredentialIssuerMetadata) no és un recurs protegit — no cal access token.
+**OID4VCI 1.0 Final §7:** El wallet SEMPRE ha de demanar un `c_nonce` al Nonce Endpoint abans d'enviar el Credential Request. El Nonce Endpoint no és un recurs protegit — no cal access token.
 
 ```http
 POST /oid4vci/v1/nonce
+Content-Length: 0
 ```
 
 ```json
 {
-  "c_nonce": "<fresh-nonce>",
-  "c_nonce_expires_in": 86400
+  "c_nonce": "<fresh-nonce>"
 }
 ```
 
-**Implementació actual — Backend:** L'endpoint `POST /nonce` existeix i funciona. OK.
+**Nota:** `c_nonce_expires_in` no existeix a OID4VCI 1.0 Final §7.2. La resposta només conté `c_nonce`.
+
+**Implementació actual — Backend:** L'endpoint `POST /nonce` funciona. Els nonces es registren al global nonce store i es validen al credential endpoint (single-use). OK.
 
 **Gaps:**
 
-- [ ] Wallet: si el c_nonce ha expirat, demanar-ne un de nou via `POST /nonce`.
+- [ ] Wallet: demanar `c_nonce` via `POST /nonce` abans de cada credential request.
 
 ---
 
@@ -787,13 +782,15 @@ Serialized: <jwt>~<disclosure1>~<disclosure2>~<disclosure3>~
 
 **Nota `typ` header:** `dc+sd-jwt` (draft-13+). Acceptar `vc+sd-jwt` durant període de transició.
 
-**Credential Response:**
+**Credential Response (OID4VCI 1.0 Final §8.3):**
 
 ```json
 {
-  "credential": "<sd-jwt-vc-serialized>",
-  "c_nonce": "<fresh-nonce>",
-  "c_nonce_expires_in": 86400
+  "credentials": [
+    {
+      "credential": "<sd-jwt-vc-serialized>"
+    }
+  ]
 }
 ```
 
@@ -874,14 +871,16 @@ L'issuer actualitza l'`IssuanceRecord` amb l'estat final.
 
 **Nota:** Per poder usar notificacions, la `CredentialResponse` ha d'incloure un camp `notification_id`.
 
-**Credential Response actualitzada:**
+**Credential Response actualitzada (OID4VCI 1.0 Final §8.3):**
 
 ```json
 {
-  "credential": "<sd-jwt-vc-serialized>",
-  "notification_id": "<unique-id>",
-  "c_nonce": "<fresh-nonce>",
-  "c_nonce_expires_in": 86400
+  "credentials": [
+    {
+      "credential": "<sd-jwt-vc-serialized>"
+    }
+  ],
+  "notification_id": "<unique-id>"
 }
 ```
 

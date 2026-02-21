@@ -2,7 +2,7 @@
 
 **Project source of truth. Claude agents must read this before working and update it when making significant changes.**
 
-**Last updated:** 2026-02-20
+**Last updated:** 2026-02-21
 
 ---
 
@@ -535,18 +535,18 @@ The backend uses a dual error format:
 - **404/405** at the Javalin level return `ProblemDetail` (not HTML)
 - **500** unhandled exceptions return `ProblemDetail.internalError()` with stack trace logged server-side
 - `OAuthErrorException` is the transport for all protocol-level errors (carries HTTP status + `OAuthError`)
-- **`Cache-Control: no-store`** on `/token` and `/credential` responses (OID4VCI §7.3, RFC 6749 §5.1)
+- **`Cache-Control: no-store`** on `/token`, `/nonce`, and `/credential` responses (OID4VCI §7.2, §8.3, RFC 6749 §5.1)
 - **`iss` parameter** in authorization response redirect (RFC 9207)
 - **`authorization_response_iss_parameter_supported: true`** in AS Metadata for HAIP profile (RFC 9207 §3)
 
 **Records:**
 
-- `com.fikua.core.oauth2.OAuthError` — OAuth2 error codes: `invalid_request`, `invalid_grant`, `invalid_client`, `invalid_token`, `invalid_proof`, `unsupported_grant_type`, `unsupported_credential_type`, `unsupported_credential_format`
+- `com.fikua.core.oauth2.OAuthError` — OAuth2 error codes: `invalid_request`, `invalid_grant`, `invalid_client`, `invalid_token`, `invalid_or_missing_proof`, `invalid_nonce`, `unsupported_grant_type`, `unsupported_credential_type`, `unsupported_credential_format`
 - `com.fikua.core.http.ProblemDetail` — RFC 9457 with factory methods: `notFound()`, `methodNotAllowed()`, `internalError()`, `badRequest()`
 
 ### Test coverage
 
-114 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
+126 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
 
 | Test class | Tests | Coverage |
 | ---------- | ----- | -------- |
@@ -717,12 +717,16 @@ GET  /admin/health                Health check for endpoints
 
 4. Suite POST /oid4vci/v1/token
    → grant_type: pre-authorized_code, pre-authorized_code: <code>
-   → Response: { access_token, token_type: "Bearer", c_nonce }
+   → Response: { access_token, token_type: "Bearer" }
 
-5. Suite POST /oid4vci/v1/credential
+5. Suite POST /oid4vci/v1/nonce
+   → Body: empty (Content-Length: 0)
+   → Response: { c_nonce: "<nonce>" }
+
+6. Suite POST /oid4vci/v1/credential
    → Authorization: Bearer <access_token>
    → Body: { credential_configuration_id, proof: { jwt: "<proof with c_nonce>" } }
-   → Response: { credential: "<sd-jwt-vc-string>", c_nonce: "<fresh>" }
+   → Response: { credentials: [{ credential: "<sd-jwt-vc-string>" }] }
 ```
 
 ### Issuer endpoints
