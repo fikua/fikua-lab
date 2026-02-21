@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-02-21
+
+HAIP 6.1.1 conformance fix — x5c certificate chain in SD-JWT VC header.
+
+### Fixed
+
+- **x5c certificate chain (HAIP-6.1.1):** When no PEM certificate files are found, PemKeyLoader now generates an ephemeral CA + issuer certificate chain instead of a self-signed cert. The issuer cert (CA-signed, not self-signed) is included in the SD-JWT VC x5c header; the CA root is excluded per HAIP. Fixes OIDF test `VCIEnsureX5cHeaderPresentForSdJwtCredential`.
+
+### Added
+
+- **5 PemKeyLoader tests:** First unit tests for `fikua-issuer` module — verify x5c chain present, cert not self-signed, key can sign, SD-JWT header contains x5c, PEM file loading.
+- **DEVELOPER.md ad-hoc fixes protocol:** New section documenting the workflow for OIDF conformance fixes not tied to spec gaps (commit format, versioning, documentation requirements).
+
+### Spec references
+
+- HAIP 1.0 §6.1.1 (Issuer identification and key resolution), SD-JWT VC §3.5 (x5c JOSE header)
+
 ## [0.4.2] - 2026-02-21
 
 Nonce endpoint fix and OID4VCI 1.0 Final spec alignment.

@@ -546,26 +546,27 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-126 unit tests in `fikua-core` covering security validators, protocol records, and error handling:
+131 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, and infrastructure:
 
-| Test class | Tests | Coverage |
-| ---------- | ----- | -------- |
-| `AuthServerMetadataTest` | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
-| `CredentialIssuerMetadataTest` | 12 | HAIP + plain metadata, credential configs |
-| `ClientAttestationValidatorTest` | 7 | WIA~PoP parsing, assertion types |
-| `DPoPValidatorTest` | 14 | All RFC 9449 validation branches |
-| `ProofValidatorTest` | 12 | OID4VCI §7.2.1 proof of possession |
-| `PkceUtilTest` | 9 | RFC 7636 test vector, S256 challenge |
-| `OAuthErrorTest` | 10 | All error codes, JSON snake_case |
-| `ProblemDetailTest` | 7 | RFC 9457 factories, serialization |
-| `TokenResponseTest` | 4 | Bearer/DPoP, JSON contract |
-| `TokenRequestTest` | 5 | Form parsing, grant type detection |
-| `CredentialOfferTest` | 6 | Pre-auth + auth_code, tx_code |
-| `CredentialRequestTest` | 9 | Singular/plural proofs, extractProofJwt, JSON contract |
-| `CredentialResponseTest` | 4 | JSON contract, NON_NULL |
-| `DisclosureTest` | 9 | Create/digest/parse round-trip |
-| `SdJwtVerifierTest` | 5 | Signature verification, expiry, claim resolution |
-| `SdJwtBuilderTest` | ~3 | SD-JWT building (pre-existing) |
+| Test class | Module | Tests | Coverage |
+| ---------- | ------ | ----- | -------- |
+| `AuthServerMetadataTest` | core | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
+| `CredentialIssuerMetadataTest` | core | 12 | HAIP + plain metadata, credential configs |
+| `ClientAttestationValidatorTest` | core | 7 | WIA~PoP parsing, assertion types |
+| `DPoPValidatorTest` | core | 14 | All RFC 9449 validation branches |
+| `ProofValidatorTest` | core | 12 | OID4VCI §7.2.1 proof of possession |
+| `PkceUtilTest` | core | 9 | RFC 7636 test vector, S256 challenge |
+| `OAuthErrorTest` | core | 10 | All error codes, JSON snake_case |
+| `ProblemDetailTest` | core | 7 | RFC 9457 factories, serialization |
+| `TokenResponseTest` | core | 4 | Bearer/DPoP, JSON contract |
+| `TokenRequestTest` | core | 5 | Form parsing, grant type detection |
+| `CredentialOfferTest` | core | 6 | Pre-auth + auth_code, tx_code |
+| `CredentialRequestTest` | core | 9 | Singular/plural proofs, extractProofJwt, JSON contract |
+| `CredentialResponseTest` | core | 4 | JSON contract, NON_NULL |
+| `DisclosureTest` | core | 9 | Create/digest/parse round-trip |
+| `SdJwtVerifierTest` | core | 5 | Signature verification, expiry, claim resolution |
+| `SdJwtBuilderTest` | core | ~3 | SD-JWT building (pre-existing) |
+| `PemKeyLoaderTest` | issuer | 5 | HAIP 6.1.1 x5c chain, CA-signed cert, PEM loading, SD-JWT header |
 
 ### Error pages
 
@@ -748,12 +749,14 @@ GET  /admin/health                Health check for endpoints
 
 ## X.509 certificates
 
-Self-signed X.509 certificate chain with OpenSSL, structure aligned with eIDAS:
+X.509 certificate chain with OpenSSL, structure aligned with eIDAS:
 
 - **Root CA** — Simulates trust anchor (NOT included in x5c headers per HAIP)
-- **Issuer signing cert** — Signs SD-JWT VCs, included in x5c JOSE header
+- **Issuer signing cert** — Signs SD-JWT VCs, included in x5c JOSE header. MUST NOT be self-signed (HAIP 6.1.1)
 - **Verifier access cert** — For x509_hash/x509_san_dns client_id prefix
 - All certificates use EC P-256 (ES256) as mandated by HAIP
+
+**Fallback (no PEM files):** When `FIKUA_CERTS_DIR` has no `issuer-cert.pem`/`issuer-key.pem`, `PemKeyLoader` generates an ephemeral CA + issuer certificate chain at startup. The issuer cert is CA-signed (not self-signed) to comply with HAIP 6.1.1. Only the issuer cert is included in the SD-JWT VC `x5c` header; the CA root is excluded per HAIP.
 
 ## Database
 
