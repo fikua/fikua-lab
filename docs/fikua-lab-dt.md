@@ -546,7 +546,7 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-131 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, and infrastructure:
+134 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, and infrastructure:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
@@ -554,7 +554,7 @@ The backend uses a dual error format:
 | `CredentialIssuerMetadataTest` | core | 12 | HAIP + plain metadata, credential configs |
 | `ClientAttestationValidatorTest` | core | 7 | WIA~PoP parsing, assertion types |
 | `DPoPValidatorTest` | core | 14 | All RFC 9449 validation branches |
-| `ProofValidatorTest` | core | 12 | OID4VCI §7.2.1 proof of possession |
+| `ProofValidatorTest` | core | 16 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |
 | `PkceUtilTest` | core | 9 | RFC 7636 test vector, S256 challenge |
 | `OAuthErrorTest` | core | 10 | All error codes, JSON snake_case |
 | `ProblemDetailTest` | core | 7 | RFC 9457 factories, serialization |

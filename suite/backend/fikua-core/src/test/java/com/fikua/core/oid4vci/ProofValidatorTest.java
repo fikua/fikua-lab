@@ -88,21 +88,71 @@ class ProofValidatorTest {
         assertTrue(ex.error().errorDescription().contains("ES256"));
     }
 
-    // --- missing jwk ---
+    // --- key reference mutual exclusivity (OID4VCI 1.0 Final Appendix F.1) ---
 
     @Test
-    void validate_missingJwk_throws() throws Exception {
+    void validate_noKeyReference_throws() throws Exception {
         var claims = proofClaims(ISSUER_URL, C_NONCE);
         var header = new JWSHeader.Builder(JWSAlgorithm.ES256)
                 .type(new JOSEObjectType("openid4vci-proof+jwt"))
-                .build(); // no jwk
+                .build(); // no jwk, no x5c, no kid
         var jwt = new SignedJWT(header, claims);
         jwt.sign(new ECDSASigner(walletKey));
 
         var proof = new CredentialRequest.Proof("jwt", jwt.serialize());
         var ex = assertThrows(OAuthErrorException.class,
                 () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
-        assertTrue(ex.error().errorDescription().contains("jwk"));
+        assertTrue(ex.error().errorDescription().contains("exactly one"));
+    }
+
+    @Test
+    void validate_jwkAndKid_throws() throws Exception {
+        var claims = proofClaims(ISSUER_URL, C_NONCE);
+        var header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .type(new JOSEObjectType("openid4vci-proof+jwt"))
+                .jwk(walletKey.toPublicJWK())
+                .keyID("some-kid")
+                .build();
+        var jwt = new SignedJWT(header, claims);
+        jwt.sign(new ECDSASigner(walletKey));
+
+        var proof = new CredentialRequest.Proof("jwt", jwt.serialize());
+        var ex = assertThrows(OAuthErrorException.class,
+                () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
+        assertTrue(ex.error().errorDescription().contains("exactly one"));
+    }
+
+    @Test
+    void validate_jwkAndX5c_throws() throws Exception {
+        var claims = proofClaims(ISSUER_URL, C_NONCE);
+        var header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .type(new JOSEObjectType("openid4vci-proof+jwt"))
+                .jwk(walletKey.toPublicJWK())
+                .x509CertChain(List.of(com.nimbusds.jose.util.Base64.encode("dummy-cert")))
+                .build();
+        var jwt = new SignedJWT(header, claims);
+        jwt.sign(new ECDSASigner(walletKey));
+
+        var proof = new CredentialRequest.Proof("jwt", jwt.serialize());
+        var ex = assertThrows(OAuthErrorException.class,
+                () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
+        assertTrue(ex.error().errorDescription().contains("exactly one"));
+    }
+
+    @Test
+    void validate_kidOnly_throwsUnsupported() throws Exception {
+        var claims = proofClaims(ISSUER_URL, C_NONCE);
+        var header = new JWSHeader.Builder(JWSAlgorithm.ES256)
+                .type(new JOSEObjectType("openid4vci-proof+jwt"))
+                .keyID("some-kid")
+                .build();
+        var jwt = new SignedJWT(header, claims);
+        jwt.sign(new ECDSASigner(walletKey));
+
+        var proof = new CredentialRequest.Proof("jwt", jwt.serialize());
+        var ex = assertThrows(OAuthErrorException.class,
+                () -> ProofValidator.validate(proof, ISSUER_URL, C_NONCE));
+        assertTrue(ex.error().errorDescription().contains("Only jwk"));
     }
 
     // --- invalid signature ---

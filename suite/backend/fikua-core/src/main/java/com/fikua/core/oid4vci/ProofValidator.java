@@ -68,10 +68,25 @@ public final class ProofValidator {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF, "Proof must use ES256");
             }
 
-            // Must have jwk in header (for jwk binding method)
+            // Key reference: exactly one of jwk, x5c, kid (OID4VCI 1.0 Final Appendix F.1)
+            int keyRefCount = 0;
+            if (header.getJWK() != null) keyRefCount++;
+            if (header.getX509CertChain() != null && !header.getX509CertChain().isEmpty()) keyRefCount++;
+            if (header.getKeyID() != null) keyRefCount++;
+
+            if (keyRefCount == 0) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                        "Proof must contain exactly one of jwk, x5c, or kid header parameters");
+            }
+            if (keyRefCount > 1) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
+                        "Proof must contain exactly one of jwk, x5c, or kid — multiple key references found");
+            }
+
+            // Currently only jwk binding method is supported
             if (header.getJWK() == null) {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_OR_MISSING_PROOF,
-                        "Proof must contain jwk header parameter");
+                        "Only jwk key binding method is supported");
             }
 
             ECKey walletKey = ECKey.parse(header.getJWK().toJSONObject());

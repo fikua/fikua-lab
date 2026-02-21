@@ -7,6 +7,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-02-21
+
+Proof JWT header parameter mutual exclusivity validation per OID4VCI 1.0 Final.
+
+### Fixed
+
+- **Proof key reference exclusivity (OID4VCI Appendix F.1):** `ProofValidator` now enforces that the proof JWT header contains exactly one of `jwk`, `x5c`, or `kid`. Previously, a proof with multiple key references (e.g., both `jwk` and `kid`) was silently accepted. Only `jwk` binding method is currently supported — `x5c` and `kid` alone are rejected with a clear error message.
+
+### Added
+
+- **4 new tests** in `ProofValidatorTest` — no key reference, `jwk`+`kid` combination, `jwk`+`x5c` combination, `kid`-only unsupported (130 → 134 total tests).
+
+### Spec references
+
+- OID4VCI 1.0 Final Appendix F.1 (jwt Proof Type — JOSE header key reference requirements)
+
 ## [0.4.3] - 2026-02-21
 
 HAIP 6.1.1 conformance fix — x5c certificate chain in SD-JWT VC header.
