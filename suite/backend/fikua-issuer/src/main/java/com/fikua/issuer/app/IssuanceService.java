@@ -302,6 +302,8 @@ public class IssuanceService {
             }
             if (request.credentialConfigurationId() != null
                     && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
+                log.warn("Credential request rejected: unknown credential_configuration_id={} (expected={})",
+                        request.credentialConfigurationId(), CREDENTIAL_CONFIG_ID);
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_CONFIGURATION,
                         "Unknown credential_configuration_id: " + request.credentialConfigurationId());
             }

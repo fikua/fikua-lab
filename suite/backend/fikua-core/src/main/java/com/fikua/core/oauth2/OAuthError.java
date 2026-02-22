@@ -57,6 +57,10 @@ public record OAuthError(
         return new OAuthError(UNSUPPORTED_GRANT_TYPE, description);
     }
 
+    public static OAuthError invalidCredentialConfiguration(String description) {
+        return new OAuthError(INVALID_CREDENTIAL_CONFIGURATION, description);
+    }
+
     public static OAuthError unsupportedCredentialFormat(String description) {
         return new OAuthError(UNSUPPORTED_CREDENTIAL_FORMAT, description);
     }
