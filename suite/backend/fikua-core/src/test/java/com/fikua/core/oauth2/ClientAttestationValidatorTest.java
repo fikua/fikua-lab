@@ -2,9 +2,10 @@ package com.fikua.core.oauth2;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
-import com.nimbusds.jose.jwk.Curve;
-import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,29 @@ class ClientAttestationValidatorTest {
     }
 
     @Test
+    void validate_validWiaPoP_withRSAKey_returnsClientId() throws Exception {
+        String clientId = "https://wallet.example.com";
+        RSAKey rsaKey = new RSAKeyGenerator(2048).generate();
+
+        SignedJWT wia = createWiaWithCnf(clientId, "https://attestation-service.example.com", rsaKey);
+
+        var popClaims = new JWTClaimsSet.Builder()
+                .issuer(clientId)
+                .audience("https://as.example.com")
+                .issueTime(new Date())
+                .expirationTime(new Date(System.currentTimeMillis() + 300_000))
+                .build();
+        var pop = new SignedJWT(
+                new JWSHeader.Builder(JWSAlgorithm.RS256).build(), popClaims);
+        pop.sign(new RSASSASigner(rsaKey));
+
+        String assertion = wia.serialize() + "~" + pop.serialize();
+        String result = validator.validate(EXPECTED_TYPE, assertion);
+
+        assertEquals(clientId, result);
+    }
+
+    @Test
     void validate_malformedJwt_throwsInvalidClient() {
         String assertion = "not-a-jwt~also-not-a-jwt";
         var ex = assertThrows(OAuthErrorException.class,
@@ -124,8 +148,8 @@ class ClientAttestationValidatorTest {
         return jwt;
     }
 
-    /** Create a WIA with cnf claim containing the PoP public key. */
-    private SignedJWT createWiaWithCnf(String subject, String issuer, ECKey popKey) throws Exception {
+    /** Create a WIA with cnf claim containing the PoP public key. Accepts any JWK type. */
+    private SignedJWT createWiaWithCnf(String subject, String issuer, JWK popKey) throws Exception {
         ECKey wiaSigningKey = new ECKeyGenerator(Curve.P_256).generate();
         var claims = new JWTClaimsSet.Builder()
                 .issuer(issuer)

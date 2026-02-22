@@ -9,6 +9,8 @@ import com.nimbusds.jwt.SignedJWT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.security.PublicKey;
 import java.time.Instant;
 
@@ -29,6 +31,7 @@ public class ClientAttestationValidator {
     private static final String EXPECTED_ASSERTION_TYPE =
             "urn:ietf:params:oauth:client-assertion-type:jwt-client-attestation";
     private static final long MAX_AGE_SECONDS = 300; // 5 minutes
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
      * Validate the client attestation from token request parameters.
@@ -134,7 +137,7 @@ public class ClientAttestationValidator {
             if (cnf == null) return null;
             var jwkMap = (java.util.Map<String, Object>) cnf.get("jwk");
             if (jwkMap == null) return null;
-            String jwkJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(jwkMap);
+            String jwkJson = MAPPER.writeValueAsString(jwkMap);
             return JWK.parse(jwkJson);
         } catch (Exception e) {
             log.warn("Could not extract cnf key from WIA: {}", e.getMessage());

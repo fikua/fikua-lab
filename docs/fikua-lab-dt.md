@@ -552,7 +552,7 @@ The backend uses a dual error format:
 | ---------- | ------ | ----- | -------- |
 | `AuthServerMetadataTest` | core | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
 | `CredentialIssuerMetadataTest` | core | 12 | HAIP + plain metadata, credential configs |
-| `ClientAttestationValidatorTest` | core | 8 | WIA~PoP parsing, assertion types, HTTP 401 status |
+| `ClientAttestationValidatorTest` | core | 9 | WIA~PoP parsing, assertion types, HTTP 401 status, RSA key support |
 | `DPoPValidatorTest` | core | 14 | All RFC 9449 validation branches |
 | `ProofValidatorTest` | core | 16 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |
 | `PkceUtilTest` | core | 9 | RFC 7636 test vector, S256 challenge |
