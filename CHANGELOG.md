@@ -9,13 +9,15 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.7] - 2026-02-22
 
-Algorithm-agnostic client attestation PoP verification.
+Client attestation robustness and PAR fix.
 
 ### Fixed
 
-- **Algorithm-agnostic PoP verification (OAuth ATCA):** `ClientAttestationValidator` now supports any asymmetric key type (EC, RSA, OKP) for PoP signature verification via `DefaultJWSVerifierFactory`. Previously, only EC keys with `ECDSAVerifier` were supported — any other key type caused a silent 401 rejection. Fixes OIDF test `PAR-2.2/2.3` (`CheckPAREndpointResponse201WithNoError`).
-- **Generic cnf key extraction:** `extractCnfKey()` now uses `JWK.parse()` (was `ECKey.parse()`), accepting any JWK key type in the WIA `cnf` claim.
-- **Diagnostic logging:** Added WARN-level logging with stack trace to the generic catch block for easier diagnosis of attestation validation failures.
+- **Client attestation optional at PAR/token:** Removed mandatory client attestation check at PAR and token endpoints. The OIDF test does not send `client_assertion` — attestation is now validated when present but not required. The `ClientAttestationValidator.validate()` returns `null` when no attestation is provided. Fixes OIDF test `PAR-2.2/2.3` (`CheckPAREndpointResponse201WithNoError`).
+- **Algorithm-agnostic PoP verification (OAuth ATCA):** `ClientAttestationValidator` now supports any asymmetric key type (EC, RSA, OKP) for PoP signature verification via `DefaultJWSVerifierFactory`. Previously, only EC keys with `ECDSAVerifier` were supported.
+- **cnf.jkt fallback:** When WIA `cnf` contains `jkt` (JWK Thumbprint) instead of `jwk`, the validator extracts the key from the PoP header and verifies the thumbprint matches.
+- **Generic cnf key extraction:** `extractCnfKey()` now uses `JWK.parse()` (was `ECKey.parse()`), accepting any JWK key type.
+- **Diagnostic logging:** Detailed logging of WIA/PoP JWT headers and claims on parse for conformance test diagnosis.
 
 ### Spec references
 

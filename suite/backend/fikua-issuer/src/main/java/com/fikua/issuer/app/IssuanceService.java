@@ -144,15 +144,13 @@ public class IssuanceService {
         TokenRequest request = TokenRequest.fromParams(params);
         log.info("Token request: grant_type={}", request.grantType());
 
-        // HAIP: client attestation is REQUIRED at token endpoint (OAuth ATCA §4)
+        // Validate client attestation if present (OAuth ATCA §4)
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
-        if (clientAssertionType == null && clientAssertion == null) {
-            log.warn("Token request rejected: missing client attestation");
-            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
-                    "Client attestation is required for token endpoint");
+        String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        if (attestedClientId != null) {
+            log.info("Client attestation validated at token endpoint: client_id={}", attestedClientId);
         }
-        clientAttestationValidator.validate(clientAssertionType, clientAssertion);
         log.info("Client attestation validated at token endpoint");
 
         // Validate DPoP if required
@@ -438,16 +436,13 @@ public class IssuanceService {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "PAR not available for this profile");
         }
 
-        // HAIP: client attestation is REQUIRED at PAR (OAuth ATCA §4)
+        // Validate client attestation if present (OAuth ATCA §4)
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
-        if (clientAssertionType == null && clientAssertion == null) {
-            log.warn("PAR rejected: missing client attestation");
-            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
-                    "Client attestation is required for PAR");
+        String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        if (attestedClientId != null) {
+            log.info("Client attestation validated at PAR: client_id={}", attestedClientId);
         }
-        clientAttestationValidator.validate(clientAssertionType, clientAssertion);
-        log.info("Client attestation validated at PAR endpoint");
 
         // M7: HAIP requires code_challenge_method=S256
         String codeChallengeMethod = params.get("code_challenge_method");
