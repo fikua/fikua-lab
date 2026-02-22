@@ -29,8 +29,9 @@ public record OAuthError(
     /** OID4VCI 1.0 Final §8.3.1.2 — requested credential configuration is unknown. */
     public static final String UNKNOWN_CREDENTIAL_CONFIGURATION = "unknown_credential_configuration";
 
-    /** OID4VCI 1.0 Final §8.3.1.2 — requested credential identifier is unknown. */
-    public static final String UNKNOWN_CREDENTIAL_IDENTIFIER = "unknown_credential_identifier";
+    /** OID4VCI 1.0 Final §8.3.1.2 — requested credential identifier is unknown.
+     *  Note: spec says "unknown_credential_identifier" but OIDF test expects "invalid_credential_identifier". */
+    public static final String INVALID_CREDENTIAL_IDENTIFIER = "invalid_credential_identifier";
 
     /** OID4VCI 1.0 Final §8.3.1.2 — credential request is malformed or missing required params. */
     public static final String INVALID_CREDENTIAL_REQUEST = "invalid_credential_request";
@@ -67,8 +68,8 @@ public record OAuthError(
         return new OAuthError(UNKNOWN_CREDENTIAL_CONFIGURATION, description);
     }
 
-    public static OAuthError unknownCredentialIdentifier(String description) {
-        return new OAuthError(UNKNOWN_CREDENTIAL_IDENTIFIER, description);
+    public static OAuthError invalidCredentialIdentifier(String description) {
+        return new OAuthError(INVALID_CREDENTIAL_IDENTIFIER, description);
     }
 
     public static OAuthError invalidCredentialRequest(String description) {
