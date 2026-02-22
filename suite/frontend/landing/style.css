@@ -326,37 +326,123 @@ section h2 {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
+    align-items: start;
 }
 
-.conf-block {
-    text-align: center;
-    padding: 2rem 1.5rem;
-    background: var(--bg-alt);
+.conf-card {
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    transition: border-color 0.15s;
 }
 
-.conf-number {
-    display: block;
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--berry);
-    line-height: 1;
-    margin-bottom: 0.5rem;
+.conf-card:hover { border-color: var(--accent); }
+
+.conf-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
 }
 
-.conf-label {
-    display: block;
-    font-size: 0.95rem;
+.conf-card-header h3 {
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--heading);
-    margin-bottom: 0.3rem;
+    flex: 1;
 }
 
-.conf-detail {
-    display: block;
-    font-size: 0.8rem;
+.conf-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.conf-card-count {
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    font-weight: 600;
     color: var(--text-muted);
+    background: var(--bg-alt);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+.conf-config-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.conf-config-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.conf-config-item:last-child { border-bottom: none; }
+
+.conf-config-name {
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    color: var(--text-muted);
+}
+
+.conf-btn {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--radius);
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: default;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.conf-btn-passed {
+    background: rgba(42, 157, 143, 0.12);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    cursor: pointer;
+}
+
+.conf-btn-passed:hover {
+    background: rgba(42, 157, 143, 0.2);
+    box-shadow: 0 1px 4px rgba(42, 157, 143, 0.15);
+    color: var(--accent);
+}
+
+.conf-btn-pending {
+    background: var(--bg-alt);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.conf-card-soon { opacity: 0.6; }
+
+.conf-card-soon-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.conf-progress {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-family: var(--mono);
 }
 
 /* --- Profiles --- */
