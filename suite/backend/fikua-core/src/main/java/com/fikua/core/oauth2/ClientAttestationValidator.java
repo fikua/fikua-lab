@@ -66,6 +66,9 @@ public class ClientAttestationValidator {
             // Parse the Wallet Instance Attestation (WIA)
             SignedJWT wia = SignedJWT.parse(parts[0]);
             JWTClaimsSet wiaClaims = wia.getJWTClaimsSet();
+            log.info("WIA parsed: alg={}, typ={}, sub={}, iss={}, claims={}",
+                    wia.getHeader().getAlgorithm(), wia.getHeader().getType(),
+                    wiaClaims.getSubject(), wiaClaims.getIssuer(), wiaClaims.getClaims().keySet());
 
             // Extract client_id from sub claim of WIA
             String clientId = wiaClaims.getSubject();
@@ -73,18 +76,29 @@ public class ClientAttestationValidator {
                 clientId = wiaClaims.getStringClaim("client_id");
             }
 
-            // Extract cnf key from WIA for PoP verification — REQUIRED
+            // Parse the PoP JWT
+            SignedJWT pop = SignedJWT.parse(parts[1]);
+            JWTClaimsSet popClaims = pop.getJWTClaimsSet();
+            log.info("PoP parsed: alg={}, typ={}, iss={}, aud={}, jwk_in_header={}",
+                    pop.getHeader().getAlgorithm(), pop.getHeader().getType(),
+                    popClaims.getIssuer(), popClaims.getAudience(),
+                    pop.getHeader().getJWK() != null);
+
+            // Extract cnf key from WIA (cnf.jwk) for PoP verification
             JWK cnfKey = extractCnfKey(wiaClaims);
+
+            // Fallback: if cnf.jwk not present, try cnf.jkt + PoP header key
             if (cnfKey == null) {
+                cnfKey = extractKeyViaJkt(wiaClaims, pop);
+            }
+
+            if (cnfKey == null) {
+                log.warn("WIA cnf claim: {}", wiaClaims.getJSONObjectClaim("cnf"));
                 throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "WIA missing cnf key for PoP verification");
             }
 
-            // Parse and validate the PoP JWT
-            SignedJWT pop = SignedJWT.parse(parts[1]);
-            JWTClaimsSet popClaims = pop.getJWTClaimsSet();
-
-            // Verify PoP signature using the cnf key from WIA (supports any asymmetric alg)
+            // Verify PoP signature using the cnf key (supports any asymmetric alg)
             if (!(cnfKey instanceof AsymmetricJWK asymmetricKey)) {
                 throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "cnf key must be an asymmetric key (EC, RSA, or OKP)");
@@ -129,7 +143,7 @@ public class ClientAttestationValidator {
         }
     }
 
-    /** Extract the public key from the cnf claim of the WIA. Supports any JWK key type. */
+    /** Extract the public key from the cnf.jwk claim of the WIA. Supports any JWK key type. */
     @SuppressWarnings("unchecked")
     private JWK extractCnfKey(JWTClaimsSet wiaClaims) {
         try {
@@ -141,6 +155,42 @@ public class ClientAttestationValidator {
             return JWK.parse(jwkJson);
         } catch (Exception e) {
             log.warn("Could not extract cnf key from WIA: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Fallback: if WIA cnf contains jkt (JWK Thumbprint) instead of jwk,
+     * extract the key from the PoP JWT header and verify the thumbprint matches.
+     * Requires cnf.jkt — without it, the PoP key has no binding to the WIA.
+     */
+    private JWK extractKeyViaJkt(JWTClaimsSet wiaClaims, SignedJWT pop) {
+        try {
+            var cnf = wiaClaims.getJSONObjectClaim("cnf");
+            if (cnf == null) return null;
+            String jkt = (String) cnf.get("jkt");
+            if (jkt == null) return null;
+
+            JWK popHeaderKey = pop.getHeader().getJWK();
+            if (popHeaderKey == null) {
+                log.warn("WIA cnf.jkt present but PoP header has no jwk");
+                return null;
+            }
+
+            // Verify PoP header key thumbprint matches cnf.jkt
+            String thumbprint = popHeaderKey.computeThumbprint().toString();
+            if (!jkt.equals(thumbprint)) {
+                log.warn("cnf.jkt mismatch: expected={}, actual={}", jkt, thumbprint);
+                throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                        "PoP key thumbprint does not match WIA cnf.jkt");
+            }
+            log.info("PoP key matched via cnf.jkt thumbprint");
+
+            return popHeaderKey.toPublicJWK();
+        } catch (OAuthErrorException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Could not extract key via jkt: {}", e.getMessage());
             return null;
         }
     }
