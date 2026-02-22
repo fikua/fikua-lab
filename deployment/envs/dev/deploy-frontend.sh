@@ -46,11 +46,11 @@ if ! ssh ${SSH_OPTS} "${VPS_USER}@${VPS_IP}" "echo 'ok'" > /dev/null 2>&1; then
 fi
 log_success "VPS connection OK"
 
-# --- Shared assets (error pages) ---
+# --- Shared assets (error pages, consent banner) ---
 if [ -d "suite/frontend/shared" ]; then
-    log_step "Uploading shared assets (error pages)..."
+    log_step "Uploading shared assets..."
     ssh ${SSH_OPTS} "${VPS_USER}@${VPS_IP}" "sudo mkdir -p /opt/vps/frontends/lab/shared && sudo chown -R ubuntu:ubuntu /opt/vps/frontends/lab/shared"
-    scp ${SCP_OPTS} "suite/frontend/shared/404.html" "suite/frontend/shared/50x.html" "${VPS_USER}@${VPS_IP}:/opt/vps/frontends/lab/shared/"
+    scp ${SCP_OPTS} -r "suite/frontend/shared/." "${VPS_USER}@${VPS_IP}:/opt/vps/frontends/lab/shared/"
     log_success "Shared assets uploaded"
 fi
 
