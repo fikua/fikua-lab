@@ -7,6 +7,9 @@ import com.fikua.lab.db.ProfileRepository;
 import com.fikua.lab.db.ProfileRepository.ProfileRow;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import io.javalin.http.sse.SseClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -17,6 +20,7 @@ import java.util.Map;
  */
 public class AdminRoutes {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminRoutes.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final ProfileRepository profileRepo;
 
@@ -32,6 +36,8 @@ public class AdminRoutes {
         app.put("/admin/profiles/{id}/activate", this::activateProfile);
         app.get("/admin/presets", this::listPresets);
         app.get("/admin/health", this::health);
+        app.get("/admin/logs", this::recentLogs);
+        app.sse("/admin/logs/stream", this::logStream);
     }
 
     private void listProfiles(Context ctx) {
@@ -45,6 +51,7 @@ public class AdminRoutes {
         String role = body.get("role").asText();
         ProfileConfig config = MAPPER.treeToValue(body.get("config"), ProfileConfig.class);
         ProfileRow created = profileRepo.create(name, role, config);
+        log.info("Profile created: id={}, name={}, role={}", created.id(), name, role);
         ctx.status(201).json(toMap(created));
     }
 
@@ -55,19 +62,53 @@ public class AdminRoutes {
         String role = body.get("role").asText();
         ProfileConfig config = MAPPER.treeToValue(body.get("config"), ProfileConfig.class);
         ProfileRow updated = profileRepo.update(id, name, role, config);
+        log.info("Profile updated: id={}, name={}, role={}", id, name, role);
         ctx.json(toMap(updated));
     }
 
     private void deleteProfile(Context ctx) {
         String id = ctx.pathParam("id");
         profileRepo.delete(id);
+        log.info("Profile deleted: id={}", id);
         ctx.status(204);
     }
 
     private void activateProfile(Context ctx) {
         String id = ctx.pathParam("id");
         profileRepo.activate(id);
+        log.info("Profile activated: id={}", id);
         ctx.status(200).json(Map.of("status", "activated"));
+    }
+
+    private void recentLogs(Context ctx) {
+        ctx.json(LogBufferAppender.getRecentLogs());
+    }
+
+    private void logStream(SseClient client) {
+        client.keepAlive();
+        client.onClose(() -> LogBufferAppender.removeClient(client));
+
+        for (var entry : LogBufferAppender.getRecentLogs()) {
+            client.sendEvent("log", toLogJson(entry));
+        }
+
+        LogBufferAppender.addClient(client);
+    }
+
+    private String toLogJson(LogBufferAppender.LogEntry entry) {
+        return "{\"timestamp\":\"" + escapeJson(entry.timestamp()) +
+                "\",\"level\":\"" + escapeJson(entry.level()) +
+                "\",\"source\":\"" + escapeJson(entry.source()) +
+                "\",\"message\":\"" + escapeJson(entry.message()) + "\"}";
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private void listPresets(Context ctx) {

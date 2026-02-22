@@ -11,7 +11,10 @@
     <logger name="org.flywaydb" level="INFO"/>
     <logger name="com.zaxxer.hikari" level="INFO"/>
 
+    <appender name="BUFFER" class="com.fikua.lab.admin.LogBufferAppender" />
+
     <root level="WARN">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="BUFFER"/>
     </root>
 </configuration>

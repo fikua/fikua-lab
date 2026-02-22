@@ -108,18 +108,22 @@ public class IssuanceService {
         log.info("Token request: grant_type={}", request.grantType());
 
         if (request.preAuthorizedCode() == null) {
+            log.warn("Token request rejected: missing pre-authorized_code");
             throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Missing pre-authorized_code");
         }
 
         SessionData session = sessionStore.consumePreAuthCode(request.preAuthorizedCode());
         if (session == null) {
+            log.warn("Token request rejected: invalid or expired pre-authorized_code");
             throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Invalid or expired pre-authorized_code");
         }
+        log.info("Pre-authorized code consumed: sessionId={}", session.sessionId());
 
         // Validate tx_code if the session requires it (OID4VCI §4.1.1)
         String expectedTxCode = (String) session.metadata().get("tx_code");
         if (expectedTxCode != null) {
             if (request.txCode() == null || !expectedTxCode.equals(request.txCode())) {
+                log.warn("Token request rejected: tx_code mismatch");
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Invalid or missing tx_code");
             }
         }
@@ -130,6 +134,7 @@ public class IssuanceService {
                 session.sessionId(), cNonce, null, Instant.now(), session.metadata()
         );
         String accessToken = sessionStore.createAccessToken(tokenSession);
+        log.info("Access token issued: sessionId={}, token_type=bearer", session.sessionId());
 
         return TokenResponse.bearer(accessToken);
     }
@@ -143,32 +148,40 @@ public class IssuanceService {
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
         if (clientAssertionType == null && clientAssertion == null) {
+            log.warn("Token request rejected: missing client attestation");
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Client attestation is required for token endpoint");
         }
         clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        log.info("Client attestation validated at token endpoint");
 
         // Validate DPoP if required
         ECKey dpopKey = null;
         if (config.requiresDPoP()) {
             dpopKey = dpopValidator.validate(dpopHeader, "POST", baseUrl + API_PREFIX + "/token", null);
+            log.info("DPoP validated at token endpoint");
         }
 
         // Consume authorization code
         SessionData session = sessionStore.consumeAuthCode(request.code());
         if (session == null) {
+            log.warn("Token request rejected: invalid authorization code");
             throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "Invalid authorization code");
         }
+        log.info("Authorization code consumed: sessionId={}", session.sessionId());
 
         // Validate PKCE
         if (config.requiresPkce()) {
             if (request.codeVerifier() == null) {
+                log.warn("Token request rejected: missing code_verifier");
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "Missing code_verifier");
             }
             String storedChallenge = (String) session.metadata().get("code_challenge");
             if (storedChallenge == null || !PkceUtil.verifyS256(request.codeVerifier(), storedChallenge)) {
+                log.warn("Token request rejected: PKCE verification failed");
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_GRANT, "PKCE verification failed");
             }
+            log.info("PKCE S256 verified");
         }
 
         String cNonce = sessionStore.generateNonce();
@@ -177,6 +190,8 @@ public class IssuanceService {
                 session.sessionId(), cNonce, dpopKey, Instant.now(), session.metadata()
         );
         String accessToken = sessionStore.createAccessToken(tokenSession);
+        String tokenType = config.requiresDPoP() ? "DPoP" : "bearer";
+        log.info("Access token issued: sessionId={}, token_type={}", session.sessionId(), tokenType);
 
         if (config.requiresDPoP()) {
             return TokenResponse.dpop(accessToken);
@@ -192,6 +207,7 @@ public class IssuanceService {
         } else if (request.isAuthorizationCode()) {
             return handleAuthCodeToken(params, config, dpopHeader);
         }
+        log.warn("Token request rejected: unsupported grant_type={}", request.grantType());
         throw OAuthErrorException.badRequest(OAuthError.UNSUPPORTED_GRANT_TYPE,
                 "Unsupported grant type: " + request.grantType());
     }
@@ -221,11 +237,14 @@ public class IssuanceService {
                         String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
                         String actualThumbprint = dpopKey.computeThumbprint().toString();
                         if (!expectedThumbprint.equals(actualThumbprint)) {
+                            log.warn("DPoP key mismatch at nonce endpoint");
                             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP key mismatch at nonce endpoint");
                         }
+                        log.info("DPoP validated at nonce endpoint");
                     } catch (OAuthErrorException e) {
                         throw e;
                     } catch (Exception e) {
+                        log.warn("DPoP thumbprint verification failed at nonce endpoint", e);
                         throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed");
                     }
                 }
@@ -247,6 +266,7 @@ public class IssuanceService {
                                                ProfileConfig config, String dpopHeader) {
         SessionData session = sessionStore.getAccessTokenSession(accessToken);
         if (session == null) {
+            log.warn("Credential request rejected: invalid access token");
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Invalid access token");
         }
 
@@ -259,14 +279,17 @@ public class IssuanceService {
                     String expectedThumbprint = session.dpopKey().computeThumbprint().toString();
                     String actualThumbprint = resourceDpopKey.computeThumbprint().toString();
                     if (!expectedThumbprint.equals(actualThumbprint)) {
+                        log.warn("DPoP key mismatch at credential endpoint");
                         throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP key mismatch");
                     }
                 } catch (OAuthErrorException e) {
                     throw e;
                 } catch (Exception e) {
+                    log.warn("DPoP thumbprint verification failed at credential endpoint", e);
                     throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "DPoP thumbprint verification failed");
                 }
             }
+            log.info("DPoP validated at credential endpoint");
         }
 
         try {
@@ -287,11 +310,13 @@ public class IssuanceService {
 
             String proofJwt = request.extractProofJwt();
             if (proofJwt == null) {
+                log.warn("Credential request rejected: missing or non-JWT proof");
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_PROOF, "proof_type must be jwt");
             }
 
             // Validate proof: signature, typ, alg, aud, iat (nonce checked separately below)
             ECKey walletKey = ProofValidator.validateJwt(proofJwt, baseUrl, null);
+            log.info("Proof JWT validated: wallet key bound");
 
             // Validate nonce against the global nonce store (covers both token and nonce endpoint nonces).
             // The wallet may have obtained the nonce from the Nonce Endpoint (§7) without an access token,
@@ -344,11 +369,13 @@ public class IssuanceService {
             builder.plainClaim("issuing_authority", "Fikua Lab");
             builder.plainClaim("issuing_country", "ES");
             issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
+            log.info("Credential issued: issuanceId={}", issuanceRecordId);
 
             String sdJwt = builder.build().serialize();
 
             // H11: Invalidate nonce after successful issuance (one-time use)
             sessionStore.invalidateNonce(session.cNonce());
+            log.info("Nonce invalidated (one-time use): {}", session.cNonce());
 
             return CredentialResponse.success(sdJwt);
 
@@ -400,6 +427,7 @@ public class IssuanceService {
                 sessionStore.randomToken(16), null, null, Instant.now(), metadata
         );
         String authCode = sessionStore.createAuthCode(session);
+        log.info("Authorization code issued: client_id={}, has_redirect={}", clientId, redirectUri != null);
 
         return new AuthorizeResult(authCode, redirectUri, state);
     }
@@ -414,10 +442,12 @@ public class IssuanceService {
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
         if (clientAssertionType == null && clientAssertion == null) {
+            log.warn("PAR rejected: missing client attestation");
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Client attestation is required for PAR");
         }
         clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        log.info("Client attestation validated at PAR endpoint");
 
         // M7: HAIP requires code_challenge_method=S256
         String codeChallengeMethod = params.get("code_challenge_method");
@@ -461,10 +491,12 @@ public class IssuanceService {
             CredentialOffer offer;
             String txCodeValue = null;
             if (config.isHaip()) {
+                log.info("Credential offer: grant_type=authorization_code (HAIP), issuanceId={}", record.id());
                 String issuerState = sessionStore.randomToken(16);
                 sessionStore.storeIssuerState(issuerState, Map.of("issuanceRecordId", record.id()));
                 offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
             } else {
+                log.info("Credential offer: grant_type=pre-authorized_code, issuanceId={}", record.id());
                 var metadata = new LinkedHashMap<String, Object>();
                 metadata.put("issuanceRecordId", record.id());
                 if (txCodeRequired) {

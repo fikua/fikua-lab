@@ -63,19 +63,23 @@ public class IssuerController {
 
     private void credentialIssuerMetadata(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
+        log.info("GET /.well-known/openid-credential-issuer");
         ctx.json(service.buildCredentialIssuerMetadata(config));
     }
 
     private void authServerMetadata(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
+        log.info("GET /.well-known/oauth-authorization-server — profile={}", config.isHaip() ? "HAIP" : "pre-auth");
         ctx.json(service.buildAuthServerMetadata(config));
     }
 
     private void jwks(Context ctx) {
+        log.info("GET /jwks");
         ctx.contentType("application/json").result(service.jwksJson());
     }
 
     private void credentialOffer(Context ctx) {
+        log.warn("GET /credential-offer — rejected (must use POST /issuance)");
         throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
                 "Use POST /oid4vci/v1/issuance with credential_data to trigger issuance");
     }
@@ -84,9 +88,11 @@ public class IssuerController {
         String offerId = ctx.pathParam("id");
         String offerJson = service.getCredentialOffer(offerId);
         if (offerJson == null) {
+            log.warn("GET /credential-offer/{} — not found", offerId);
             ctx.status(404).json(OAuthError.invalidRequest("Offer not found"));
             return;
         }
+        log.info("GET /credential-offer/{} — resolved", offerId);
         ctx.contentType("application/json").result(offerJson);
     }
 
@@ -122,10 +128,12 @@ public class IssuerController {
 
         String accessToken = extractAccessToken(authHeader);
         if (accessToken == null) {
+            log.warn("POST /credential — rejected: missing access token");
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN, "Missing access token");
         }
         // H10: Reject Bearer scheme for DPoP-bound tokens
         if (config.requiresDPoP() && authHeader != null && authHeader.toLowerCase().startsWith("bearer ")) {
+            log.warn("POST /credential — rejected: Bearer scheme used for DPoP-bound token");
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_TOKEN,
                     "DPoP-bound tokens must use DPoP authorization scheme, not Bearer");
         }
@@ -140,6 +148,7 @@ public class IssuerController {
 
     private void authorize(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
+        log.info("GET /authorize — request_uri={}, client_id={}", ctx.queryParam("request_uri"), ctx.queryParam("client_id"));
         var result = service.handleAuthorize(
                 ctx.queryParam("request_uri"),
                 ctx.queryParam("client_id"),
@@ -154,8 +163,10 @@ public class IssuerController {
             String redirect = result.redirectUri() + "?code=" + result.code();
             if (result.state() != null) redirect += "&state=" + result.state();
             redirect += "&iss=" + java.net.URLEncoder.encode(baseUrl, java.nio.charset.StandardCharsets.UTF_8);
+            log.info("GET /authorize — redirect to {}", result.redirectUri());
             ctx.redirect(redirect);
         } else {
+            log.info("GET /authorize — code issued (no redirect)");
             ctx.json(Map.of("code", result.code()));
         }
     }
@@ -163,11 +174,15 @@ public class IssuerController {
     private void par(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
-        ctx.status(201).json(service.handlePar(params, config));
+        log.info("POST /par — client_id={}", params.get("client_id"));
+        var result = service.handlePar(params, config);
+        log.info("POST /par — request_uri={}", result.get("request_uri"));
+        ctx.status(201).json(result);
     }
 
     private void triggerIssuance(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
+        log.info("POST /issuance — profile={}", config.isHaip() ? "HAIP" : "pre-auth");
         ctx.json(service.triggerIssuance(ctx.body(), config));
     }
 
