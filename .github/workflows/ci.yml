@@ -23,8 +23,55 @@ jobs:
       - name: Build & Test
         run: cd suite/backend && ./gradlew build
 
-  docker:
+  integration-test:
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Start services
+        run: |
+          docker compose -f deployment/envs/local/compose.yaml up -d --build
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "Backend is UP"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: Backend did not start within 60s"
+              docker compose -f deployment/envs/local/compose.yaml logs --tail=50
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz \
+            | tar xzf - --strip-components=1 -C /usr/local/bin k6-v0.55.0-linux-amd64/k6
+
+      - name: Run integration tests
+        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080
+
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose -f deployment/envs/local/compose.yaml logs --tail=100
+
+      - name: Stop services
+        if: always()
+        run: docker compose -f deployment/envs/local/compose.yaml down -v
+
+  docker:
+    needs: [build, integration-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

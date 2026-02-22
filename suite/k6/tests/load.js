@@ -187,7 +187,22 @@ export async function setup() {
   // Smoke-check: verify a single full issuance flow works
   const keyPair = await generateWalletKey();
 
-  const offerRes = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
+  // Trigger issuance via POST /issuance (creates offer with pre-auth code)
+  const issuanceBody = JSON.stringify({
+    credential_type: "eu.europa.ec.eudi.pid.1",
+    credential_data: { given_name: "Smoke", family_name: "Test", birth_date: "2000-01-01" },
+  });
+  const issuanceRes = http.post(`${BASE_URL}/oid4vci/v1/issuance`, issuanceBody, {
+    headers: { "Content-Type": "application/json" },
+  });
+  if (issuanceRes.status !== 200) {
+    console.error(`Setup failed: issuance trigger returned ${issuanceRes.status}: ${issuanceRes.body}`);
+    return { ok: false };
+  }
+
+  // Resolve offer URI to get pre-auth code
+  const offerUri = issuanceRes.json().credential_offer_uri;
+  const offerRes = http.get(offerUri.replace("https://issuer.lab.fikua.com", BASE_URL));
   const offer = offerRes.json();
   const preAuthCode =
     offer.grants["urn:ietf:params:oauth:grant-type:pre-authorized_code"]["pre-authorized_code"];
@@ -199,11 +214,14 @@ export async function setup() {
   );
   const tokenBody = tokenRes.json();
 
-  const jwtProof = await signJwtProof(keyPair, issuerUrl, tokenBody.c_nonce);
+  // Get nonce from Nonce Endpoint (OID4VCI 1.0 Final §7)
+  const nonceRes = http.post(`${BASE_URL}/oid4vci/v1/nonce`, null);
+  const cNonce = nonceRes.json().c_nonce;
+
+  const jwtProof = await signJwtProof(keyPair, issuerUrl, cNonce);
   const credReq = JSON.stringify({
-    format: "dc+sd-jwt",
-    vct: "eu.europa.ec.eudi.pid.1",
-    proof: { proof_type: "jwt", jwt: jwtProof },
+    credential_configuration_id: "eu.europa.ec.eudi.pid.1",
+    proofs: { jwt: [jwtProof] },
   });
 
   const credRes = http.post(`${BASE_URL}/oid4vci/v1/credential`, credReq, {
@@ -238,14 +256,41 @@ export default async function (data) {
   // Each VU generates its own wallet key (simulates different wallets)
   const walletKeyPair = await generateWalletKey();
 
-  // --- Step 1: Get credential offer (DB read + state write) ---
+  // --- Step 1: Trigger issuance + resolve offer (DB write + state) ---
   let preAuthCode = null;
 
-  const offerRes = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
-  offerLatency.add(offerRes.timings.duration);
+  const issuanceBody = JSON.stringify({
+    credential_type: "eu.europa.ec.eudi.pid.1",
+    credential_data: { given_name: "Load", family_name: "Test", birth_date: "1995-06-15" },
+  });
+  const issuanceRes = http.post(`${BASE_URL}/oid4vci/v1/issuance`, issuanceBody, {
+    headers: { "Content-Type": "application/json" },
+  });
+  offerLatency.add(issuanceRes.timings.duration);
 
-  const offerOk = check(offerRes, {
-    "offer → 200": (r) => r.status === 200,
+  const offerOk = check(issuanceRes, {
+    "issuance → 200": (r) => r.status === 200,
+    "issuance has offer URI": (r) => {
+      try {
+        return r.json().credential_offer_uri !== undefined;
+      } catch (e) {
+        return false;
+      }
+    },
+  });
+  errorRate.add(!offerOk);
+
+  if (issuanceRes.status !== 200) {
+    sleep(0.3);
+    return;
+  }
+
+  // Resolve offer URI to get pre-auth code
+  const offerUri = issuanceRes.json().credential_offer_uri;
+  const offerRes = http.get(offerUri.replace("https://issuer.lab.fikua.com", BASE_URL));
+
+  const resolveOk = check(offerRes, {
+    "offer resolve → 200": (r) => r.status === 200,
     "offer has pre-auth code": (r) => {
       try {
         const grants = r.json().grants;
@@ -257,7 +302,7 @@ export default async function (data) {
       }
     },
   });
-  errorRate.add(!offerOk);
+  errorRate.add(!resolveOk);
 
   if (!preAuthCode) {
     sleep(0.3);
@@ -295,13 +340,16 @@ export default async function (data) {
     return;
   }
 
+  // --- Step 2b: Get nonce from Nonce Endpoint (OID4VCI 1.0 Final §7) ---
+  const nonceRes = http.post(`${BASE_URL}/oid4vci/v1/nonce`, null);
+  const nonce = nonceRes.json().c_nonce;
+
   // --- Step 3: Request credential with JWT proof (JWT verify + SD-JWT sign) ---
-  const jwtProof = await signJwtProof(walletKeyPair, data.issuerUrl, cNonce);
+  const jwtProof = await signJwtProof(walletKeyPair, data.issuerUrl, nonce || cNonce);
 
   const credReqBody = JSON.stringify({
-    format: "dc+sd-jwt",
-    vct: "eu.europa.ec.eudi.pid.1",
-    proof: { proof_type: "jwt", jwt: jwtProof },
+    credential_configuration_id: "eu.europa.ec.eudi.pid.1",
+    proofs: { jwt: [jwtProof] },
   });
 
   const credRes = http.post(`${BASE_URL}/oid4vci/v1/credential`, credReqBody, {
@@ -316,7 +364,8 @@ export default async function (data) {
     "credential → 200": (r) => r.status === 200,
     "credential has SD-JWT": (r) => {
       try {
-        const cred = r.json().credential;
+        // OID4VCI 1.0 Final: credentials[0].credential
+        const cred = r.json().credentials[0].credential;
         // SD-JWT format: header.payload~disclosure1~disclosure2~
         return cred !== undefined && cred.includes("~");
       } catch (e) {

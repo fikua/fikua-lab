@@ -205,40 +205,44 @@ export default function () {
     check(res, {
       "POST /oid4vci/v1/nonce → 200": (r) => r.status === 200,
       "returns c_nonce": (r) => r.json().c_nonce !== undefined,
-      "returns c_nonce_expires_in": (r) =>
-        r.json().c_nonce_expires_in !== undefined,
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 9. Credential Offer (mode depends on active profile config)
+  // 9. Credential Offer (deprecated GET returns 400)
   // ---------------------------------------------------------------------------
-  group("Credential Offer", () => {
+  group("Credential Offer — deprecated GET", () => {
     const res = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
-    const body = res.json();
     check(res, {
-      "GET /credential-offer → 200": (r) => r.status === 200,
-      "returns offer or offer_uri": () =>
-        body.credential_offer_uri !== undefined ||
-        body.credential_configuration_ids !== undefined,
+      "GET /credential-offer → 400 (deprecated)": (r) => r.status === 400,
+      "error suggests POST /issuance": (r) =>
+        r.body.includes("issuance"),
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 10. Credential Offer by Reference (resolve URI)
+  // 10. Credential Offer by Reference (via POST /issuance)
   // ---------------------------------------------------------------------------
   group("Credential Offer by Reference", () => {
-    const res = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
-    const body = res.json();
+    const issuanceBody = JSON.stringify({
+      credential_type: "eu.europa.ec.eudi.pid.1",
+      credential_data: { given_name: "Offer", family_name: "Test" },
+    });
+    const res = http.post(`${BASE_URL}/oid4vci/v1/issuance`, issuanceBody, {
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = res.json();
     check(res, {
-      "GET /credential-offer → 200": (r) => r.status === 200,
+      "POST /issuance → 200": (r) => r.status === 200,
       "returns credential_offer_uri": () =>
-        body.credential_offer_uri !== undefined,
+        data.credential_offer_uri !== undefined,
     });
 
-    // Resolve the offer URI if present
-    if (body.credential_offer_uri) {
-      const offerRes = http.get(body.credential_offer_uri.replace("https://issuer.lab.fikua.com", BASE_URL));
+    // Resolve the offer URI
+    if (data.credential_offer_uri) {
+      const offerRes = http.get(
+        data.credential_offer_uri.replace("https://issuer.lab.fikua.com", BASE_URL)
+      );
       check(offerRes, {
         "resolved offer has credential_configuration_ids": (r) =>
           r.json().credential_configuration_ids !== undefined,
@@ -349,15 +353,6 @@ export default function () {
 
     if (byValueProfileId) {
       http.put(`${BASE_URL}/admin/profiles/${byValueProfileId}/activate`);
-
-      // Test GET /credential-offer with by_value
-      const offerRes = http.get(`${BASE_URL}/oid4vci/v1/credential-offer`);
-      const offerBody = offerRes.json();
-      check(offerRes, {
-        "GET /credential-offer (by_value) → 200": (r) => r.status === 200,
-        "by_value returns credential_configuration_ids": () =>
-          offerBody.credential_configuration_ids !== undefined,
-      });
 
       // Test POST /issuance with by_value
       const issuanceBody = JSON.stringify({
