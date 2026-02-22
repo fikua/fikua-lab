@@ -1,5 +1,6 @@
 package com.fikua.issuer.infra.http;
 
+import com.fikua.core.oauth2.ClientAttestationValidator;
 import com.fikua.core.oauth2.OAuthError;
 import com.fikua.core.oauth2.OAuthErrorException;
 import com.fikua.core.profile.ProfileConfig;
@@ -100,9 +101,11 @@ public class IssuerController {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
         String dpopHeader = ctx.header("DPoP");
+        String attestation = ctx.header(ClientAttestationValidator.HEADER_CLIENT_ATTESTATION);
+        String attestationPop = ctx.header(ClientAttestationValidator.HEADER_CLIENT_ATTESTATION_POP);
         log.info("POST /token — grant_type={}, DPoP present: {}", params.get("grant_type"), dpopHeader != null);
         ctx.header("Cache-Control", "no-store");
-        var response = service.handleToken(params, config, dpopHeader);
+        var response = service.handleToken(params, config, dpopHeader, attestation, attestationPop);
         log.info("POST /token — response: token_type={}", response.tokenType());
         ctx.json(response);
     }
@@ -174,14 +177,13 @@ public class IssuerController {
     private void par(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
-        String ca = params.get("client_assertion");
-        log.info("POST /par — client_id={}, params={}, client_assertion_type={}, client_assertion={}",
+        String attestation = ctx.header(ClientAttestationValidator.HEADER_CLIENT_ATTESTATION);
+        String attestationPop = ctx.header(ClientAttestationValidator.HEADER_CLIENT_ATTESTATION_POP);
+        log.info("POST /par — client_id={}, params={}, attestation_header={}, attestation_pop_header={}",
                 params.get("client_id"), params.keySet(),
-                params.get("client_assertion_type"),
-                ca != null ? ca.substring(0, Math.min(50, ca.length())) + "..." : "null");
-        log.info("POST /par — headers: {}", ctx.headerMap());
-        log.info("POST /par — content-type: {}, body length: {}", ctx.contentType(), ctx.body().length());
-        var result = service.handlePar(params, config);
+                attestation != null ? "present" : "null",
+                attestationPop != null ? "present" : "null");
+        var result = service.handlePar(params, config, attestation, attestationPop);
         log.info("POST /par — request_uri={}", result.get("request_uri"));
         ctx.status(201).json(result);
     }

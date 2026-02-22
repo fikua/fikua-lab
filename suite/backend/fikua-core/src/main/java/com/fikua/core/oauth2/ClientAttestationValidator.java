@@ -15,12 +15,12 @@ import java.security.PublicKey;
 import java.time.Instant;
 
 /**
- * Validates client attestation JWTs per OAuth Attestation-Based Client Authentication.
- * Used in HAIP profile where client_assertion_type = jwt-client-attestation.
+ * Validates client attestation JWTs per OAuth Attestation-Based Client Authentication
+ * (draft-ietf-oauth-attestation-based-client-auth-07).
  *
- * The client_assertion contains two JWTs concatenated with '~':
- *   1. Wallet Instance Attestation (WIA) — signed by the Attestation Service
- *   2. Proof of Possession (PoP) — signed by the wallet instance key
+ * Supports two transport mechanisms:
+ * 1. HTTP headers: OAuth-Client-Attestation (WIA) + OAuth-Client-Attestation-PoP (PoP)
+ * 2. Form params: client_assertion_type + client_assertion (WIA~PoP concatenated with ~)
  *
  * WIA signature is NOT verified (we don't have the Attestation Service's public key).
  * PoP signature IS verified using the cnf key from the WIA.
@@ -28,13 +28,39 @@ import java.time.Instant;
 public class ClientAttestationValidator {
 
     private static final Logger log = LoggerFactory.getLogger(ClientAttestationValidator.class);
+    public static final String HEADER_CLIENT_ATTESTATION = "OAuth-Client-Attestation";
+    public static final String HEADER_CLIENT_ATTESTATION_POP = "OAuth-Client-Attestation-PoP";
     private static final String EXPECTED_ASSERTION_TYPE =
             "urn:ietf:params:oauth:client-assertion-type:jwt-client-attestation";
     private static final long MAX_AGE_SECONDS = 300; // 5 minutes
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * Validate the client attestation from token request parameters.
+     * Validate client attestation from HTTP headers (ATCA draft-07 §4).
+     *
+     * @param wiaJwt the OAuth-Client-Attestation header value (WIA JWT)
+     * @param popJwt the OAuth-Client-Attestation-PoP header value (PoP JWT)
+     * @return the client_id extracted from the WIA, or null if no headers present
+     */
+    public String validateHeaders(String wiaJwt, String popJwt) {
+        if (wiaJwt == null && popJwt == null) {
+            return null; // No attestation provided via headers
+        }
+
+        if (wiaJwt == null || wiaJwt.isBlank()) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Missing OAuth-Client-Attestation header");
+        }
+        if (popJwt == null || popJwt.isBlank()) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Missing OAuth-Client-Attestation-PoP header");
+        }
+
+        return validateWiaAndPop(wiaJwt, popJwt);
+    }
+
+    /**
+     * Validate client attestation from form parameters (client_assertion_type + client_assertion).
      *
      * @param clientAssertionType the client_assertion_type parameter
      * @param clientAssertion the client_assertion parameter (WIA~PoP)
@@ -62,9 +88,14 @@ public class ClientAttestationValidator {
                     "client_assertion must contain WIA~PoP (two JWTs separated by ~)");
         }
 
+        return validateWiaAndPop(parts[0], parts[1]);
+    }
+
+    /** Common WIA + PoP validation logic. */
+    private String validateWiaAndPop(String wiaJwtString, String popJwtString) {
         try {
             // Parse the Wallet Instance Attestation (WIA)
-            SignedJWT wia = SignedJWT.parse(parts[0]);
+            SignedJWT wia = SignedJWT.parse(wiaJwtString);
             JWTClaimsSet wiaClaims = wia.getJWTClaimsSet();
             log.info("WIA parsed: alg={}, typ={}, sub={}, iss={}, claims={}",
                     wia.getHeader().getAlgorithm(), wia.getHeader().getType(),
@@ -77,7 +108,7 @@ public class ClientAttestationValidator {
             }
 
             // Parse the PoP JWT
-            SignedJWT pop = SignedJWT.parse(parts[1]);
+            SignedJWT pop = SignedJWT.parse(popJwtString);
             JWTClaimsSet popClaims = pop.getJWTClaimsSet();
             log.info("PoP parsed: alg={}, typ={}, iss={}, aud={}, jwk_in_header={}",
                     pop.getHeader().getAlgorithm(), pop.getHeader().getType(),
@@ -139,7 +170,7 @@ public class ClientAttestationValidator {
         } catch (Exception e) {
             log.warn("Client attestation validation failed: {}", e.getMessage(), e);
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
-                    "Invalid client_assertion: " + e.getMessage());
+                    "Invalid client attestation: " + e.getMessage());
         }
     }
 

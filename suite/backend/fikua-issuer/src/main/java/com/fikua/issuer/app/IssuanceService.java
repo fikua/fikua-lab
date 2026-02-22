@@ -140,18 +140,17 @@ public class IssuanceService {
     }
 
     /** Handle authorization_code token request (HAIP). */
-    public TokenResponse handleAuthCodeToken(Map<String, String> params, ProfileConfig config, String dpopHeader) {
+    public TokenResponse handleAuthCodeToken(Map<String, String> params, ProfileConfig config,
+                                              String dpopHeader, String attestationHeader,
+                                              String attestationPopHeader) {
         TokenRequest request = TokenRequest.fromParams(params);
         log.info("Token request: grant_type={}", request.grantType());
 
-        // Validate client attestation if present (OAuth ATCA §4)
-        String clientAssertionType = params.get("client_assertion_type");
-        String clientAssertion = params.get("client_assertion");
-        String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        // Validate client attestation (ATCA draft-07): try headers first, then form params
+        String attestedClientId = resolveClientAttestation(attestationHeader, attestationPopHeader, params);
         if (attestedClientId != null) {
             log.info("Client attestation validated at token endpoint: client_id={}", attestedClientId);
         }
-        log.info("Client attestation validated at token endpoint");
 
         // Validate DPoP if required
         ECKey dpopKey = null;
@@ -198,12 +197,14 @@ public class IssuanceService {
     }
 
     /** Handle token request (dispatches to pre-auth or auth_code). */
-    public TokenResponse handleToken(Map<String, String> params, ProfileConfig config, String dpopHeader) {
+    public TokenResponse handleToken(Map<String, String> params, ProfileConfig config,
+                                      String dpopHeader, String attestationHeader,
+                                      String attestationPopHeader) {
         TokenRequest request = TokenRequest.fromParams(params);
         if (request.isPreAuthorizedCode()) {
             return handlePreAuthToken(params, config);
         } else if (request.isAuthorizationCode()) {
-            return handleAuthCodeToken(params, config, dpopHeader);
+            return handleAuthCodeToken(params, config, dpopHeader, attestationHeader, attestationPopHeader);
         }
         log.warn("Token request rejected: unsupported grant_type={}", request.grantType());
         throw OAuthErrorException.badRequest(OAuthError.UNSUPPORTED_GRANT_TYPE,
@@ -433,19 +434,20 @@ public class IssuanceService {
     }
 
     /** Handle PAR request (HAIP). */
-    public Map<String, Object> handlePar(Map<String, String> params, ProfileConfig config) {
+    public Map<String, Object> handlePar(Map<String, String> params, ProfileConfig config,
+                                          String attestationHeader, String attestationPopHeader) {
         if (!config.isHaip()) {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "PAR not available for this profile");
         }
 
-        // Validate client attestation (OAuth ATCA §4)
-        String clientAssertionType = params.get("client_assertion_type");
-        String clientAssertion = params.get("client_assertion");
-        log.info("PAR attestation check: assertion_type={}, assertion_present={}, all_params={}",
-                clientAssertionType, clientAssertion != null, params.keySet());
-        String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
+        // Validate client attestation (ATCA draft-07): try headers first, then form params
+        String attestedClientId = resolveClientAttestation(attestationHeader, attestationPopHeader, params);
         if (attestedClientId != null) {
             log.info("Client attestation validated at PAR: client_id={}", attestedClientId);
+        } else if (config.requiresClientAttestation()) {
+            log.warn("PAR rejected: client attestation required but not provided");
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Client attestation is required");
         }
 
         // M7: HAIP requires code_challenge_method=S256
@@ -541,6 +543,24 @@ public class IssuanceService {
     }
 
     // --- Private helpers ---
+
+    /**
+     * Resolve client attestation from HTTP headers or form params (ATCA draft-07).
+     * Headers take precedence over form params.
+     *
+     * @return the client_id if attestation is valid, null if no attestation present
+     */
+    private String resolveClientAttestation(String attestationHeader, String attestationPopHeader,
+                                             Map<String, String> params) {
+        // Try HTTP headers first (ATCA draft-07 §4)
+        String clientId = clientAttestationValidator.validateHeaders(attestationHeader, attestationPopHeader);
+        if (clientId != null) {
+            return clientId;
+        }
+        // Fallback to form params (client_assertion_type + client_assertion)
+        return clientAttestationValidator.validate(
+                params.get("client_assertion_type"), params.get("client_assertion"));
+    }
 
     /** Extract the nonce claim from a JWT proof string. */
     private String extractProofNonce(String jwtString) {
