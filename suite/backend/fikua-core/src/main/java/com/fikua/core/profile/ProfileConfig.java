@@ -55,4 +55,10 @@ public record ProfileConfig(
     public boolean isHaip() {
         return vciProfile == VciProfile.HAIP;
     }
+
+    /** Returns true if this profile requires attestation-based client authentication. */
+    @JsonIgnore
+    public boolean requiresClientAttestation() {
+        return clientAuth == ClientAuthType.CLIENT_ATTESTATION;
+    }
 }

@@ -174,7 +174,11 @@ public class IssuerController {
     private void par(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         Map<String, String> params = parseFormParams(ctx);
-        log.info("POST /par — client_id={}", params.get("client_id"));
+        String ca = params.get("client_assertion");
+        log.info("POST /par — client_id={}, params={}, client_assertion_type={}, client_assertion={}",
+                params.get("client_id"), params.keySet(),
+                params.get("client_assertion_type"),
+                ca != null ? ca.substring(0, Math.min(50, ca.length())) + "..." : "null");
         var result = service.handlePar(params, config);
         log.info("POST /par — request_uri={}", result.get("request_uri"));
         ctx.status(201).json(result);

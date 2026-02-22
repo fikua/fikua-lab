@@ -438,12 +438,16 @@ public class IssuanceService {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "PAR not available for this profile");
         }
 
-        // Validate client attestation if present (OAuth ATCA §4)
+        // Validate client attestation (OAuth ATCA §4)
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
         String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
         if (attestedClientId != null) {
             log.info("Client attestation validated at PAR: client_id={}", attestedClientId);
+        } else if (config.requiresClientAttestation()) {
+            log.warn("PAR rejected: client attestation required but not provided");
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Client attestation required for this profile");
         }
 
         // M7: HAIP requires code_challenge_method=S256
