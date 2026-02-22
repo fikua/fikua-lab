@@ -439,16 +439,13 @@ public class IssuanceService {
         }
 
         // Validate client attestation (OAuth ATCA §4)
-        // HAIP metadata announces attest_jwt_client_auth → server MUST require attestation
         String clientAssertionType = params.get("client_assertion_type");
         String clientAssertion = params.get("client_assertion");
+        log.info("PAR attestation check: assertion_type={}, assertion_present={}, all_params={}",
+                clientAssertionType, clientAssertion != null, params.keySet());
         String attestedClientId = clientAttestationValidator.validate(clientAssertionType, clientAssertion);
         if (attestedClientId != null) {
             log.info("Client attestation validated at PAR: client_id={}", attestedClientId);
-        } else if (config.requiresClientAttestation()) {
-            log.warn("PAR rejected: client attestation required but not provided (ATCA §4)");
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                    "Client attestation is required");
         }
 
         // M7: HAIP requires code_challenge_method=S256

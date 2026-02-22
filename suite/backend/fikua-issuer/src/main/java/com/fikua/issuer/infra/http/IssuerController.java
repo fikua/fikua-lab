@@ -179,6 +179,8 @@ public class IssuerController {
                 params.get("client_id"), params.keySet(),
                 params.get("client_assertion_type"),
                 ca != null ? ca.substring(0, Math.min(50, ca.length())) + "..." : "null");
+        log.info("POST /par — headers: {}", ctx.headerMap());
+        log.info("POST /par — content-type: {}, body length: {}", ctx.contentType(), ctx.body().length());
         var result = service.handlePar(params, config);
         log.info("POST /par — request_uri={}", result.get("request_uri"));
         ctx.status(201).json(result);
