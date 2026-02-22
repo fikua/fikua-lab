@@ -26,6 +26,9 @@ public record OAuthError(
     /** OID4VCI 1.0 Final §8.3.1 — c_nonce in proof is invalid/expired. Wallet should request a new nonce. */
     public static final String INVALID_NONCE = "invalid_nonce";
 
+    /** OID4VCI 1.0 Final §8.3.1 — requested credential configuration is invalid/unknown. */
+    public static final String INVALID_CREDENTIAL_CONFIGURATION = "invalid_credential_configuration";
+
     public static OAuthError invalidRequest(String description) {
         return new OAuthError(INVALID_REQUEST, description);
     }

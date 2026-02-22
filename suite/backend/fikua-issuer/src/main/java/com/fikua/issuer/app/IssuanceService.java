@@ -302,8 +302,8 @@ public class IssuanceService {
             }
             if (request.credentialConfigurationId() != null
                     && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                        "Unsupported credential_configuration_id: " + request.credentialConfigurationId());
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_CONFIGURATION,
+                        "Unknown credential_configuration_id: " + request.credentialConfigurationId());
             }
 
             String proofJwt = request.extractProofJwt();
