@@ -309,10 +309,10 @@ public class IssuanceService {
                 throw OAuthErrorException.badRequest(OAuthError.UNKNOWN_CREDENTIAL_CONFIGURATION,
                         "Unknown credential_configuration_id: " + request.credentialConfigurationId());
             }
-            // OID4VCI 1.0 Final §8.3.1.2: invalid_credential_identifier (OIDF test expectation)
+            // OID4VCI 1.0 Final §8.3.1.2: unknown_credential_identifier
             if (request.credentialIdentifier() != null) {
                 log.warn("Credential request rejected: unknown credential_identifier={}", request.credentialIdentifier());
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_IDENTIFIER,
+                throw OAuthErrorException.badRequest(OAuthError.UNKNOWN_CREDENTIAL_IDENTIFIER,
                         "Unknown credential_identifier: " + request.credentialIdentifier());
             }
 
