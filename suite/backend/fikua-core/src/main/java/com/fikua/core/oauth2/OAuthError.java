@@ -26,8 +26,14 @@ public record OAuthError(
     /** OID4VCI 1.0 Final §8.3.1 — c_nonce in proof is invalid/expired. Wallet should request a new nonce. */
     public static final String INVALID_NONCE = "invalid_nonce";
 
-    /** OID4VCI 1.0 Final §8.3.1 — requested credential configuration is invalid/unknown. */
-    public static final String INVALID_CREDENTIAL_CONFIGURATION = "invalid_credential_configuration";
+    /** OID4VCI 1.0 Final §8.3.1.2 — requested credential configuration is unknown. */
+    public static final String UNKNOWN_CREDENTIAL_CONFIGURATION = "unknown_credential_configuration";
+
+    /** OID4VCI 1.0 Final §8.3.1.2 — requested credential identifier is unknown. */
+    public static final String UNKNOWN_CREDENTIAL_IDENTIFIER = "unknown_credential_identifier";
+
+    /** OID4VCI 1.0 Final §8.3.1.2 — credential request is malformed or missing required params. */
+    public static final String INVALID_CREDENTIAL_REQUEST = "invalid_credential_request";
 
     public static OAuthError invalidRequest(String description) {
         return new OAuthError(INVALID_REQUEST, description);
@@ -57,8 +63,16 @@ public record OAuthError(
         return new OAuthError(UNSUPPORTED_GRANT_TYPE, description);
     }
 
-    public static OAuthError invalidCredentialConfiguration(String description) {
-        return new OAuthError(INVALID_CREDENTIAL_CONFIGURATION, description);
+    public static OAuthError unknownCredentialConfiguration(String description) {
+        return new OAuthError(UNKNOWN_CREDENTIAL_CONFIGURATION, description);
+    }
+
+    public static OAuthError unknownCredentialIdentifier(String description) {
+        return new OAuthError(UNKNOWN_CREDENTIAL_IDENTIFIER, description);
+    }
+
+    public static OAuthError invalidCredentialRequest(String description) {
+        return new OAuthError(INVALID_CREDENTIAL_REQUEST, description);
     }
 
     public static OAuthError unsupportedCredentialFormat(String description) {

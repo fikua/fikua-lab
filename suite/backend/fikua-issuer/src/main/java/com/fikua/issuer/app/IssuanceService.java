@@ -296,17 +296,24 @@ public class IssuanceService {
             log.info("Credential request: format={}, credential_configuration_id={}",
                     request.format(), request.credentialConfigurationId());
 
-            // M8: credential_configuration_id is REQUIRED per OID4VCI 1.0 Final §8.2
+            // M8: credential_configuration_id or credential_identifier is REQUIRED per OID4VCI 1.0 Final §8.2
             if (request.credentialConfigurationId() == null && request.credentialIdentifier() == null) {
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_REQUEST,
                         "credential_configuration_id or credential_identifier is required");
             }
+            // OID4VCI 1.0 Final §8.3.1.2: unknown_credential_configuration
             if (request.credentialConfigurationId() != null
                     && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
                 log.warn("Credential request rejected: unknown credential_configuration_id={} (expected={})",
                         request.credentialConfigurationId(), CREDENTIAL_CONFIG_ID);
-                throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_CONFIGURATION,
+                throw OAuthErrorException.badRequest(OAuthError.UNKNOWN_CREDENTIAL_CONFIGURATION,
                         "Unknown credential_configuration_id: " + request.credentialConfigurationId());
+            }
+            // OID4VCI 1.0 Final §8.3.1.2: unknown_credential_identifier
+            if (request.credentialIdentifier() != null) {
+                log.warn("Credential request rejected: unknown credential_identifier={}", request.credentialIdentifier());
+                throw OAuthErrorException.badRequest(OAuthError.UNKNOWN_CREDENTIAL_IDENTIFIER,
+                        "Unknown credential_identifier: " + request.credentialIdentifier());
             }
 
             String proofJwt = request.extractProofJwt();
