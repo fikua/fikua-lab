@@ -4,6 +4,7 @@ import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
 import com.nimbusds.jose.jwk.AsymmetricJWK;
 import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.util.Base64;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.slf4j.Logger;
@@ -11,8 +12,12 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.ByteArrayInputStream;
 import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Validates client attestation JWTs per OAuth Attestation-Based Client Authentication
@@ -97,9 +102,21 @@ public class ClientAttestationValidator {
             // Parse the Wallet Instance Attestation (WIA)
             SignedJWT wia = SignedJWT.parse(wiaJwtString);
             JWTClaimsSet wiaClaims = wia.getJWTClaimsSet();
-            log.info("WIA parsed: alg={}, typ={}, sub={}, iss={}, claims={}",
+            log.info("WIA parsed: alg={}, typ={}, sub={}, iss={}, claims={}, x5c={}",
                     wia.getHeader().getAlgorithm(), wia.getHeader().getType(),
-                    wiaClaims.getSubject(), wiaClaims.getIssuer(), wiaClaims.getClaims().keySet());
+                    wiaClaims.getSubject(), wiaClaims.getIssuer(), wiaClaims.getClaims().keySet(),
+                    wia.getHeader().getX509CertChain() != null ? wia.getHeader().getX509CertChain().size() : "none");
+
+            // Verify WIA signature (ATCA §9: "verifies with the public key of a known and trusted Attester")
+            verifyWiaSignature(wia);
+
+            // Validate WIA freshness
+            if (wiaClaims.getExpirationTime() != null) {
+                if (Instant.now().isAfter(wiaClaims.getExpirationTime().toInstant())) {
+                    throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                            "Client Attestation JWT has expired");
+                }
+            }
 
             // Extract client_id from sub claim of WIA
             String clientId = wiaClaims.getSubject();
@@ -172,6 +189,46 @@ public class ClientAttestationValidator {
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Invalid client attestation: " + e.getMessage());
         }
+    }
+
+    /**
+     * Verify the WIA signature using the key from x5c header or JWK header.
+     * Per ATCA §9: "The signature of the Client Attestation JWT verifies with
+     * the public key of a known and trusted Attester."
+     */
+    private void verifyWiaSignature(SignedJWT wia) throws Exception {
+        PublicKey wiaKey = null;
+
+        // Try x5c certificate chain first
+        List<Base64> x5c = wia.getHeader().getX509CertChain();
+        if (x5c != null && !x5c.isEmpty()) {
+            byte[] certBytes = x5c.getFirst().decode();
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(certBytes));
+            wiaKey = cert.getPublicKey();
+            log.info("WIA x5c cert: subject={}, issuer={}", cert.getSubjectX500Principal(), cert.getIssuerX500Principal());
+        }
+
+        // Fallback to JWK in header
+        if (wiaKey == null && wia.getHeader().getJWK() != null) {
+            JWK headerJwk = wia.getHeader().getJWK();
+            if (headerJwk instanceof AsymmetricJWK asymmetric) {
+                wiaKey = asymmetric.toPublicKey();
+            }
+        }
+
+        if (wiaKey == null) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Cannot verify WIA signature: no x5c or jwk in header");
+        }
+
+        JWSVerifier wiaVerifier = new DefaultJWSVerifierFactory()
+                .createJWSVerifier(wia.getHeader(), wiaKey);
+        if (!wia.verify(wiaVerifier)) {
+            throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                    "Client Attestation JWT signature verification failed");
+        }
+        log.info("WIA signature verified");
     }
 
     /** Extract the public key from the cnf.jwk claim of the WIA. Supports any JWK key type. */
