@@ -1,12 +1,15 @@
 package com.fikua.core.oauth2;
 
-import com.nimbusds.jose.crypto.ECDSAVerifier;
-import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.JWSVerifier;
+import com.nimbusds.jose.crypto.factories.DefaultJWSVerifierFactory;
+import com.nimbusds.jose.jwk.AsymmetricJWK;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.PublicKey;
 import java.time.Instant;
 
 /**
@@ -68,8 +71,8 @@ public class ClientAttestationValidator {
             }
 
             // Extract cnf key from WIA for PoP verification — REQUIRED
-            ECKey wiaKey = extractCnfKey(wiaClaims);
-            if (wiaKey == null) {
+            JWK cnfKey = extractCnfKey(wiaClaims);
+            if (cnfKey == null) {
                 throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "WIA missing cnf key for PoP verification");
             }
@@ -78,8 +81,15 @@ public class ClientAttestationValidator {
             SignedJWT pop = SignedJWT.parse(parts[1]);
             JWTClaimsSet popClaims = pop.getJWTClaimsSet();
 
-            // Verify PoP signature using the cnf key from WIA
-            if (!pop.verify(new ECDSAVerifier(wiaKey))) {
+            // Verify PoP signature using the cnf key from WIA (supports any asymmetric alg)
+            if (!(cnfKey instanceof AsymmetricJWK asymmetricKey)) {
+                throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                        "cnf key must be an asymmetric key (EC, RSA, or OKP)");
+            }
+            PublicKey publicKey = asymmetricKey.toPublicKey();
+            JWSVerifier verifier = new DefaultJWSVerifierFactory()
+                    .createJWSVerifier(pop.getHeader(), publicKey);
+            if (!pop.verify(verifier)) {
                 throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                         "PoP signature verification failed");
             }
@@ -110,22 +120,22 @@ public class ClientAttestationValidator {
         } catch (OAuthErrorException e) {
             throw e;
         } catch (Exception e) {
+            log.warn("Client attestation validation failed: {}", e.getMessage(), e);
             throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
                     "Invalid client_assertion: " + e.getMessage());
         }
     }
 
-    /** Extract the EC public key from the cnf claim of the WIA. */
+    /** Extract the public key from the cnf claim of the WIA. Supports any JWK key type. */
     @SuppressWarnings("unchecked")
-    private ECKey extractCnfKey(JWTClaimsSet wiaClaims) {
+    private JWK extractCnfKey(JWTClaimsSet wiaClaims) {
         try {
             var cnf = wiaClaims.getJSONObjectClaim("cnf");
             if (cnf == null) return null;
             var jwkMap = (java.util.Map<String, Object>) cnf.get("jwk");
             if (jwkMap == null) return null;
-            // Serialize to JSON string then parse — avoids direct json-smart dependency
             String jwkJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(jwkMap);
-            return ECKey.parse(jwkJson);
+            return JWK.parse(jwkJson);
         } catch (Exception e) {
             log.warn("Could not extract cnf key from WIA: {}", e.getMessage());
             return null;

@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-02-22
+
+Algorithm-agnostic client attestation PoP verification.
+
+### Fixed
+
+- **Algorithm-agnostic PoP verification (OAuth ATCA):** `ClientAttestationValidator` now supports any asymmetric key type (EC, RSA, OKP) for PoP signature verification via `DefaultJWSVerifierFactory`. Previously, only EC keys with `ECDSAVerifier` were supported — any other key type caused a silent 401 rejection. Fixes OIDF test `PAR-2.2/2.3` (`CheckPAREndpointResponse201WithNoError`).
+- **Generic cnf key extraction:** `extractCnfKey()` now uses `JWK.parse()` (was `ECKey.parse()`), accepting any JWK key type in the WIA `cnf` claim.
+- **Diagnostic logging:** Added WARN-level logging with stack trace to the generic catch block for easier diagnosis of attestation validation failures.
+
+### Spec references
+
+- OAuth Attestation-Based Client Authentication §4 (cnf claim), RFC 9126 §2.2/2.3 (PAR success response)
+
 ## [0.4.6] - 2026-02-21
 
 PAR endpoint client attestation enforcement and HTTP status fix.
