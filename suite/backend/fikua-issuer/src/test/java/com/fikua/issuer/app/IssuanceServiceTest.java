@@ -12,6 +12,9 @@ import com.fikua.issuer.infra.InMemorySessionStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -319,6 +322,38 @@ class IssuanceServiceTest {
 
         var claimsList = (List<Map<String, Object>>) claims.get("claims");
         assertTrue(claimsList.size() >= 3, "mdoc PID must have at least given_name, family_name, birth_date");
+    }
+
+    @Test
+    void metadata_mdocConfigs_useIntegerCoseAlgorithms() throws Exception {
+        var metadata = service.buildCredentialIssuerMetadata(HAIP_CONFIG);
+        JsonNode json = new ObjectMapper().valueToTree(metadata);
+        JsonNode configs = json.get("credential_configurations_supported");
+
+        // All mso_mdoc configs must use integer COSE alg identifiers (ES256 = -7)
+        configs.fields().forEachRemaining(entry -> {
+            JsonNode config = entry.getValue();
+            if ("mso_mdoc".equals(config.get("format").asText())) {
+                JsonNode algs = config.get("credential_signing_alg_values_supported");
+                assertNotNull(algs, entry.getKey() + " must have credential_signing_alg_values_supported");
+                assertTrue(algs.get(0).isInt(),
+                        entry.getKey() + ": mso_mdoc credential_signing_alg must be integer (COSE), not string");
+                assertEquals(-7, algs.get(0).asInt(),
+                        entry.getKey() + ": ES256 COSE algorithm identifier must be -7");
+            }
+        });
+
+        // All dc+sd-jwt configs must use string JWS alg identifiers
+        configs.fields().forEachRemaining(entry -> {
+            JsonNode config = entry.getValue();
+            if ("dc+sd-jwt".equals(config.get("format").asText())) {
+                JsonNode algs = config.get("credential_signing_alg_values_supported");
+                assertNotNull(algs, entry.getKey() + " must have credential_signing_alg_values_supported");
+                assertTrue(algs.get(0).isTextual(),
+                        entry.getKey() + ": dc+sd-jwt credential_signing_alg must be string (JWS), not integer");
+                assertEquals("ES256", algs.get(0).asText());
+            }
+        });
     }
 
     // --- Stub IssuanceStore (in-memory, no DB) ---

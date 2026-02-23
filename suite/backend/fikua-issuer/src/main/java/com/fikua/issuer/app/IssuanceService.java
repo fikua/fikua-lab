@@ -786,7 +786,7 @@ public class IssuanceService {
         config.put("scope", scope);
         config.put("doctype", docType);
         config.put("cryptographic_binding_methods_supported", List.of("cose_key"));
-        config.put("credential_signing_alg_values_supported", List.of("ES256"));
+        config.put("credential_signing_alg_values_supported", List.of(-7)); // COSE alg ES256 = -7
         config.put("proof_types_supported", Map.of(
                 "jwt", Map.of("proof_signing_alg_values_supported", List.of("ES256"))
         ));
