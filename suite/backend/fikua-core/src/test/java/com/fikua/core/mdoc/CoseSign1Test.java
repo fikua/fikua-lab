@@ -2,6 +2,7 @@ package com.fikua.core.mdoc;
 
 import com.fikua.core.crypto.EcKeyManager;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -19,19 +20,21 @@ class CoseSign1Test {
     private static final byte[] DUMMY_CERT = new byte[]{0x30, 0x01, 0x00};
 
     @Test
-    void sign_producesCoseSign1WithTag18() {
+    void sign_producesUntaggedCoseSign1Array() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
         CBORObject decoded = CBORObject.DecodeFromBytes(result);
-        assertEquals(18, decoded.getMostOuterTag().ToInt32Checked(),
-                "COSE_Sign1 must be tagged with tag 18");
+        assertEquals(CBORType.Array, decoded.getType(),
+                "COSE_Sign1 must be a CBOR array");
+        assertFalse(decoded.isTagged(),
+                "COSE_Sign1 must NOT be tagged (no tag 18) when used inside IssuerSigned");
     }
 
     @Test
     void sign_hasFourElements() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         assertEquals(4, decoded.size(),
                 "COSE_Sign1 array must have 4 elements: protected, unprotected, payload, signature");
     }
@@ -40,7 +43,7 @@ class CoseSign1Test {
     void sign_protectedHeaderContainsAlgEs256() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         byte[] protectedBytes = decoded.get(0).GetByteString();
         CBORObject protectedHeader = CBORObject.DecodeFromBytes(protectedBytes);
 
@@ -53,7 +56,7 @@ class CoseSign1Test {
     void sign_signatureIs64Bytes() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         byte[] signature = decoded.get(3).GetByteString();
 
         assertEquals(64, signature.length,
@@ -64,7 +67,7 @@ class CoseSign1Test {
     void sign_unprotectedHeaderContainsX5chain() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         CBORObject unprotected = decoded.get(1);
 
         // x5chain label = 33
@@ -76,7 +79,7 @@ class CoseSign1Test {
     void sign_singleCert_x5chainIsBstr() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         CBORObject x5chain = decoded.get(1).get(CBORObject.FromObject(33));
 
         // Single cert should be bstr, not array
@@ -89,7 +92,7 @@ class CoseSign1Test {
         byte[] cert2 = new byte[]{0x30, 0x02, 0x00, 0x00};
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT, cert2));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         CBORObject x5chain = decoded.get(1).get(CBORObject.FromObject(33));
 
         assertEquals(2, x5chain.size(),
@@ -102,7 +105,7 @@ class CoseSign1Test {
     void sign_payloadIsPreserved() {
         byte[] result = CoseSign1.sign(PAYLOAD, ISSUER_KEY, List.of(DUMMY_CERT));
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(result).Untag();
+        CBORObject decoded = CBORObject.DecodeFromBytes(result);
         byte[] embeddedPayload = decoded.get(2).GetByteString();
 
         assertArrayEquals(PAYLOAD, embeddedPayload,

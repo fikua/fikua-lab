@@ -577,14 +577,14 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-164 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
+165 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
 | `AuthServerMetadataTest` | core | 3 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
 | `CredentialIssuerMetadataTest` | core | 8 | HAIP + plain metadata, credential configs, multi-format (sd-jwt + mdoc) |
 | `CoseSign1Test` | core | 8 | RFC 9052 §4.4: tag 18, 4-element array, alg ES256, sig 64 bytes, x5chain |
-| `MdocBuilderTest` | core | 10 | ISO 18013-5: Document CBOR, nameSpaces tag 24, issuerAuth, deviceKey, validityInfo, digests |
+| `MdocBuilderTest` | core | 11 | OID4VCI A.2.4: IssuerSigned CBOR (not Document), nameSpaces tag 24, issuerAuth first field, deviceKey, validityInfo, digests |
 | `ClientAttestationValidatorTest` | core | 9 | WIA~PoP parsing, assertion types, HTTP 401 status, RSA key support |
 | `DPoPValidatorTest` | core | 17 | All RFC 9449 validation branches |
 | `ProofValidatorTest` | core | 17 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |

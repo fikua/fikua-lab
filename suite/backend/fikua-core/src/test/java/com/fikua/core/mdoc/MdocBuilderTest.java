@@ -3,6 +3,7 @@ package com.fikua.core.mdoc;
 import com.fikua.core.crypto.EcKeyManager;
 import com.nimbusds.jose.jwk.ECKey;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,30 +24,43 @@ class MdocBuilderTest {
                 .deviceKey(WALLET_KEY);
     }
 
+    /** Extract the MSO from the issuerAuth COSE_Sign1 payload (tag 24 wrapped). */
+    private CBORObject extractMso(CBORObject issuerSigned) {
+        CBORObject issuerAuth = issuerSigned.get("issuerAuth");
+        // Payload is element [2], which is tag 24(bstr) — unwrap tag then decode inner bstr
+        byte[] payloadBytes = issuerAuth.get(2).GetByteString();
+        CBORObject taggedMso = CBORObject.DecodeFromBytes(payloadBytes);
+        assertEquals(24, taggedMso.getMostOuterTag().ToInt32Checked(),
+                "COSE_Sign1 payload must be tag 24 (MobileSecurityObjectBytes)");
+        byte[] msoBytes = taggedMso.Untag().GetByteString();
+        return CBORObject.DecodeFromBytes(msoBytes);
+    }
+
     @Test
-    void build_producesValidCborDocument() {
+    void build_producesIssuerSignedStructure() {
         MdocDocument doc = defaultBuilder().build();
 
         byte[] cbor = doc.cborBytes();
         assertNotNull(cbor);
         assertTrue(cbor.length > 0, "CBOR bytes must not be empty");
 
-        // Must be decodable as CBOR
-        CBORObject decoded = CBORObject.DecodeFromBytes(cbor);
-        assertEquals(DOC_TYPE, decoded.get("docType").AsString(),
-                "Document must contain the correct docType");
+        // Per OID4VCI A.2.4: credential is the IssuerSigned structure, not a Document
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(cbor);
+        assertNotNull(issuerSigned.get("issuerAuth"),
+                "IssuerSigned must contain issuerAuth");
+        assertNotNull(issuerSigned.get("nameSpaces"),
+                "IssuerSigned must contain nameSpaces");
+        assertNull(issuerSigned.get("docType"),
+                "IssuerSigned must NOT contain docType (that's the Document wrapper)");
     }
 
     @Test
     void build_hasNameSpacesWithElements() {
         MdocDocument doc = defaultBuilder().build();
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(doc.cborBytes());
-        CBORObject issuerSigned = decoded.get("issuerSigned");
-        assertNotNull(issuerSigned, "Document must have issuerSigned");
-
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
         CBORObject nameSpaces = issuerSigned.get("nameSpaces");
-        assertNotNull(nameSpaces, "issuerSigned must have nameSpaces");
+        assertNotNull(nameSpaces, "IssuerSigned must have nameSpaces");
 
         CBORObject nsItems = nameSpaces.get(NAMESPACE);
         assertNotNull(nsItems, "nameSpaces must contain the namespace");
@@ -64,28 +78,49 @@ class MdocBuilderTest {
     void build_issuerAuthIsCoseSign1() {
         MdocDocument doc = defaultBuilder().build();
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(doc.cborBytes());
-        CBORObject issuerAuth = decoded.get("issuerSigned").get("issuerAuth");
-        assertNotNull(issuerAuth, "issuerSigned must have issuerAuth");
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        CBORObject issuerAuth = issuerSigned.get("issuerAuth");
+        assertNotNull(issuerAuth, "IssuerSigned must have issuerAuth");
 
-        // issuerAuth is a COSE_Sign1 tagged with 18
-        assertEquals(18, issuerAuth.getMostOuterTag().ToInt32Checked(),
-                "issuerAuth must be COSE_Sign1 (tag 18)");
-
-        CBORObject untagged = issuerAuth.Untag();
-        assertEquals(4, untagged.size(),
+        // issuerAuth is an untagged COSE_Sign1 array (no tag 18 when embedded in map)
+        assertEquals(CBORType.Array, issuerAuth.getType(),
+                "issuerAuth must be a CBOR array (untagged COSE_Sign1)");
+        assertFalse(issuerAuth.isTagged(),
+                "issuerAuth must NOT be tagged with 18 when inside IssuerSigned map");
+        assertEquals(4, issuerAuth.size(),
                 "COSE_Sign1 must have 4 elements");
+    }
+
+    @Test
+    void build_issuerAuthPayloadIsTagged24Mso() {
+        MdocDocument doc = defaultBuilder().build();
+
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        CBORObject issuerAuth = issuerSigned.get("issuerAuth");
+
+        // Payload (element [2]) must decode to tag 24(bstr) per ISO 18013-5
+        byte[] payloadBytes = issuerAuth.get(2).GetByteString();
+        CBORObject taggedMso = CBORObject.DecodeFromBytes(payloadBytes);
+        assertEquals(24, taggedMso.getMostOuterTag().ToInt32Checked(),
+                "COSE_Sign1 payload must be MobileSecurityObjectBytes = #6.24(bstr .cbor MSO)");
+    }
+
+    @Test
+    void build_issuerAuthFirstField() {
+        MdocDocument doc = defaultBuilder().build();
+
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        var keys = issuerSigned.getKeys();
+        assertEquals("issuerAuth", keys.iterator().next().AsString(),
+                "issuerAuth must be the first field in IssuerSigned");
     }
 
     @Test
     void build_withDeviceKey_includesDeviceKeyInfo() {
         MdocDocument doc = defaultBuilder().build();
 
-        // Extract MSO from issuerAuth payload (element [2])
-        CBORObject decoded = CBORObject.DecodeFromBytes(doc.cborBytes());
-        CBORObject issuerAuth = decoded.get("issuerSigned").get("issuerAuth").Untag();
-        byte[] msoBytes = issuerAuth.get(2).GetByteString();
-        CBORObject mso = CBORObject.DecodeFromBytes(msoBytes);
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        CBORObject mso = extractMso(issuerSigned);
 
         CBORObject deviceKeyInfo = mso.get("deviceKeyInfo");
         assertNotNull(deviceKeyInfo, "MSO must contain deviceKeyInfo when deviceKey is set");
@@ -108,10 +143,8 @@ class MdocBuilderTest {
     void build_msoContainsValidityInfo() {
         MdocDocument doc = defaultBuilder().build();
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(doc.cborBytes());
-        CBORObject issuerAuth = decoded.get("issuerSigned").get("issuerAuth").Untag();
-        byte[] msoBytes = issuerAuth.get(2).GetByteString();
-        CBORObject mso = CBORObject.DecodeFromBytes(msoBytes);
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        CBORObject mso = extractMso(issuerSigned);
 
         CBORObject validity = mso.get("validityInfo");
         assertNotNull(validity, "MSO must contain validityInfo");
@@ -124,10 +157,8 @@ class MdocBuilderTest {
     void build_msoContainsValueDigests() {
         MdocDocument doc = defaultBuilder().build();
 
-        CBORObject decoded = CBORObject.DecodeFromBytes(doc.cborBytes());
-        CBORObject issuerAuth = decoded.get("issuerSigned").get("issuerAuth").Untag();
-        byte[] msoBytes = issuerAuth.get(2).GetByteString();
-        CBORObject mso = CBORObject.DecodeFromBytes(msoBytes);
+        CBORObject issuerSigned = CBORObject.DecodeFromBytes(doc.cborBytes());
+        CBORObject mso = extractMso(issuerSigned);
 
         assertEquals("1.0", mso.get("version").AsString());
         assertEquals("SHA-256", mso.get("digestAlgorithm").AsString());
@@ -137,7 +168,6 @@ class MdocBuilderTest {
 
         CBORObject nsDigests = valueDigests.get(NAMESPACE);
         assertNotNull(nsDigests, "valueDigests must contain the namespace");
-        // 2 elements → 2 digests (keys 0 and 1)
         assertEquals(2, nsDigests.getKeys().size(),
                 "Namespace must have 2 digest entries");
     }

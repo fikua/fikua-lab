@@ -32,7 +32,7 @@ public final class CoseSign1 {
      * @param payload     CBOR-serialized payload bytes (e.g. MobileSecurityObject)
      * @param issuerKey   signing key (EC P-256 / ES256)
      * @param x5cDerChain list of DER-encoded X.509 certificates (leaf first)
-     * @return CBOR-serialized COSE_Sign1 (tagged with tag 18) as byte array
+     * @return CBOR-serialized COSE_Sign1 (untagged array) as byte array
      */
     public static byte[] sign(byte[] payload, SigningKey issuerKey, List<byte[]> x5cDerChain) {
         // Protected header: {1: -7} (alg: ES256)
@@ -75,7 +75,7 @@ public final class CoseSign1 {
         coseSign1.Add(CBORObject.FromObject(payload));
         coseSign1.Add(CBORObject.FromObject(signature));
 
-        // Tag 18 = COSE_Sign1
-        return coseSign1.WithTag(18).EncodeToBytes();
+        // No tag 18 — when embedded in IssuerSigned map, COSE_Sign1 is an untagged array
+        return coseSign1.EncodeToBytes();
     }
 }

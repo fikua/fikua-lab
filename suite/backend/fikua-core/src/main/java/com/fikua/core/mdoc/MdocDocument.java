@@ -1,8 +1,9 @@
 package com.fikua.core.mdoc;
 
 /**
- * Represents a complete mso_mdoc Document (ISO 18013-5), ready for serialization.
- * The CBOR bytes can be base64url-encoded for the OID4VCI credential response.
+ * Represents the IssuerSigned CBOR structure (ISO 18013-5 §8.3.2.1.2.2).
+ * Contains issuerAuth (COSE_Sign1) and nameSpaces with IssuerSignedItems.
+ * Per OID4VCI A.2.4, the credential response is the base64url-encoded IssuerSigned.
  */
 public record MdocDocument(byte[] cborBytes) {
 

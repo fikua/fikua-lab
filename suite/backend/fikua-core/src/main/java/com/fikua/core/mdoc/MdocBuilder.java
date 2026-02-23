@@ -119,25 +119,26 @@ public class MdocBuilder {
         // 2. Build MobileSecurityObject (MSO)
         byte[] msoBytes = buildMso(valueDigests);
 
-        // 3. Sign MSO with COSE_Sign1 (issuerAuth)
-        List<byte[]> x5cDer = convertX5cToDer();
-        byte[] issuerAuth = CoseSign1.sign(msoBytes, issuerKey, x5cDer);
+        // 3. Wrap MSO in tag 24 (MobileSecurityObjectBytes = #6.24(bstr .cbor MSO))
+        //    per ISO 18013-5, the COSE_Sign1 payload is the tagged MSO, not raw bytes
+        CBORObject taggedMso = CBORObject.FromObject(msoBytes).WithTag(24);
+        byte[] msoPayload = taggedMso.EncodeToBytes();
 
-        // 4. Assemble Document CBOR
+        // 4. Sign with COSE_Sign1 (issuerAuth)
+        List<byte[]> x5cDer = convertX5cToDer();
+        byte[] issuerAuth = CoseSign1.sign(msoPayload, issuerKey, x5cDer);
+
+        // 4. Assemble IssuerSigned CBOR (per OID4VCI A.2.4)
         CBORObject issuerSigned = CBORObject.NewMap();
+        issuerSigned.set(CBORObject.FromObject("issuerAuth"),
+                CBORObject.DecodeFromBytes(issuerAuth));
         CBORObject nameSpacesMap = CBORObject.NewMap();
         for (var entry : nameSpacesCbor.entrySet()) {
             nameSpacesMap.set(CBORObject.FromObject(entry.getKey()), entry.getValue());
         }
         issuerSigned.set(CBORObject.FromObject("nameSpaces"), nameSpacesMap);
-        issuerSigned.set(CBORObject.FromObject("issuerAuth"),
-                CBORObject.DecodeFromBytes(issuerAuth));
 
-        CBORObject document = CBORObject.NewMap();
-        document.set(CBORObject.FromObject("docType"), CBORObject.FromObject(docType));
-        document.set(CBORObject.FromObject("issuerSigned"), issuerSigned);
-
-        return new MdocDocument(document.EncodeToBytes());
+        return new MdocDocument(issuerSigned.EncodeToBytes());
     }
 
     // --- Private helpers ---

@@ -7,6 +7,33 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-02-24
+
+Credential response returns IssuerSigned CBOR per OID4VCI A.2.4.
+
+### Fixed
+
+- **mso_mdoc credential response (OID4VCI A.2.4):** `MdocBuilder.build()` now returns the `IssuerSigned` CBOR structure (`issuerAuth` + `nameSpaces`) instead of the full ISO 18013-5 `Document` wrapper (which included `docType` at the root level). Per OID4VCI Appendix A.2.4, the credential response value is the base64url-encoded `IssuerSigned`, not the `Document`. Fixes OIDF test `ParseMdocCredentialFromVCIIssuance` / `ValidateMdocIssuerSignedSignature`.
+- **issuerAuth field ordering:** `issuerAuth` is now the first field in the `IssuerSigned` CBOR map, matching the OIDF conformance suite expectation.
+- **Untagged COSE_Sign1 in IssuerSigned:** `CoseSign1.sign()` no longer wraps the array with CBOR tag 18. When embedded inside the IssuerSigned map, COSE_Sign1 must be an untagged array (confirmed by multipaz reference implementation).
+- **MSO payload wrapped in tag 24:** COSE_Sign1 payload is now `#6.24(bstr .cbor MSO)` per ISO 18013-5 `MobileSecurityObjectBytes` definition. Previously the raw MSO bytes were used as payload.
+
+### Spec references
+
+- OID4VCI 1.0 Final Appendix A.2.4 (Credential Response — IssuerSigned structure), ISO 18013-5 §8.3.2.1.2.2, RFC 9052 §4.4 (COSE_Sign1)
+
+## [0.6.1] - 2026-02-23
+
+COSE algorithm identifiers for mso_mdoc metadata.
+
+### Fixed
+
+- **mso_mdoc `credential_signing_alg_values_supported` (OID4VCI A.2.2):** Changed from string `"ES256"` to integer COSE identifier `-7` for mso_mdoc credential configurations. Per OID4VCI Appendix A.2.2, mso_mdoc uses numeric COSE algorithm identifiers (IANA COSE Algorithms Registry), not JWS string identifiers. `dc+sd-jwt` configs correctly use string `"ES256"`. Fixes OIDF test `VCICredentialIssuerMetadataValidation`.
+
+### Spec references
+
+- OID4VCI 1.0 Final Appendix A.2.2 (mso_mdoc Credential Issuer Metadata), IANA COSE Algorithms Registry (ES256 = -7)
+
 ## [0.6.0] - 2026-02-23
 
 mso_mdoc PID credential support and 12 OIDF credential configurations.
