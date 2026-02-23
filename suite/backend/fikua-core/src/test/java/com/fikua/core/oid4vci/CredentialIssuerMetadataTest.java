@@ -136,6 +136,46 @@ class CredentialIssuerMetadataTest {
         assertTrue(json.contains("dc+sd-jwt"), "JSON must contain dc+sd-jwt");
     }
 
+    @Test
+    void build_withMultipleConfigs_exposesAllFormats() throws Exception {
+        var configs = new LinkedHashMap<String, Object>();
+
+        // SD-JWT config
+        var sdJwtConfig = new LinkedHashMap<String, Object>();
+        sdJwtConfig.put("format", "dc+sd-jwt");
+        sdJwtConfig.put("scope", "eu.europa.ec.eudi.pid.1");
+        sdJwtConfig.put("vct", "eu.europa.ec.eudi.pid.1");
+        configs.put("eu.europa.ec.eudi.pid.1", sdJwtConfig);
+
+        // mdoc config
+        var mdocConfig = new LinkedHashMap<String, Object>();
+        mdocConfig.put("format", "mso_mdoc");
+        mdocConfig.put("scope", "eu.europa.ec.eudi.pid.mdoc.1");
+        mdocConfig.put("doctype", "eu.europa.ec.eudi.pid.1");
+        configs.put("eu.europa.ec.eudi.pid.mdoc.1", mdocConfig);
+
+        var metadata = CredentialIssuerMetadata.build(
+                BASE_URL,
+                BASE_URL + API_PREFIX + "/credential",
+                BASE_URL + API_PREFIX + "/nonce",
+                BASE_URL + API_PREFIX + "/notification",
+                configs,
+                List.of(Map.<String, Object>of("name", "Fikua Lab Issuer", "locale", "en")),
+                false
+        );
+
+        JsonNode json = MAPPER.valueToTree(metadata);
+        JsonNode supported = json.get("credential_configurations_supported");
+
+        // Both configs present
+        assertNotNull(supported.get("eu.europa.ec.eudi.pid.1"), "SD-JWT config must be present");
+        assertNotNull(supported.get("eu.europa.ec.eudi.pid.mdoc.1"), "mdoc config must be present");
+
+        // Correct formats
+        assertEquals("dc+sd-jwt", supported.get("eu.europa.ec.eudi.pid.1").get("format").asText());
+        assertEquals("mso_mdoc", supported.get("eu.europa.ec.eudi.pid.mdoc.1").get("format").asText());
+    }
+
     /** Build test metadata with the PID credential configuration. */
     private CredentialIssuerMetadata buildMetadata(boolean haip) {
         return CredentialIssuerMetadata.build(

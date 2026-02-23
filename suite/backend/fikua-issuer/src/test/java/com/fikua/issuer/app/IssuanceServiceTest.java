@@ -261,6 +261,66 @@ class IssuanceServiceTest {
         assertTrue(ex.getMessage().contains("Invalid or expired identification session"));
     }
 
+    @Test
+    void completeIdentification_withMdocScope_createsRecordWithMdocType() {
+        // Given: PAR with mdoc PID scope
+        Map<String, String> parParams = Map.of(
+                "client_id", "https://wallet.test.fikua.com",
+                "redirect_uri", "https://wallet.test.fikua.com/callback",
+                "scope", "eu.europa.ec.eudi.pid.mdoc.1",
+                "state", "mdoc-test",
+                "response_type", "code",
+                "code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+                "code_challenge_method", "S256"
+        );
+        String requestUri = "urn:ietf:params:oauth:request_uri:mdoc-test";
+        sessionStore.storeParRequest(requestUri, parParams);
+
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        String sessionToken = authorizeResult.identifyRedirect()
+                .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
+
+        // When: complete identification
+        String credentialData = "{\"given_name\":\"Jan\",\"family_name\":\"Kowalski\",\"birth_date\":\"1990-01-01\"}";
+        service.completeIdentification(sessionToken, credentialData, "manual_form", "User input");
+
+        // Then: issuance record uses mdoc credential configuration id
+        IssuanceRecord record = issuanceStore.records.values().iterator().next();
+        assertEquals("eu.europa.ec.eudi.pid.mdoc.1", record.credentialType(),
+                "mdoc scope must resolve to eu.europa.ec.eudi.pid.mdoc.1 config id");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getIdentificationClaims_withMdocScope_returnsMdocMetadata() {
+        // Given: pending authorization with mdoc scope
+        Map<String, String> parParams = Map.of(
+                "client_id", "https://wallet.test.fikua.com",
+                "redirect_uri", "https://wallet.test.fikua.com/callback",
+                "scope", "eu.europa.ec.eudi.pid.mdoc.1",
+                "state", "mdoc-claims-test",
+                "response_type", "code",
+                "code_challenge", "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+                "code_challenge_method", "S256"
+        );
+        String requestUri = "urn:ietf:params:oauth:request_uri:mdoc-claims-test";
+        sessionStore.storeParRequest(requestUri, parParams);
+
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        String sessionToken = authorizeResult.identifyRedirect()
+                .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
+
+        // When: get claims for mdoc session
+        var claims = service.getIdentificationClaims(sessionToken);
+
+        // Then: returns mdoc config id and PID claims
+        assertEquals("eu.europa.ec.eudi.pid.mdoc.1", claims.get("credential_configuration_id"));
+        assertNotNull(claims.get("claims"));
+
+        var claimsList = (List<Map<String, Object>>) claims.get("claims");
+        assertTrue(claimsList.size() >= 3, "mdoc PID must have at least given_name, family_name, birth_date");
+    }
+
     // --- Stub IssuanceStore (in-memory, no DB) ---
 
     static class StubIssuanceStore implements IssuanceStore {

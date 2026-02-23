@@ -3,6 +3,7 @@ package com.fikua.issuer.app;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fikua.core.crypto.JwkUtils;
 import com.fikua.core.crypto.SigningKey;
+import com.fikua.core.mdoc.MdocBuilder;
 import com.fikua.core.oauth2.*;
 import com.fikua.core.oid4vci.*;
 import com.fikua.core.profile.ProfileConfig;
@@ -20,9 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Issuer application service — orchestrates OID4VCI credential issuance.
@@ -33,8 +32,13 @@ public class IssuanceService {
 
     private static final Logger log = LoggerFactory.getLogger(IssuanceService.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final String CREDENTIAL_CONFIG_ID = "eu.europa.ec.eudi.pid.1";
     private static final String API_PREFIX = "/oid4vci/v1";
+
+    // Credential configuration IDs (OIDF conformance suite)
+    private static final String PID_SD_JWT = "eu.europa.ec.eudi.pid.1";
+    private static final String PID_MDOC = "eu.europa.ec.eudi.pid.mdoc.1";
+    private static final String DEFAULT_CONFIG_ID = PID_SD_JWT;
+    private static final Set<String> ISSUABLE_CONFIGS = Set.of(PID_SD_JWT, PID_MDOC);
 
     private final SigningKey issuerKey;
     private final SessionStore sessionStore;
@@ -304,13 +308,19 @@ public class IssuanceService {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_CREDENTIAL_REQUEST,
                         "credential_configuration_id or credential_identifier is required");
             }
-            // OID4VCI 1.0 Final §8.3.1.2: unknown_credential_configuration
-            if (request.credentialConfigurationId() != null
-                    && !CREDENTIAL_CONFIG_ID.equals(request.credentialConfigurationId())) {
-                log.warn("Credential request rejected: unknown credential_configuration_id={} (expected={})",
-                        request.credentialConfigurationId(), CREDENTIAL_CONFIG_ID);
+            // OID4VCI 1.0 Final §8.3.1.2: validate credential_configuration_id against known configs
+            String configId = request.credentialConfigurationId();
+            Map<String, Object> allConfigs = buildCredentialConfigurations();
+            if (configId != null && !allConfigs.containsKey(configId)) {
+                log.warn("Credential request rejected: unknown credential_configuration_id={}", configId);
                 throw OAuthErrorException.badRequest(OAuthError.UNKNOWN_CREDENTIAL_CONFIGURATION,
-                        "Unknown credential_configuration_id: " + request.credentialConfigurationId());
+                        "Unknown credential_configuration_id: " + configId);
+            }
+            if (configId != null && !ISSUABLE_CONFIGS.contains(configId)) {
+                log.warn("Credential request rejected: credential_configuration_id={} is defined but not yet issuable", configId);
+                throw OAuthErrorException.badRequest(OAuthError.UNSUPPORTED_CREDENTIAL_TYPE,
+                        "Credential configuration '" + configId + "' is defined in metadata but not yet issuable. " +
+                        "Supported: " + ISSUABLE_CONFIGS);
             }
             // OID4VCI 1.0 Final §8.3.1.2: unknown_credential_identifier
             if (request.credentialIdentifier() != null) {
@@ -351,13 +361,6 @@ public class IssuanceService {
                         "Proof nonce does not match c_nonce");
             }
 
-            SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
-                    .vct("eu.europa.ec.eudi.pid.1")
-                    .issuer(baseUrl)
-                    .subject("urn:fikua:pid:" + sessionStore.randomToken(8))
-                    .holderKey(walletKey)
-                    .x5cChain(issuerKey.x5cChain());
-
             String issuanceRecordId = (String) session.metadata().get("issuanceRecordId");
             if (issuanceRecordId == null) {
                 throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
@@ -371,24 +374,25 @@ public class IssuanceService {
                         "Issuance record has no credential data. Provide credential_data when triggering issuance.");
             }
 
-            var dataNode = MAPPER.readTree(record.credentialData());
-            var fields = dataNode.fields();
-            while (fields.hasNext()) {
-                var field = fields.next();
-                builder.selectiveClaim(field.getKey(), field.getValue().asText());
+            // Dispatch by format: sd-jwt or mso_mdoc
+            @SuppressWarnings("unchecked")
+            Map<String, Object> credConfig = (Map<String, Object>) allConfigs.get(configId != null ? configId : DEFAULT_CONFIG_ID);
+            String format = (String) credConfig.get("format");
+            String credential;
+            if ("mso_mdoc".equals(format)) {
+                credential = buildMdocCredential(walletKey, record, credConfig);
+            } else {
+                credential = buildSdJwtCredential(walletKey, record);
             }
-            builder.plainClaim("issuing_authority", "Fikua Lab");
-            builder.plainClaim("issuing_country", "ES");
-            issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
-            log.info("Credential issued: issuanceId={}", issuanceRecordId);
 
-            String sdJwt = builder.build().serialize();
+            issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
+            log.info("Credential issued: issuanceId={}, format={}", issuanceRecordId, format);
 
             // H11: Invalidate nonce after successful issuance (one-time use)
             sessionStore.invalidateNonce(session.cNonce());
             log.debug("Nonce invalidated (one-time use)");
 
-            return CredentialResponse.success(sdJwt);
+            return CredentialResponse.success(credential);
 
         } catch (OAuthErrorException e) {
             throw e;
@@ -565,7 +569,7 @@ public class IssuanceService {
 
             String credentialType = bodyNode.has("credential_type")
                     ? bodyNode.get("credential_type").asText()
-                    : "eu.europa.ec.eudi.pid.1";
+                    : DEFAULT_CONFIG_ID;
 
             String credentialData;
             if (bodyNode.has("credential_data")) {
@@ -588,7 +592,8 @@ public class IssuanceService {
                 log.info("Credential offer: grant_type=authorization_code (HAIP), issuanceId={}", record.id());
                 String issuerState = sessionStore.randomToken(16);
                 sessionStore.storeIssuerState(issuerState, Map.of("issuanceRecordId", record.id()));
-                offer = CredentialOffer.authorizationCode(baseUrl, CREDENTIAL_CONFIG_ID, issuerState);
+                String offerConfigId = resolveOfferConfigId(credentialType);
+                offer = CredentialOffer.authorizationCode(baseUrl, offerConfigId, issuerState);
             } else {
                 log.info("Credential offer: grant_type=pre-authorized_code, issuanceId={}", record.id());
                 var metadata = new LinkedHashMap<String, Object>();
@@ -603,7 +608,8 @@ public class IssuanceService {
                 );
                 String preAuthCode = sessionStore.createPreAuthCode(session);
                 issuanceStore.updatePreAuthCode(record.id(), preAuthCode);
-                offer = CredentialOffer.preAuthorized(baseUrl, CREDENTIAL_CONFIG_ID, preAuthCode, txCodeRequired);
+                String offerConfigId = resolveOfferConfigId(credentialType);
+                offer = CredentialOffer.preAuthorized(baseUrl, offerConfigId, preAuthCode, txCodeRequired);
             }
 
             issuanceStore.updateStatus(record.id(), "offer_created");
@@ -688,7 +694,7 @@ public class IssuanceService {
      * Falls back to the default when scope is null or no match found.
      */
     private String resolveCredentialConfigId(String scope) {
-        if (scope == null) return CREDENTIAL_CONFIG_ID;
+        if (scope == null) return DEFAULT_CONFIG_ID;
         var configs = buildCredentialConfigurations();
         for (var entry : configs.entrySet()) {
             if (entry.getValue() instanceof Map<?, ?> config) {
@@ -696,38 +702,201 @@ public class IssuanceService {
             }
         }
         log.warn("No credential configuration found for scope={}, using default", scope);
-        return CREDENTIAL_CONFIG_ID;
+        return DEFAULT_CONFIG_ID;
+    }
+
+    /** Map a credential_type from the trigger request to a known credential_configuration_id. */
+    private String resolveOfferConfigId(String credentialType) {
+        if (credentialType == null) return DEFAULT_CONFIG_ID;
+        var configs = buildCredentialConfigurations();
+        if (configs.containsKey(credentialType)) return credentialType;
+        return DEFAULT_CONFIG_ID;
     }
 
     private Map<String, Object> buildCredentialConfigurations() {
-        var credConfig = new LinkedHashMap<String, Object>();
-        credConfig.put("format", "dc+sd-jwt");
-        credConfig.put("scope", "eu.europa.ec.eudi.pid.1");
-        credConfig.put("cryptographic_binding_methods_supported", List.of("jwk"));
-        credConfig.put("credential_signing_alg_values_supported", List.of("ES256"));
-        credConfig.put("proof_types_supported", Map.of(
+        var configs = new LinkedHashMap<String, Object>();
+
+        // --- SD-JWT PID configurations (6) ---
+        var pidClaims = pidClaims();
+        var pidDisplay = pidDisplay();
+
+        configs.put("eu.europa.ec.eudi.pid.1",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.1.attestation",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.attestation", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.1.jwt.keyattest",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.jwt.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.1.attestation.keyattest",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.attestation.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.1.jwt_and_attestation.keyattest",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.jwt_and_attestation.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.1.nobinding",
+                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.nobinding", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
+
+        // --- mdoc PID configurations (4) ---
+        var mdocPidClaims = mdocPidClaims();
+        var mdocPidDisplay = pidDisplay();
+
+        configs.put("eu.europa.ec.eudi.pid.mdoc.1",
+                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.mdoc.1.attestation",
+                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.attestation", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.mdoc.1.jwt.keyattest",
+                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.jwt.keyattest", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
+        configs.put("eu.europa.ec.eudi.pid.mdoc.1.attestation.keyattest",
+                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.attestation.keyattest", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
+
+        // --- mDL configurations (2) ---
+        var mdlClaims = mdlClaims();
+        var mdlDisplay = mdlDisplay();
+
+        configs.put("org.iso.18013.5.1.mDL",
+                buildMdocConfig("org.iso.18013.5.1.mDL", "org.iso.18013.5.1.mDL", mdlClaims, mdlDisplay));
+        configs.put("org.iso.18013.5.1.mDL.attestation",
+                buildMdocConfig("org.iso.18013.5.1.mDL.attestation", "org.iso.18013.5.1.mDL", mdlClaims, mdlDisplay));
+
+        return configs;
+    }
+
+    private static Map<String, Object> buildSdJwtConfig(String scope, String vct,
+                                                         List<Map<String, Object>> claims,
+                                                         List<Map<String, Object>> display) {
+        var config = new LinkedHashMap<String, Object>();
+        config.put("format", "dc+sd-jwt");
+        config.put("scope", scope);
+        config.put("cryptographic_binding_methods_supported", List.of("jwk"));
+        config.put("credential_signing_alg_values_supported", List.of("ES256"));
+        config.put("proof_types_supported", Map.of(
                 "jwt", Map.of("proof_signing_alg_values_supported", List.of("ES256"))
         ));
-        credConfig.put("vct", "eu.europa.ec.eudi.pid.1");
+        config.put("vct", vct);
 
-        var claims = List.of(
+        var credentialMetadata = new LinkedHashMap<String, Object>();
+        credentialMetadata.put("display", display);
+        credentialMetadata.put("claims", claims);
+        config.put("credential_metadata", credentialMetadata);
+        return config;
+    }
+
+    private static Map<String, Object> buildMdocConfig(String scope, String docType,
+                                                        List<Map<String, Object>> claims,
+                                                        List<Map<String, Object>> display) {
+        var config = new LinkedHashMap<String, Object>();
+        config.put("format", "mso_mdoc");
+        config.put("scope", scope);
+        config.put("doctype", docType);
+        config.put("cryptographic_binding_methods_supported", List.of("cose_key"));
+        config.put("credential_signing_alg_values_supported", List.of("ES256"));
+        config.put("proof_types_supported", Map.of(
+                "jwt", Map.of("proof_signing_alg_values_supported", List.of("ES256"))
+        ));
+
+        var credentialMetadata = new LinkedHashMap<String, Object>();
+        credentialMetadata.put("display", display);
+        credentialMetadata.put("claims", claims);
+        config.put("credential_metadata", credentialMetadata);
+        return config;
+    }
+
+    private static List<Map<String, Object>> pidClaims() {
+        return List.of(
                 Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
                 Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),
                 Map.of("path", List.of("birth_date"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
                 Map.of("path", List.of("issuing_authority"), "display", List.of(Map.of("name", "Issuing Authority", "locale", "en"))),
                 Map.of("path", List.of("issuing_country"), "display", List.of(Map.of("name", "Issuing Country", "locale", "en")))
         );
+    }
 
-        var credentialMetadata = new LinkedHashMap<String, Object>();
-        credentialMetadata.put("display", List.of(Map.of(
+    private static List<Map<String, Object>> mdocPidClaims() {
+        return List.of(
+                Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
+                Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),
+                Map.of("path", List.of("birth_date"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
+                Map.of("path", List.of("issuing_authority"), "display", List.of(Map.of("name", "Issuing Authority", "locale", "en"))),
+                Map.of("path", List.of("issuing_country"), "display", List.of(Map.of("name", "Issuing Country", "locale", "en")))
+        );
+    }
+
+    private static List<Map<String, Object>> pidDisplay() {
+        return List.of(Map.of(
                 "name", "EUDI PID",
                 "locale", "en",
                 "description", "EU Digital Identity Personal Identification Data"
-        )));
-        credentialMetadata.put("claims", claims);
-        credConfig.put("credential_metadata", credentialMetadata);
+        ));
+    }
 
-        return Map.of(CREDENTIAL_CONFIG_ID, credConfig);
+    private static List<Map<String, Object>> mdlClaims() {
+        return List.of(
+                Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),
+                Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
+                Map.of("path", List.of("birth_date"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
+                Map.of("path", List.of("issue_date"), "display", List.of(Map.of("name", "Date of Issue", "locale", "en"))),
+                Map.of("path", List.of("expiry_date"), "display", List.of(Map.of("name", "Date of Expiry", "locale", "en"))),
+                Map.of("path", List.of("issuing_country"), "display", List.of(Map.of("name", "Issuing Country", "locale", "en"))),
+                Map.of("path", List.of("issuing_authority"), "display", List.of(Map.of("name", "Issuing Authority", "locale", "en"))),
+                Map.of("path", List.of("document_number"), "display", List.of(Map.of("name", "Licence Number", "locale", "en"))),
+                Map.of("path", List.of("driving_privileges"), "display", List.of(Map.of("name", "Categories", "locale", "en")))
+        );
+    }
+
+    private static List<Map<String, Object>> mdlDisplay() {
+        return List.of(Map.of(
+                "name", "Mobile Driving Licence",
+                "locale", "en",
+                "description", "ISO 18013-5 Mobile Driving Licence"
+        ));
+    }
+
+    /** Build an SD-JWT VC credential from the issuance record data. */
+    private String buildSdJwtCredential(ECKey walletKey, IssuanceStore.IssuanceRecord record) {
+        try {
+            SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
+                    .vct("eu.europa.ec.eudi.pid.1")
+                    .issuer(baseUrl)
+                    .subject("urn:fikua:pid:" + sessionStore.randomToken(8))
+                    .holderKey(walletKey)
+                    .x5cChain(issuerKey.x5cChain());
+
+            var dataNode = MAPPER.readTree(record.credentialData());
+            var fields = dataNode.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                builder.selectiveClaim(field.getKey(), field.getValue().asText());
+            }
+            builder.plainClaim("issuing_authority", "Fikua Lab");
+            builder.plainClaim("issuing_country", "ES");
+
+            return builder.build().serialize();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build SD-JWT credential", e);
+        }
+    }
+
+    /** Build an mso_mdoc credential from the issuance record data. */
+    private String buildMdocCredential(ECKey walletKey, IssuanceStore.IssuanceRecord record,
+                                        Map<String, Object> credConfig) {
+        try {
+            String docType = (String) credConfig.get("doctype");
+            MdocBuilder builder = new MdocBuilder(issuerKey)
+                    .docType(docType)
+                    .namespace(docType)
+                    .deviceKey(walletKey)
+                    .x5cChain(issuerKey.x5cChain());
+
+            var dataNode = MAPPER.readTree(record.credentialData());
+            var fields = dataNode.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                builder.element(field.getKey(), field.getValue().asText());
+            }
+            builder.element("issuing_authority", "Fikua Lab");
+            builder.element("issuing_country", "ES");
+
+            return builder.build().toBase64Url();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build mso_mdoc credential", e);
+        }
     }
 
     /** Result of the authorize endpoint. */
