@@ -205,6 +205,15 @@ export default async function (data) {
 
   const walletKey = await generateWalletKey();
 
+  // Pre-generate all proof JWTs outside group() callbacks (k6 group callbacks are sync)
+  const proofWrongTyp = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, { typ: "jwt" });
+  const proofWrongAlg = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, { alg: "RS256" });
+  const proofBadSig = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, { badSignature: true });
+  const proofWrongAud = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, { aud: "https://evil-issuer.example.com" });
+  const proofExpiredIat = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, { iat: Math.floor(Date.now() / 1000) - 600 });
+  const proofBadNonce = await signJwtProof(walletKey, data.issuerUrl, "fake-nonce-xyz");
+  const proofForCrossSession = await signJwtProof(walletKey, data.issuerUrl, data.cNonce);
+
   // =========================================================================
   // TOKEN ENDPOINT — Error paths
   // =========================================================================
@@ -340,14 +349,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with wrong typ", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, {
-      typ: "jwt",
-    });
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofWrongTyp] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -358,14 +364,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with wrong alg", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, {
-      alg: "RS256",
-    });
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofWrongAlg] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -376,14 +379,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with invalid signature", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, {
-      badSignature: true,
-    });
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofBadSig] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -394,14 +394,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with wrong audience", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, {
-      aud: "https://evil-issuer.example.com",
-    });
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofWrongAud] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -412,14 +409,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with expired iat", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce, {
-      iat: Math.floor(Date.now() / 1000) - 600, // 10 minutes ago
-    });
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofExpiredIat] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -430,12 +424,11 @@ export default async function (data) {
   });
 
   group("Credential — proof with invalid nonce", () => {
-    const proof = await signJwtProof(walletKey, data.issuerUrl, "fake-nonce-xyz");
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofBadNonce] },
       },
       { Authorization: `Bearer ${data.accessToken}` }
     );
@@ -474,15 +467,11 @@ export default async function (data) {
     const otherToken = tokenRes.json().access_token;
 
     // Use token from session B with a proof built for session A's nonce
-    const nonceRes = http.post(`${BASE_URL}/oid4vci/v1/nonce`, null);
-    const freshNonce = nonceRes.json().c_nonce;
-
-    const proof = await signJwtProof(walletKey, data.issuerUrl, data.cNonce);
     const res = jsonPost(
       `${BASE_URL}/oid4vci/v1/credential`,
       {
         credential_configuration_id: "eu.europa.ec.eudi.pid.1",
-        proofs: { jwt: [proof] },
+        proofs: { jwt: [proofForCrossSession] },
       },
       { Authorization: `Bearer ${otherToken}` }
     );
