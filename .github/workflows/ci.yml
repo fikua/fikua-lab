@@ -60,40 +60,46 @@ jobs:
             | tar xzf - --strip-components=1 -C /usr/local/bin k6-v0.55.0-linux-amd64/k6
 
       - name: Run integration tests
-        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080 --summary-export=k6-summary.json
+        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080 --summary-export=k6-integration.json
+
+      - name: Run security tests
+        run: k6 run suite/k6/tests/security.js --env BASE_URL=http://localhost:8080 --summary-export=k6-security.json
 
       - name: k6 Job Summary
         if: always()
         run: |
-          if [ ! -f k6-summary.json ]; then
-            echo "⚠️ k6 summary not available" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           node -e "
           const fs = require('fs');
-          const s = JSON.parse(fs.readFileSync('k6-summary.json', 'utf8'));
-          const m = s.metrics;
 
-          const checks = m.checks ? m.checks.values : {};
-          const passed = Math.round((checks.rate || 0) * (checks.passes + checks.fails || 0));
-          const failed = checks.fails || 0;
-          const total = passed + failed;
-          const rate = checks.rate != null ? (checks.rate * 100).toFixed(0) : '?';
-          const status = failed === 0 ? '✅' : '❌';
+          function summarize(file, title) {
+            if (!fs.existsSync(file)) return '## ⚠️ ' + title + '\n\nSummary not available.\n\n';
+            const s = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const m = s.metrics;
 
-          const dur = m.http_req_duration ? m.http_req_duration.values : {};
-          const reqs = m.http_reqs ? m.http_reqs.values.count : 0;
-          const blocked = m.http_req_blocked ? m.http_req_blocked.values : {};
+            const checks = m.checks ? m.checks.values : {};
+            const passed = Math.round((checks.rate || 0) * (checks.passes + checks.fails || 0));
+            const failed = checks.fails || 0;
+            const total = passed + failed;
+            const rate = checks.rate != null ? (checks.rate * 100).toFixed(0) : '?';
+            const status = failed === 0 ? '✅' : '❌';
 
-          let md = '## \${status} k6 Integration Tests\n\n';
-          md += '| Metric | Value |\n|--------|-------|\n';
-          md += '| Checks | \${passed}/\${total} (\${rate}%) |\n';
-          md += '| HTTP Requests | \${reqs} |\n';
-          md += '| Avg Response | \${dur.avg ? dur.avg.toFixed(1) + \" ms\" : \"-\"} |\n';
-          md += '| p95 Response | \${dur[\"p(95)\"] ? dur[\"p(95)\"].toFixed(1) + \" ms\" : \"-\"} |\n';
-          md += '| Max Response | \${dur.max ? dur.max.toFixed(1) + \" ms\" : \"-\"} |\n';
+            const dur = m.http_req_duration ? m.http_req_duration.values : {};
+            const reqs = m.http_reqs ? m.http_reqs.values.count : 0;
 
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+            let md = '## ' + status + ' ' + title + '\n\n';
+            md += '| Metric | Value |\n|--------|-------|\n';
+            md += '| Checks | ' + passed + '/' + total + ' (' + rate + '%) |\n';
+            md += '| HTTP Requests | ' + reqs + ' |\n';
+            md += '| Avg Response | ' + (dur.avg ? dur.avg.toFixed(1) + ' ms' : '-') + ' |\n';
+            md += '| p95 Response | ' + (dur['p(95)'] ? dur['p(95)'].toFixed(1) + ' ms' : '-') + ' |\n';
+            md += '| Max Response | ' + (dur.max ? dur.max.toFixed(1) + ' ms' : '-') + ' |\n\n';
+            return md;
+          }
+
+          let output = '';
+          output += summarize('k6-integration.json', 'k6 Integration Tests');
+          output += summarize('k6-security.json', 'k6 Security Tests');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, output);
           "
 
       - name: Collect logs on failure

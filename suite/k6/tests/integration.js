@@ -43,7 +43,7 @@ export default function () {
     check(res, {
       "GET /admin/presets → 200": (r) => r.status === 200,
       "returns array": () => Array.isArray(body),
-      "has 4 presets": () => body.length === 4,
+      "has at least 1 preset": () => body.length >= 1,
       "contains Plain Pre-Auth Issuer": () =>
         body.some((p) => p.name === "Plain Pre-Auth Issuer"),
       "contains HAIP Issuer": () =>

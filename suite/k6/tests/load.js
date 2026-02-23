@@ -256,11 +256,17 @@ export default async function (data) {
   // Each VU generates its own wallet key (simulates different wallets)
   const walletKeyPair = await generateWalletKey();
 
+  // Alternate between sd-jwt and mdoc formats across iterations
+  const useMdoc = __ITER % 2 === 1;
+  const credConfigId = useMdoc
+    ? "eu.europa.ec.eudi.pid.mdoc.1"
+    : "eu.europa.ec.eudi.pid.1";
+
   // --- Step 1: Trigger issuance + resolve offer (DB write + state) ---
   let preAuthCode = null;
 
   const issuanceBody = JSON.stringify({
-    credential_type: "eu.europa.ec.eudi.pid.1",
+    credential_type: credConfigId,
     credential_data: { given_name: "Load", family_name: "Test", birth_date: "1995-06-15" },
   });
   const issuanceRes = http.post(`${BASE_URL}/oid4vci/v1/issuance`, issuanceBody, {
@@ -348,7 +354,7 @@ export default async function (data) {
   const jwtProof = await signJwtProof(walletKeyPair, data.issuerUrl, nonce || cNonce);
 
   const credReqBody = JSON.stringify({
-    credential_configuration_id: "eu.europa.ec.eudi.pid.1",
+    credential_configuration_id: credConfigId,
     proofs: { jwt: [jwtProof] },
   });
 
@@ -362,12 +368,12 @@ export default async function (data) {
 
   const credOk = check(credRes, {
     "credential → 200": (r) => r.status === 200,
-    "credential has SD-JWT": (r) => {
+    "credential has valid format": (r) => {
       try {
-        // OID4VCI 1.0 Final: credentials[0].credential
         const cred = r.json().credentials[0].credential;
-        // SD-JWT format: header.payload~disclosure1~disclosure2~
-        return cred !== undefined && cred.includes("~");
+        if (cred === undefined) return false;
+        // SD-JWT: header.payload~disclosure~ | mdoc: base64url CBOR (no ~)
+        return useMdoc ? cred.length > 50 : cred.includes("~");
       } catch (e) {
         return false;
       }
