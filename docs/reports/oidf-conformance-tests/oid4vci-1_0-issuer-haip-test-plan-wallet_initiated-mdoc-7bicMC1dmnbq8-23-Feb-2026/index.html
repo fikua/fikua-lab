@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Plan details</title>
+    <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <style>
+        html{
+            box-sizing: border-box;
+        }
+        body{
+            font-family:sans-serif;
+            line-height:1.5em;
+            padding-left:30px;
+            padding-right:30px;
+            padding-top:2em;
+        }
+
+        #header{
+        }
+
+        #header th{
+            text-align:left;
+            padding-right: 16px;
+        }
+
+        #results{
+        }
+
+        table{
+        }
+
+        .testStatus-created {
+            background-color: #fcd9f6;
+            color: black;
+        }
+
+        .testStatus-configured {
+            background-color: #d3fffe;
+            color: black;
+        }
+
+        .testStatus-running {
+            background-color: #6d09e8;
+            color: white;
+        }
+
+        .testStatus-waiting {
+            background-color: #6ac4c2;
+            color: black;
+        }
+
+        .testStatus-interrupted {
+            background-color: #b70018;
+            color: white;
+        }
+
+        .testStatus-finished {
+            background-color: #383647;
+            color: white;
+        }
+
+        .testStatus-unknown {
+            background-color: #dedada;
+            color: #6d6a6a;
+        }
+
+        .testResult-passed {
+            background-color: #40e809;
+            color: black;
+        }
+
+        .testResult-warning {
+            background-color: #d88602;
+            color: white;
+        }
+
+        .testResult-failed {
+            background-color: red;
+            color: white;
+        }
+
+        .testResult-review {
+            background-color: #6ac4c2;
+            color: black;
+        }
+
+        .testResult-skipped {
+            background-color: #d88602;
+            color: white;
+        }
+
+        .testResult-unknown {
+            background-color: #dedada;
+            color: #6d6a6a;
+        }
+        .result-success {
+            background-color: #00cc00;
+        }
+
+        .result-failure {
+            background-color: #cc0000;
+        }
+
+        .result-warning {
+            background-color: #d88602;
+        }
+
+        .result-review {
+            background-color: #00ccff;
+        }
+
+        .result-interrupted {
+            background-color: #ddbb88;
+        }
+
+        .result-finished {
+            background-color: #383647;
+        }
+
+        .result-info {
+            background-color: #e2bfce;
+        }
+
+        .result-skipped {
+            background-color: #d88602;
+        }
+
+        .result-default {
+            background-color: #00cc00;
+        }
+        .rounded-pill{
+            background-color: rgba(0.5, 0.5, 0.5, 0.5);
+            border-top-left-radius: 0.25em;
+            border-top-right-radius: 0.25em;
+            border-bottom-right-radius: 0.25em;
+            border-bottom-left-radius: 0.25em;
+            padding-left:0.4em;
+            padding-right:0.4em;
+            padding-top:0.1em;
+            padding-bottom:0.1em;
+            font-size:0.8em;
+        }
+        .badge{
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            box-sizing: border-box;
+            color: rgb(255, 255, 255);
+            display: inline;
+            font-size: 0.8em;
+            font-weight: 700;
+            line-height: 1.2em;
+            padding-bottom: 3.6px;
+            padding-left: 7.2px;
+            padding-right: 7.2px;
+            padding-top: 2.4px;
+            text-align: center;
+            vertical-align: baseline;
+            white-space: no-wrap;
+        }
+        .info{
+            background-color: rgb(226, 191, 206);
+        }
+        .success{
+            background-color: rgb(0, 204, 0);
+        }
+        .failure{
+            background-color: rgb(204, 0, 0);
+            color:#fff;
+        }
+        .interrupted{
+            background-color: rgb(221, 187, 136);
+            color:#fff;
+        }
+        .warning{
+            background-color: rgb(216, 134, 2);
+            color:#fff;
+        }
+        .failed{
+            background-color: rgb(0, 0, 0);
+            color:#fff;
+        }
+        .review{
+            background-color: rgb(0, 204, 255);
+            color:#fff;
+        }
+        .incoming{
+            background-color:rgb(91, 192, 222);
+        }
+        .outgoing{
+            background-color:rgb(91, 192, 222);
+        }
+        .finished{
+            background-color: rgb(56, 54, 71);
+            color:#fff;
+        }
+        .passed{
+            background-color: #40e809;
+            color: #000;
+        }
+        #tests-list{
+
+        }
+        #tests-list tr:hover{
+            background-color:#eee;
+        }
+        #tests-list th{
+            text-align:left;
+            background-color:#f2f2f2;
+            border:1px solid #eee;
+            border-collapse:collapse;
+            padding-left:0.2em;
+            padding-right:0.2em;
+            padding-top:0.2em;
+            padding-bottom:0.2em;
+        }
+        #tests-list td{
+            border:1px solid #eee;
+            border-collapse:collapse;
+            padding-left:0.3em;
+            padding-right:0.3em;
+            padding-top:0.3em;
+            padding-bottom:0.3em;
+        }
+        #moreinfomsg{
+            border:1px solid #eee;
+            padding-left:0.5em;
+            padding-right:0.5em;
+            padding-top:0.5em;
+            padding-bottom:0.5em;
+            margin-left:0.5em;
+            margin-right:0.5em;
+            margin-top:0.5em;
+            margin-bottom:0.5em;
+            background-color:#f3f3f3;
+        }
+    </style>
+</head>
+<body>
+<h1>
+Test Plan Details
+</h1>
+<div id="header">
+    <table>
+        <tr>
+            <th>Plan Name</th>
+            <td>oid4vci-1_0-issuer-haip-test-plan</td>
+        </tr>
+        <tr>
+            <th>Variant</th>
+            <td>vci_authorization_code_flow_variant=wallet_initiated, credential_format=mdoc</td>
+        </tr>
+        <tr>
+            <th>Plan ID</th>
+            <td>
+                <span>7bicMC1dmnbq8</span>
+                <a target="_blank" href="https://demo.certification.openid.net/plan-detail.html?public=true&amp;plan=7bicMC1dmnbq8">https://demo.certification.openid.net/plan-detail.html?public=true&amp;plan=7bicMC1dmnbq8</a>
+            </td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>Fikua Lab</td>
+        </tr>
+        <span>
+        <tr>
+            <th>Certification Profile</th>
+            <td>[]</td>
+        </tr>
+        </span>
+        <tr>
+            <th>Version</th>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <th>Started</th>
+            <td>2026-02-23T22:54:18.528635733Z</td>
+        </tr>
+        <tr>
+            <th>Owner</th>
+            <td>103772631682107199660 https://accounts.google.com</td>
+        </tr>
+        <tr>
+            <th>Exported From</th>
+            <td>https://demo.certification.openid.net</td>
+        </tr>
+        <tr>
+            <th>Exported By</th>
+            <td>103772631682107199660 https://accounts.google.com</td>
+        </tr>
+        <tr>
+            <th>Suite Version</th>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <th>Exported</th>
+            <td>2026-02-23 23:31:05 (UTC)</td>
+        </tr>
+    </table>
+</div>
+<div id="moreinfomsg">
+    These test results were generated by the OpenID Foundation conformance suite.
+    By themselves, they are not proof that a deployment is conformant nor that it
+    meets the requirements for certification. For a list of certified deployments,
+    see <a href="https://openid.net/certification/" target="_blank">https://openid.net/certification/</a>
+    - to be added to this list follow
+    the <a href="https://openid.net/certification/instructions/" target="_blank">certification instructions</a>.
+</div>
+
+<h1>Test Results</h1>
+<table cellspacing="0" cellpadding="1" id="tests-list">
+    <thead>
+        <tr>
+            <th>Status</th>
+            <th>Result</th>
+            <th>Test Name</th>
+            <th>Test Id</th>
+            <th>Test Version</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-metadata-test-PjaJTZKxa2Ed0P2.html">oid4vci-1_0-issuer-metadata-test</a>
+            </td>
+            <td>PjaJTZKxa2Ed0P2</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-metadata-test-signed-Nm4MeJkSXXXcMbP.html">oid4vci-1_0-issuer-metadata-test-signed</a>
+            </td>
+            <td>Nm4MeJkSXXXcMbP</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-happy-flow-VwyDsKTNVdUWIpj.html">oid4vci-1_0-issuer-happy-flow</a>
+            </td>
+            <td>VwyDsKTNVdUWIpj</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-ensure-request-object-with-multiple-aud-succeeds-IPVjOEGyUnskMdN.html">oid4vci-1_0-issuer-ensure-request-object-with-multiple-aud-succeeds</a>
+            </td>
+            <td>IPVjOEGyUnskMdN</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-happy-flow-skip-notification-1247KNyv6ZqEEiv.html">oid4vci-1_0-issuer-happy-flow-skip-notification</a>
+            </td>
+            <td>1247KNyv6ZqEEiv</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-invalid-nonce-O1BgbEo4xYVQNHp.html">oid4vci-1_0-issuer-fail-invalid-nonce</a>
+            </td>
+            <td>O1BgbEo4xYVQNHp</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-replay-nonce-pMi0ID8Ur7z8AQK.html">oid4vci-1_0-issuer-fail-replay-nonce</a>
+            </td>
+            <td>pMi0ID8Ur7z8AQK</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-invalid-jwt-proof-signature-rIv10w3XlRxVQ1m.html">oid4vci-1_0-issuer-fail-invalid-jwt-proof-signature</a>
+            </td>
+            <td>rIv10w3XlRxVQ1m</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-invalid-key-attestation-signature-a5vQ2rkVWYVQAO0.html">oid4vci-1_0-issuer-fail-invalid-key-attestation-signature</a>
+            </td>
+            <td>a5vQ2rkVWYVQAO0</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-invalid-client-attestation-signature-K0zyO9VZJBHg7F1.html">oid4vci-1_0-issuer-fail-invalid-client-attestation-signature</a>
+            </td>
+            <td>K0zyO9VZJBHg7F1</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-invalid-client-attestation-pop-signature-nHIYgCIOSAF4wwB.html">oid4vci-1_0-issuer-fail-invalid-client-attestation-pop-signature</a>
+            </td>
+            <td>nHIYgCIOSAF4wwB</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-unsupported-encryption-algorithm-HRAHtbVBykXRQAJ.html">oid4vci-1_0-issuer-fail-unsupported-encryption-algorithm</a>
+            </td>
+            <td>HRAHtbVBykXRQAJ</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-unknown-credential-configuration-cL99Dkb5RnsbQHi.html">oid4vci-1_0-issuer-fail-unknown-credential-configuration</a>
+            </td>
+            <td>cL99Dkb5RnsbQHi</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-unknown-credential-identifier-ITAmUIzFivVLXHO.html">oid4vci-1_0-issuer-fail-unknown-credential-identifier</a>
+            </td>
+            <td>ITAmUIzFivVLXHO</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-happy-flow-KYQdRSRgaT7PMbX.html">oid4vci-1_0-issuer-happy-flow</a>
+            </td>
+            <td>KYQdRSRgaT7PMbX</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-unknown-credential-configuration-vEEmtpzBNHqlMmk.html">oid4vci-1_0-issuer-fail-unknown-credential-configuration</a>
+            </td>
+            <td>vEEmtpzBNHqlMmk</td>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <td>
+                <span class="label testStatus-finished">FINISHED</span>
+            </td>
+            <td>
+                <span class="label testResult-skipped">SKIPPED</span>
+            </td>
+            <td>
+                <a href="test-log-oid4vci-1_0-issuer-fail-unsupported-encryption-algorithm-UcxQVo0u4zYr7zk.html">oid4vci-1_0-issuer-fail-unsupported-encryption-algorithm</a>
+            </td>
+            <td>UcxQVo0u4zYr7zk</td>
+            <td>5.1.39</td>
+        </tr>
+    </tbody>
+</table>
+<p> </p>
+</body>
+</html>
