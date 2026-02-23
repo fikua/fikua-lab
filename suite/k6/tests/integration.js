@@ -151,13 +151,13 @@ export default function () {
         meta.credential_configurations_supported !== undefined,
       "format is dc+sd-jwt": () => {
         const configs = meta.credential_configurations_supported;
-        const key = Object.keys(configs)[0];
-        return configs[key].format === "dc+sd-jwt";
+        return configs["eu.europa.ec.eudi.pid.1"] !== undefined &&
+          configs["eu.europa.ec.eudi.pid.1"].format === "dc+sd-jwt";
       },
       "has proof_types_supported": () => {
         const configs = meta.credential_configurations_supported;
-        const key = Object.keys(configs)[0];
-        return configs[key].proof_types_supported !== undefined;
+        return configs["eu.europa.ec.eudi.pid.1"] !== undefined &&
+          configs["eu.europa.ec.eudi.pid.1"].proof_types_supported !== undefined;
       },
     });
   });
