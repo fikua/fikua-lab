@@ -39,4 +39,11 @@ public interface SigningKey {
 
     /** Get the x5c certificate chain (empty list if no certificates). */
     List<Base64> x5cChain();
+
+    /**
+     * Sign raw bytes with ECDSA-SHA256 and return the signature in fixed-length (r || s) format.
+     * Used for COSE_Sign1 where the Sig_structure is pre-built.
+     * Returns 64 bytes for P-256: 32 bytes r + 32 bytes s.
+     */
+    byte[] signRawBytes(byte[] data);
 }

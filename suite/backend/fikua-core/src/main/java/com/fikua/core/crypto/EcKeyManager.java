@@ -157,6 +157,19 @@ public final class EcKeyManager implements SigningKey {
         return chain != null ? chain : List.of();
     }
 
+    /** Sign raw bytes with ECDSA-SHA256 in P1363 format (r || s, 64 bytes for P-256). */
+    @Override
+    public byte[] signRawBytes(byte[] data) {
+        try {
+            java.security.Signature sig = java.security.Signature.getInstance("SHA256withECDSAinP1363Format");
+            sig.initSign(ecKey.toECPrivateKey());
+            sig.update(data);
+            return sig.sign();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to sign raw bytes with ECDSA", e);
+        }
+    }
+
     /** Get the EC private key as java.security type. */
     public ECPrivateKey toPrivateKey() {
         try {

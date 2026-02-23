@@ -3,7 +3,7 @@ package com.fikua.core.profile.enums;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum CredentialFormat {
-    SD_JWT_VC("sd_jwt_vc", "vc+sd-jwt"),
+    SD_JWT_VC("sd_jwt_vc", "dc+sd-jwt"),
     MDOC("mdoc", "mso_mdoc"),
     ISO_MDL("iso_mdl", "mso_mdoc");
 

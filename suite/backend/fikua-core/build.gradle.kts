@@ -6,6 +6,9 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:${property("jacksonVersion")}")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${property("jacksonVersion")}")
 
+    // CBOR encoding for mso_mdoc credentials (pure Java, zero I/O)
+    implementation("com.upokecenter:cbor:${property("cborVersion")}")
+
     // Logging API only (no implementation in core)
     implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
 }
