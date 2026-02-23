@@ -60,7 +60,41 @@ jobs:
             | tar xzf - --strip-components=1 -C /usr/local/bin k6-v0.55.0-linux-amd64/k6
 
       - name: Run integration tests
-        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080
+        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080 --summary-export=k6-summary.json
+
+      - name: k6 Job Summary
+        if: always()
+        run: |
+          if [ ! -f k6-summary.json ]; then
+            echo "⚠️ k6 summary not available" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e "
+          const fs = require('fs');
+          const s = JSON.parse(fs.readFileSync('k6-summary.json', 'utf8'));
+          const m = s.metrics;
+
+          const checks = m.checks ? m.checks.values : {};
+          const passed = Math.round((checks.rate || 0) * (checks.passes + checks.fails || 0));
+          const failed = checks.fails || 0;
+          const total = passed + failed;
+          const rate = checks.rate != null ? (checks.rate * 100).toFixed(0) : '?';
+          const status = failed === 0 ? '✅' : '❌';
+
+          const dur = m.http_req_duration ? m.http_req_duration.values : {};
+          const reqs = m.http_reqs ? m.http_reqs.values.count : 0;
+          const blocked = m.http_req_blocked ? m.http_req_blocked.values : {};
+
+          let md = '## \${status} k6 Integration Tests\n\n';
+          md += '| Metric | Value |\n|--------|-------|\n';
+          md += '| Checks | \${passed}/\${total} (\${rate}%) |\n';
+          md += '| HTTP Requests | \${reqs} |\n';
+          md += '| Avg Response | \${dur.avg ? dur.avg.toFixed(1) + \" ms\" : \"-\"} |\n';
+          md += '| p95 Response | \${dur[\"p(95)\"] ? dur[\"p(95)\"].toFixed(1) + \" ms\" : \"-\"} |\n';
+          md += '| Max Response | \${dur.max ? dur.max.toFixed(1) + \" ms\" : \"-\"} |\n';
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          "
 
       - name: Collect logs on failure
         if: failure()
@@ -158,3 +192,28 @@ jobs:
             sudo docker compose --env-file .env -f compose.yaml logs --tail=50 fikua-lab
             exit 1
           "
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          # Extract the section for this version (between ## [VERSION] and the next ## [)
+          NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/{/^## \[$VERSION\]/d;/^## \[/d;p}" CHANGELOG.md)
+          # Write to file to preserve multiline
+          echo "$NOTES" > release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          TAG="v$VERSION"
+          # Create tag if it doesn't exist
+          git tag "$TAG" 2>/dev/null || true
+          git push origin "$TAG" 2>/dev/null || true
+          # Create release (skip if already exists)
+          gh release create "$TAG" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md \
+            --latest \
+            2>/dev/null || echo "Release $TAG already exists, skipping"
