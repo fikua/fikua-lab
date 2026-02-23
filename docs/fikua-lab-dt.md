@@ -577,29 +577,29 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-155 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
+164 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
-| `AuthServerMetadataTest` | core | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
-| `CredentialIssuerMetadataTest` | core | 13 | HAIP + plain metadata, credential configs, multi-format (sd-jwt + mdoc) |
+| `AuthServerMetadataTest` | core | 3 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
+| `CredentialIssuerMetadataTest` | core | 8 | HAIP + plain metadata, credential configs, multi-format (sd-jwt + mdoc) |
 | `CoseSign1Test` | core | 8 | RFC 9052 §4.4: tag 18, 4-element array, alg ES256, sig 64 bytes, x5chain |
 | `MdocBuilderTest` | core | 10 | ISO 18013-5: Document CBOR, nameSpaces tag 24, issuerAuth, deviceKey, validityInfo, digests |
 | `ClientAttestationValidatorTest` | core | 9 | WIA~PoP parsing, assertion types, HTTP 401 status, RSA key support |
-| `DPoPValidatorTest` | core | 14 | All RFC 9449 validation branches |
-| `ProofValidatorTest` | core | 16 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |
+| `DPoPValidatorTest` | core | 17 | All RFC 9449 validation branches |
+| `ProofValidatorTest` | core | 17 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |
 | `PkceUtilTest` | core | 9 | RFC 7636 test vector, S256 challenge |
-| `OAuthErrorTest` | core | 10 | All error codes, JSON snake_case |
+| `OAuthErrorTest` | core | 9 | All error codes, JSON snake_case |
 | `ProblemDetailTest` | core | 7 | RFC 9457 factories, serialization |
-| `TokenResponseTest` | core | 4 | Bearer/DPoP, JSON contract |
+| `TokenResponseTest` | core | 5 | Bearer/DPoP, JSON contract |
 | `TokenRequestTest` | core | 5 | Form parsing, grant type detection |
 | `CredentialOfferTest` | core | 6 | Pre-auth + auth_code, tx_code |
 | `CredentialRequestTest` | core | 9 | Singular/plural proofs, extractProofJwt, JSON contract |
-| `CredentialResponseTest` | core | 4 | JSON contract, NON_NULL |
-| `DisclosureTest` | core | 9 | Create/digest/parse round-trip |
+| `CredentialResponseTest` | core | 7 | JSON contract, NON_NULL |
+| `DisclosureTest` | core | 12 | Create/digest/parse round-trip |
 | `SdJwtVerifierTest` | core | 5 | Signature verification, expiry, claim resolution |
-| `SdJwtBuilderTest` | core | ~3 | SD-JWT building (pre-existing) |
-| `IssuanceServiceTest` | issuer | 11 | Wallet-initiated, issuer-initiated, identification, mdoc scope/claims |
+| `SdJwtBuilderTest` | core | 3 | SD-JWT building |
+| `IssuanceServiceTest` | issuer | 10 | Wallet-initiated, issuer-initiated, identification, mdoc scope/claims, COSE alg integers |
 | `PemKeyLoaderTest` | issuer | 5 | HAIP 6.1.1 x5c chain, CA-signed cert, PEM loading, SD-JWT header |
 
 ### Error pages
@@ -1141,6 +1141,7 @@ Generated with OpenSSL, valid for 365 days. Stored in the Docker volume `lab-cer
 - [ ] Implement Verifier endpoints (OID4VP, DCQL, JAR signing)
 - [ ] Implement Wallet HTTP client
 - [ ] Pass all 12 OIDF tests
+- [ ] **Credential definition files (post-OIDF):** Externalize credential configurations from hardcoded Java (`IssuanceService.buildCredentialConfigurations()`) to JSON definition files at `credentials/<config-id>.json`. Each file contains OID4VCI protocol metadata (format, scope, vct/doctype, crypto, proof_types) + claims description (path, display, value_type, mandatory). `IssuanceService` loads all files at startup and generates `credential_configurations_supported` dynamically. Adding a new credential = adding a JSON file. Note: this is NOT `credential_schema` (which doesn't exist in OID4VCI 1.0 Final) — it's a Fikua-internal convention. The SD-JWT VC `schema_uri` (Type Metadata) is a separate future concern.
 
 ## Verification checklist
 
