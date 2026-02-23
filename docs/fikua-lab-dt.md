@@ -202,6 +202,7 @@ fikua-lab/
 │   │   │   └── app.js
 │   │   ├── issuer/                                # Issuer UI
 │   │   ├── cert/                                  # Certificate selection (mTLS)
+│   │   ├── identify/                              # Identification portal (wallet-initiated)
 │   │   ├── holder/                                # Wallet UI
 │   │   ├── verifier/                              # Verifier UI
 │   │   └── shared/                                # Shared assets (404.html, 50x.html, favicon.svg)
@@ -284,6 +285,7 @@ fikua-lab/
 | A | `issuer.lab` | `51.38.179.236` | Issuer backend (OID4VCI) |
 | A | `wallet.lab` | `51.38.179.236` | Wallet backend (OID4VP) — future |
 | A | `cert.lab` | `51.38.179.236` | Certificate selection (mTLS) |
+| A | `identify.lab` | `51.38.179.236` | Identification portal (wallet-initiated flow) |
 | A | `verifier.lab` | `51.38.179.236` | Verifier backend (OID4VP) — future |
 
 VPS: OVH (IP `51.38.179.236`), Ubuntu, SSH port `49222`.
@@ -295,6 +297,7 @@ lab.fikua.com                    Landing page (nginx static)
 portal.lab.fikua.com             Portal — configuration dashboard (nginx static + proxy /admin/)
 issuer.lab.fikua.com             Issuer API + UI (/oid4vci/v1/*)
 cert.lab.fikua.com               Certificate selection (mTLS, ssl_verify_client)
+identify.lab.fikua.com           Identification portal (wallet-initiated flow, proxy /oid4vci/v1/)
 wallet.lab.fikua.com             Wallet UI + API
 verifier.lab.fikua.com           Verifier UI + API
 ```
@@ -310,7 +313,7 @@ Nginx is a system service (not a Docker container). Installed via `apt` and mana
 | File | Purpose |
 |------|---------|
 | `/etc/nginx/nginx.conf` | Main config (symlink to `/opt/vps/nginx/nginx.conf`) |
-| `/etc/nginx/conf.d/lab-fikua.conf` | Fikua Lab server blocks (6 subdomains) |
+| `/etc/nginx/conf.d/lab-fikua.conf` | Fikua Lab server blocks (7 subdomains) |
 | `/etc/nginx/conf.d/oriolcanades.conf` | oriolcanades.com server block |
 | `/etc/nginx/conf.d/proto.eudistack.net.conf` | proto.eudistack.net server block |
 | `/etc/nginx/conf.d/cert.eudistack.net.conf` | cert.eudistack.net server block |
@@ -393,7 +396,7 @@ sudo certbot certonly --standalone \
   --pre-hook "systemctl stop nginx" \
   --post-hook "systemctl start nginx" \
   -d lab.fikua.com -d portal.lab.fikua.com -d issuer.lab.fikua.com \
-  -d cert.lab.fikua.com -d wallet.lab.fikua.com -d verifier.lab.fikua.com \
+  -d cert.lab.fikua.com -d identify.lab.fikua.com -d wallet.lab.fikua.com -d verifier.lab.fikua.com \
   --non-interactive --agree-tos -m ocanades@outlook.com
 
 # 3. Re-enable config and start
@@ -427,6 +430,8 @@ Nginx decides whether to serve static files (frontends) or proxy to the backend.
 | `issuer.lab.fikua.com` | `/health` | Proxy → backend `:8090` | Health check |
 | `cert.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/cert/` | Static (cert UI) + mTLS |
 | `cert.lab.fikua.com` | `/cert-info` | Headers with TLS client certificate data | nginx `return 204` |
+| `identify.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/identify/` | Static (identification portal) |
+| `identify.lab.fikua.com` | `/oid4vci/v1/` | Proxy → backend `:8090` | Identification API |
 | `wallet.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/holder/` | Static (wallet UI) |
 | `wallet.lab.fikua.com` | `/oid4vci/` | Proxy → backend `:8090` | Wallet API |
 | `wallet.lab.fikua.com` | `/oid4vp/` | Proxy → backend `:8090` | Wallet API |
@@ -500,12 +505,36 @@ Certificate data is sent via HTTP headers (not JSON body) because Distinguished 
 dn.split(/(?<!\\),/)   // Split on commas NOT preceded by backslash
 ```
 
+### Wallet-initiated identification flow — identify.lab.fikua.com
+
+When the wallet starts issuance without a Credential Offer (wallet-initiated, no `issuer_state`), the issuer redirects the user to the identification portal at `identify.lab.fikua.com`.
+
+**Flow:**
+
+```text
+1. Wallet sends PAR → issuer returns request_uri
+2. Wallet redirects to GET /authorize?request_uri=...
+3. Issuer detects wallet-initiated (no issuer_state in PAR)
+4. Issuer creates pending authorization, returns redirect to identify.lab.fikua.com?session=<token>
+5. User identifies at the portal (digital certificate via cert.lab, or manual form)
+6. Portal calls POST /oid4vci/v1/identify/complete with credential data
+7. Issuer creates IssuanceRecord, generates auth code, returns wallet callback URL
+8. Portal redirects browser to wallet callback with auth code
+9. Wallet continues normal flow: token → nonce → credential
+```
+
+**Identification portal frontend:** Mini-app with method selection (digital certificate via cert.lab), certificate data confirmation, and form-based data entry. Calls `GET /oid4vci/v1/identify/claims` to discover expected claims for the credential type, then `POST /oid4vci/v1/identify/complete` to finalize.
+
+**Pending authorization pattern:** `SessionStore.storePendingAuthorization()` / `consumePendingAuthorization()` preserve the PAR data (client_id, redirect_uri, code_challenge, state, scope) while the user identifies at the portal. The session token links the identification completion back to the original authorization request.
+
+**Spec reference:** RFC 6749 §3.1 — the AS MUST authenticate the resource owner before issuing an authorization code. OID4VCI 1.0 Final §3.4 — wallet-initiated issuance.
+
 ### SSL certificate
 
 A single multi-domain Let's Encrypt certificate covers all subdomains:
 
 ```text
-certbot certonly --nginx -d lab.fikua.com -d issuer.lab.fikua.com [-d wallet.lab.fikua.com -d verifier.lab.fikua.com]
+certbot certonly --nginx -d lab.fikua.com -d issuer.lab.fikua.com -d identify.lab.fikua.com [-d wallet.lab.fikua.com -d verifier.lab.fikua.com]
 ```
 
 All nginx server blocks reference the same certificate at `/etc/letsencrypt/live/lab.fikua.com/`.
@@ -749,6 +778,8 @@ GET  /admin/health                Health check for endpoints
 | GET | `/oid4vci/v1/jwks` | JWK Set (EC P-256) |
 | GET | `/oid4vci/v1/authorize` | Authorization endpoint (HAIP) |
 | POST | `/oid4vci/v1/par` | Pushed Authorization Request (HAIP) |
+| GET | `/oid4vci/v1/identify/claims` | Get expected claims for pending identification session |
+| POST | `/oid4vci/v1/identify/complete` | Complete identification and issue auth code |
 
 > **Note:** `GET /oid4vci/v1/credential-offer` returns 400 — use `POST /issuance` with `credential_data` to trigger issuance.
 
@@ -881,6 +912,7 @@ Run `make help` to see all available commands. Full reference:
 | `FIKUA_DB_PASSWORD` | `.env` | PostgreSQL password |
 | `FIKUA_ROLES` | `compose.yaml` | Comma-separated roles to start: `issuer`, `wallet`, `verifier` (default: all) |
 | `FIKUA_CERTS_DIR` | `compose.yaml` | X.509 certificates directory inside container |
+| `FIKUA_IDENTIFY_BASE_URL` | `compose.yaml` | Identification portal URL (`https://identify.lab.fikua.com`) |
 | `FIKUA_VERSION` | `.env` / shell | Docker image tag (`latest` or `vX.Y.Z`) |
 | `DOCKER_REGISTRY` | `.env` | DockerHub registry (`oriolcanades`) |
 | `DOCKER_PAT` | `.env` | DockerHub PAT |
