@@ -54,6 +54,11 @@ public interface SessionStore {
     void storeIssuerState(String issuerState, Map<String, Object> metadata);
     Map<String, Object> consumeIssuerState(String issuerState);
 
+    // --- Pending authorizations (wallet-initiated: authorize waits for user identification) ---
+    void storePendingAuthorization(String sessionToken, Map<String, Object> authData);
+    Map<String, Object> getPendingAuthorization(String sessionToken);
+    Map<String, Object> consumePendingAuthorization(String sessionToken);
+
     // --- Authorization codes ---
     String createAuthCode(SessionData session);
     SessionData consumeAuthCode(String code);

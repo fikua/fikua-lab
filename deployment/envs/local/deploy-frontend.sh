@@ -8,6 +8,7 @@
 # Certificate: http://localhost:3003
 # Wallet:      http://localhost:3004
 # Verifier:    http://localhost:3005
+# Identify:    http://localhost:3006
 # =============================================================================
 
 set -euo pipefail
@@ -28,6 +29,7 @@ echo "  Issuer:      http://localhost:3002"
 echo "  Certificate: http://localhost:3003"
 echo "  Wallet:      http://localhost:3004"
 echo "  Verifier:    http://localhost:3005"
+echo "  Identify:    http://localhost:3006"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""
@@ -38,4 +40,5 @@ python3 -m http.server 3002 -d suite/frontend/issuer &
 python3 -m http.server 3003 -d suite/frontend/cert &
 python3 -m http.server 3004 -d suite/frontend/holder &
 python3 -m http.server 3005 -d suite/frontend/verifier &
+python3 -m http.server 3006 -d suite/frontend/identify &
 wait

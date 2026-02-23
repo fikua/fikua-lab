@@ -58,6 +58,10 @@ public class IssuerController {
         // PAR endpoint (HAIP)
         app.post(API_PREFIX + "/par", this::par);
 
+        // Identification (wallet-initiated)
+        app.get(API_PREFIX + "/identify/claims", this::identificationClaims);
+        app.post(API_PREFIX + "/identify/complete", this::completeIdentification);
+
         // Issuance trigger
         app.post(API_PREFIX + "/issuance", this::triggerIssuance);
     }
@@ -162,7 +166,10 @@ public class IssuerController {
                 config
         );
 
-        if (result.redirectUri() != null) {
+        if (result.identifyRedirect() != null) {
+            log.info("GET /authorize — wallet-initiated, redirect to identification portal");
+            ctx.redirect(result.identifyRedirect());
+        } else if (result.redirectUri() != null) {
             String redirect = result.redirectUri() + "?code=" + result.code();
             if (result.state() != null) redirect += "&state=" + result.state();
             redirect += "&iss=" + java.net.URLEncoder.encode(baseUrl, java.nio.charset.StandardCharsets.UTF_8);
@@ -171,6 +178,49 @@ public class IssuerController {
         } else {
             log.info("GET /authorize — code issued (no redirect)");
             ctx.json(Map.of("code", result.code()));
+        }
+    }
+
+    private void identificationClaims(Context ctx) {
+        String session = ctx.queryParam("session");
+        if (session == null || session.isBlank()) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "Missing session parameter");
+        }
+        log.info("GET /identify/claims — session={}", session);
+        ctx.json(service.getIdentificationClaims(session));
+    }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private void completeIdentification(Context ctx) {
+        log.info("POST /identify/complete");
+        try {
+            var body = MAPPER.readTree(ctx.body());
+            if (body == null || !body.has("session") || !body.has("credential_data")) {
+                throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                        "Missing required fields: session, credential_data");
+            }
+            String session = body.get("session").asText();
+            String credentialData = body.get("credential_data").toString();
+            String sourceType = body.has("source_type") ? body.get("source_type").asText() : null;
+            String sourceRef = body.has("source_ref") ? body.get("source_ref").asText() : null;
+
+            var result = service.completeIdentification(session, credentialData, sourceType, sourceRef);
+
+            // Build wallet callback redirect URL
+            String redirect = result.redirectUri() + "?code=" + result.code();
+            if (result.state() != null) redirect += "&state=" + result.state();
+            redirect += "&iss=" + java.net.URLEncoder.encode(baseUrl, java.nio.charset.StandardCharsets.UTF_8);
+
+            log.info("POST /identify/complete — redirect to wallet callback");
+            ctx.json(Map.of("redirect", redirect));
+        } catch (OAuthErrorException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Identification completion error", e);
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid identification request: " + e.getMessage());
         }
     }
 

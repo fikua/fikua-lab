@@ -26,7 +26,8 @@ public class IssuerService {
     private IssuanceService issuanceService;
 
     /** Start the issuer service, registering routes on the given Javalin app. */
-    public void start(Javalin app, DataSource dataSource, String baseUrl, String certsDir) {
+    public void start(Javalin app, DataSource dataSource, String baseUrl, String certsDir,
+                      String identifyBaseUrl) {
         // Load signing key
         SigningKey key = PemKeyLoader.loadOrGenerate(certsDir);
 
@@ -50,7 +51,7 @@ public class IssuerService {
         });
 
         // Create application service
-        issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl);
+        issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl, identifyBaseUrl);
 
         // Register HTTP controller
         new IssuerController(issuanceService, baseUrl).register(app);

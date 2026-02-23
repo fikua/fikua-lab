@@ -101,7 +101,7 @@ public class FikuaLab {
         IssuerService issuerService = null;
         if (roles.contains("issuer")) {
             issuerService = new IssuerService();
-            issuerService.start(app, db.dataSource(), config.baseUrl(), config.certsDir());
+            issuerService.start(app, db.dataSource(), config.baseUrl(), config.certsDir(), config.identifyBaseUrl());
             log.info("Issuer service started");
         }
 

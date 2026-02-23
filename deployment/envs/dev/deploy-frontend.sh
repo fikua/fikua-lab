@@ -86,6 +86,14 @@ if [ -d "suite/frontend/cert" ]; then
     log_success "Certificate → https://cert.lab.fikua.com"
 fi
 
+# --- Identification → identify.lab.fikua.com ---
+if [ -d "suite/frontend/identify" ]; then
+    log_step "Uploading identification..."
+    ssh ${SSH_OPTS} "${VPS_USER}@${VPS_IP}" "sudo mkdir -p /opt/vps/frontends/lab/identify && sudo chown -R ubuntu:ubuntu /opt/vps/frontends/lab/identify"
+    scp ${SCP_OPTS} -r "suite/frontend/identify/." "${VPS_USER}@${VPS_IP}:/opt/vps/frontends/lab/identify/"
+    log_success "Identification → https://identify.lab.fikua.com"
+fi
+
 # --- Wallet → wallet.lab.fikua.com ---
 if [ -d "suite/frontend/holder" ]; then
     log_step "Uploading wallet..."

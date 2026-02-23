@@ -17,7 +17,8 @@ public record LabConfig(
         String dbUser,
         String dbPassword,
         String certsDir,
-        String frontendDir
+        String frontendDir,
+        String identifyBaseUrl
 ) {
 
     /** Load configuration with env vars taking precedence over YAML defaults. */
@@ -31,7 +32,8 @@ public record LabConfig(
                 env("FIKUA_DB_USER", yamlStr(yaml, "db.user", "fikua")),
                 env("FIKUA_DB_PASSWORD", yamlStr(yaml, "db.password", "fikua")),
                 env("FIKUA_CERTS_DIR", yamlStr(yaml, "certs-dir", "./certs")),
-                env("FIKUA_FRONTEND_DIR", yamlStr(yaml, "frontend-dir", "./frontend"))
+                env("FIKUA_FRONTEND_DIR", yamlStr(yaml, "frontend-dir", "./frontend")),
+                env("FIKUA_IDENTIFY_BASE_URL", yamlStr(yaml, "identify-base-url", "https://identify.lab.fikua.com"))
         );
     }
 

@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-23
+
+Wallet-initiated issuance flow with identification portal.
+
+### Added
+
+- **Wallet-initiated flow with identification:** Authorize endpoint now supports wallet-initiated issuance (no Credential Offer, no `issuer_state`). When the wallet starts the flow via PAR + authorize without `issuer_state`, the issuer redirects the browser to the identification portal (`identify.lab.fikua.com`) where the user verifies their identity via digital certificate. After identification, the issuer creates an `IssuanceRecord` with real credential data and returns the authorization code to the wallet. Per RFC 6749 §3.1: the AS MUST authenticate the resource owner before issuing an authorization code.
+- **Identification portal frontend:** New `identify.lab.fikua.com` mini-app with method selection (digital certificate via cert.lab), certificate data confirmation, and automatic redirect to wallet callback. Extensible for future identification methods (manual form, etc.).
+- **`POST /oid4vci/v1/identify/complete` endpoint:** Receives credential data from the identification portal, creates `IssuanceRecord`, generates authorization code, and returns the wallet callback redirect URL.
+- **Pending authorization pattern:** `SessionStore.storePendingAuthorization()` / `consumePendingAuthorization()` preserve PAR data while the user identifies at the portal.
+- **`identifyBaseUrl` configuration:** New `FIKUA_IDENTIFY_BASE_URL` env var / `identify-base-url` YAML config (default: `https://identify.lab.fikua.com`).
+- **Nginx server block:** `identify.lab.fikua.com` with static frontend + `/oid4vci/v1/` proxy to backend.
+- **4 tests** in `IssuanceServiceTest` — wallet-initiated redirects to identification portal, issuer-initiated returns code immediately, complete identification creates record and returns code, invalid session throws error (5 → 9 total in fikua-issuer).
+
+### Spec references
+
+- RFC 6749 §3.1 (Authorization Endpoint — resource owner authentication), OID4VCI 1.0 Final §3.4 (wallet-initiated issuance), §5.1.1 (Authorization Request), HAIP 1.0
+
 ## [0.4.7] - 2026-02-22
 
 Client attestation robustness and PAR fix.

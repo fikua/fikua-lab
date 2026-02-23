@@ -43,10 +43,12 @@ public class IssuanceService {
     private final DPoPValidator dpopValidator;
     private final ClientAttestationValidator clientAttestationValidator;
     private final String baseUrl;
+    private final String identifyBaseUrl;
 
     public IssuanceService(SigningKey issuerKey, SessionStore sessionStore,
                            IssuanceStore issuanceStore, ProfileStore profileStore,
-                           DPoPValidator dpopValidator, String baseUrl) {
+                           DPoPValidator dpopValidator, String baseUrl,
+                           String identifyBaseUrl) {
         this.issuerKey = issuerKey;
         this.sessionStore = sessionStore;
         this.issuanceStore = issuanceStore;
@@ -54,6 +56,7 @@ public class IssuanceService {
         this.dpopValidator = dpopValidator;
         this.clientAttestationValidator = new ClientAttestationValidator();
         this.baseUrl = baseUrl;
+        this.identifyBaseUrl = identifyBaseUrl;
     }
 
     public ProfileConfig getActiveConfig() {
@@ -330,7 +333,7 @@ public class IssuanceService {
             // The wallet may have obtained the nonce from the Nonce Endpoint (§7) without an access token,
             // so we cannot rely solely on session.cNonce() which only tracks the token endpoint nonce.
             String proofNonce = extractProofNonce(proofJwt);
-            log.info("Nonce validation: proofNonce={}, session.cNonce={}", proofNonce, session.cNonce());
+            log.debug("Nonce validation: proofNonce present={}, session.cNonce present={}", proofNonce != null, session.cNonce() != null);
             boolean nonceValid = proofNonce != null && sessionStore.validateNonce(proofNonce);
             if (!nonceValid) {
                 // Fallback: check against session.cNonce() (token endpoint nonce)
@@ -383,7 +386,7 @@ public class IssuanceService {
 
             // H11: Invalidate nonce after successful issuance (one-time use)
             sessionStore.invalidateNonce(session.cNonce());
-            log.info("Nonce invalidated (one-time use): {}", session.cNonce());
+            log.debug("Nonce invalidated (one-time use)");
 
             return CredentialResponse.success(sdJwt);
 
@@ -405,6 +408,7 @@ public class IssuanceService {
         }
 
         // Resolve PAR if request_uri provided
+        String scope = null;
         if (requestUri != null) {
             Map<String, String> parParams = sessionStore.consumeParRequest(requestUri);
             if (parParams == null) {
@@ -415,6 +419,7 @@ public class IssuanceService {
             state = parParams.get("state");
             codeChallenge = parParams.get("code_challenge");
             issuerState = parParams.get("issuer_state");
+            scope = parParams.get("scope");
             log.info("Authorize via PAR: client_id={}, request_uri={}", clientId, requestUri);
         }
 
@@ -424,11 +429,21 @@ public class IssuanceService {
         if (codeChallenge != null) metadata.put("code_challenge", codeChallenge);
         if (issuerState != null) {
             metadata.put("issuer_state", issuerState);
-            // Resolve issuanceRecordId linked to this issuerState
+            // Issuer-initiated: resolve issuanceRecordId linked to this issuerState
             Map<String, Object> issuerMeta = sessionStore.consumeIssuerState(issuerState);
             if (issuerMeta != null && issuerMeta.containsKey("issuanceRecordId")) {
                 metadata.put("issuanceRecordId", issuerMeta.get("issuanceRecordId"));
             }
+        } else {
+            // Wallet-initiated: redirect to identification portal (RFC 6749 §3.1)
+            String sessionToken = sessionStore.randomToken(16);
+            var pendingData = new LinkedHashMap<String, Object>(metadata);
+            if (state != null) pendingData.put("state", state);
+            if (scope != null) pendingData.put("scope", scope);
+            sessionStore.storePendingAuthorization(sessionToken, pendingData);
+            String identifyUrl = identifyBaseUrl + "?session=" + sessionToken;
+            log.info("Wallet-initiated flow: redirecting to identification portal, session={}", sessionToken);
+            return AuthorizeResult.withIdentifyRedirect(identifyUrl);
         }
 
         SessionData session = new SessionData(
@@ -437,7 +452,78 @@ public class IssuanceService {
         String authCode = sessionStore.createAuthCode(session);
         log.info("Authorization code issued: client_id={}, has_redirect={}", clientId, redirectUri != null);
 
-        return new AuthorizeResult(authCode, redirectUri, state);
+        return AuthorizeResult.withCode(authCode, redirectUri, state);
+    }
+
+    /**
+     * Complete wallet-initiated identification.
+     * Called after the user identifies at the identification portal.
+     * Creates an IssuanceRecord with real data and returns the authorization code.
+     *
+     * @param sessionToken the pending authorization session token
+     * @param credentialDataJson JSON with credential claims (given_name, family_name, birth_date, etc.)
+     * @param sourceType identification method (e.g. "x509_cert")
+     * @param sourceRef reference to the identification source
+     * @return AuthorizeResult with code and redirect URI for the wallet callback
+     */
+    public AuthorizeResult completeIdentification(String sessionToken, String credentialDataJson,
+                                                   String sourceType, String sourceRef) {
+        Map<String, Object> pending = sessionStore.consumePendingAuthorization(sessionToken);
+        if (pending == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid or expired identification session");
+        }
+
+        // Resolve credential type from scope (instead of hardcoded constant)
+        String scope = (String) pending.get("scope");
+        String credentialConfigId = resolveCredentialConfigId(scope);
+        var record = issuanceStore.create(credentialConfigId, credentialDataJson, sourceType, sourceRef);
+        log.info("Identification complete: issuanceRecordId={}, credentialConfig={}, source={}",
+                record.id(), credentialConfigId, sourceType);
+
+        // Rebuild metadata with issuanceRecordId
+        var metadata = new LinkedHashMap<String, Object>();
+        if (pending.containsKey("client_id")) metadata.put("client_id", pending.get("client_id"));
+        if (pending.containsKey("redirect_uri")) metadata.put("redirect_uri", pending.get("redirect_uri"));
+        if (pending.containsKey("code_challenge")) metadata.put("code_challenge", pending.get("code_challenge"));
+        metadata.put("issuanceRecordId", record.id());
+
+        SessionData session = new SessionData(
+                sessionStore.randomToken(16), null, null, Instant.now(), metadata
+        );
+        String authCode = sessionStore.createAuthCode(session);
+
+        String redirectUri = (String) pending.get("redirect_uri");
+        String state = pending.containsKey("state") ? String.valueOf(pending.get("state")) : null;
+        log.info("Authorization code issued after identification: client_id={}, issuanceId={}",
+                pending.get("client_id"), record.id());
+
+        return AuthorizeResult.withCode(authCode, redirectUri, state);
+    }
+
+    /**
+     * Get credential claims metadata for a pending identification session.
+     * Reads the scope from the pending authorization and returns the claims
+     * that the credential type requires, for the frontend to render a dynamic form.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getIdentificationClaims(String sessionToken) {
+        Map<String, Object> pending = sessionStore.getPendingAuthorization(sessionToken);
+        if (pending == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid or expired identification session");
+        }
+        String scope = (String) pending.get("scope");
+        String credentialConfigId = resolveCredentialConfigId(scope);
+        Map<String, Object> configs = buildCredentialConfigurations();
+        Map<String, Object> credConfig = (Map<String, Object>) configs.get(credentialConfigId);
+        Map<String, Object> credentialMetadata = (Map<String, Object>) credConfig.get("credential_metadata");
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("credential_configuration_id", credentialConfigId);
+        result.put("claims", credentialMetadata.get("claims"));
+        result.put("display", credentialMetadata.get("display"));
+        return result;
     }
 
     /** Handle PAR request (HAIP). */
@@ -596,6 +682,23 @@ public class IssuanceService {
         return String.valueOf(code);
     }
 
+    /**
+     * Resolve credential_configuration_id from the requested scope.
+     * Iterates credential configurations to find the one matching the scope.
+     * Falls back to the default when scope is null or no match found.
+     */
+    private String resolveCredentialConfigId(String scope) {
+        if (scope == null) return CREDENTIAL_CONFIG_ID;
+        var configs = buildCredentialConfigurations();
+        for (var entry : configs.entrySet()) {
+            if (entry.getValue() instanceof Map<?, ?> config) {
+                if (scope.equals(config.get("scope"))) return entry.getKey();
+            }
+        }
+        log.warn("No credential configuration found for scope={}, using default", scope);
+        return CREDENTIAL_CONFIG_ID;
+    }
+
     private Map<String, Object> buildCredentialConfigurations() {
         var credConfig = new LinkedHashMap<String, Object>();
         credConfig.put("format", "dc+sd-jwt");
@@ -628,5 +731,15 @@ public class IssuanceService {
     }
 
     /** Result of the authorize endpoint. */
-    public record AuthorizeResult(String code, String redirectUri, String state) {}
+    public record AuthorizeResult(String code, String redirectUri, String state, String identifyRedirect) {
+        /** Issuer-initiated: immediate code. */
+        static AuthorizeResult withCode(String code, String redirectUri, String state) {
+            return new AuthorizeResult(code, redirectUri, state, null);
+        }
+
+        /** Wallet-initiated: redirect to identification portal. */
+        static AuthorizeResult withIdentifyRedirect(String identifyRedirect) {
+            return new AuthorizeResult(null, null, null, identifyRedirect);
+        }
+    }
 }
