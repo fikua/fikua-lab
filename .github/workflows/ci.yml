@@ -76,8 +76,8 @@ jobs:
             const s = JSON.parse(fs.readFileSync(file, 'utf8'));
             const m = s.metrics;
 
-            const checks = m.checks ? m.checks.values : {};
-            const passed = Math.round((checks.rate || 0) * (checks.passes + checks.fails || 0));
+            const checks = (m.checks && m.checks.values) || {};
+            const passed = Math.round((checks.rate || 0) * ((checks.passes || 0) + (checks.fails || 0)));
             const failed = checks.fails || 0;
             const total = passed + failed;
             const rate = checks.rate != null ? (checks.rate * 100).toFixed(0) : '?';
