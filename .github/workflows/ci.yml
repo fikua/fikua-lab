@@ -60,10 +60,10 @@ jobs:
             | tar xzf - --strip-components=1 -C /usr/local/bin k6-v0.55.0-linux-amd64/k6
 
       - name: Run integration tests
-        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080 --summary-export=k6-integration.json
+        run: k6 run suite/k6/tests/integration.js --env BASE_URL=http://localhost:8080 --env SUMMARY_FILE=k6-integration.json
 
       - name: Run security tests
-        run: k6 run suite/k6/tests/security.js --env BASE_URL=http://localhost:8080 --summary-export=k6-security.json
+        run: k6 run suite/k6/tests/security.js --env BASE_URL=http://localhost:8080 --env SUMMARY_FILE=k6-security.json
 
       - name: k6 Job Summary
         if: always()
@@ -74,14 +74,14 @@ jobs:
           function summarize(file, title) {
             if (!fs.existsSync(file)) return '## ⚠️ ' + title + '\n\nSummary not available.\n\n';
             const s = JSON.parse(fs.readFileSync(file, 'utf8'));
-            const m = s.metrics;
+            const m = s.metrics || {};
 
-            const checks = (m.checks && m.checks.values) || {};
-            const passed = Math.round((checks.rate || 0) * ((checks.passes || 0) + (checks.fails || 0)));
-            const failed = checks.fails || 0;
+            const cv = (m.checks && m.checks.values) || {};
+            const passed = cv.passes || 0;
+            const failed = cv.fails || 0;
             const total = passed + failed;
-            const rate = checks.rate != null ? (checks.rate * 100).toFixed(0) : '?';
-            const status = failed === 0 ? '✅' : '❌';
+            const rate = total > 0 ? ((passed / total) * 100).toFixed(0) : '?';
+            const status = failed === 0 && total > 0 ? '✅' : '❌';
 
             const dur = (m.http_req_duration && m.http_req_duration.values) || {};
             const reqs = (m.http_reqs && m.http_reqs.values && m.http_reqs.values.count) || 0;

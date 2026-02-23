@@ -14,6 +14,7 @@
 import http from "k6/http";
 import { check, group } from "k6";
 import encoding from "k6/encoding";
+import { textSummary } from "https://jslib.k6.io/k6-summary/0.1.0/index.js";
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 
@@ -588,4 +589,11 @@ export default async function (data) {
       },
     });
   });
+}
+
+export function handleSummary(data) {
+  const out = { stdout: textSummary(data, { indent: " ", enableColors: false }) };
+  const file = __ENV.SUMMARY_FILE;
+  if (file) out[file] = JSON.stringify(data);
+  return out;
 }
