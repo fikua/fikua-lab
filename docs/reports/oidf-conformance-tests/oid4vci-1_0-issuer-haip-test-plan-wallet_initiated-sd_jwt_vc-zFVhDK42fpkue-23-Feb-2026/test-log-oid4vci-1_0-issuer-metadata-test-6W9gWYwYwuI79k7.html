@@ -1,0 +1,3125 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Test detail</title>
+    <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <style>
+        html{
+            box-sizing: border-box;
+        }
+        body{
+            font-family:sans-serif;
+            line-height:1.5em;
+            padding-left:30px;
+            padding-right:30px;
+            padding-top:2em;
+            min-width:700px;
+        }
+        pre{
+            margin-top:0px;
+            margin-bottom:0px;
+            margin-left:0px;
+            font-family: sans-serif;
+        }
+        #header{
+        }
+        #header th{
+            text-align:left;
+        }
+        #results{
+            overflow-x:auto;
+        }
+        table{
+            width:100%;
+        }
+        .log-item{
+            width:100%;
+            margin-bottom:0;
+            padding-bottom:1em;
+            padding-top:1em;
+            border-top:1px solid #ccc;
+            line-height:1.7em;
+        }
+        .log-item:hover{
+            background-color: #ebf6fa;
+        }
+        .row{
+            padding-top:0.2em;
+            padding-left:0.2em;
+            padding-bottom:0.2em;
+            padding-right:0.2em;
+        }
+         .col-1{
+            width:10%;
+            min-width:100px;
+            vertical-align: top;
+            font-size:0.90em;
+         }
+         .col-2{
+            width:10%;
+            min-width:100px;
+            vertical-align: top;
+            padding-left:20px;
+         }
+         .col-3{
+             vertical-align: top;
+         }
+         .labelCollection{
+
+         }
+         .labelCollection span{
+            border:1px;
+         }
+
+        .wrapLongStrings{
+            white-space:pre-wrap;
+        }
+        .collapse:not(.show) {
+            display:none;
+        }
+        .label{
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            box-sizing: border-box;
+            color: rgb(255, 255, 255);
+            display: inline;
+            font-size: 0.8em;
+            font-weight: 700;
+            line-height: 1.2em;
+            padding-bottom: 3.6px;
+            padding-left: 7.2px;
+            padding-right: 7.2px;
+            padding-top: 2.4px;
+            text-align: center;
+            vertical-align: baseline;
+            white-space: no-wrap;
+        }
+        .label-info{
+            background-color: #5bc0de;
+        }
+        .testStatus-created {
+            background-color: #fcd9f6;
+            color: black;
+        }
+
+        .testStatus-configured {
+            background-color: #d3fffe;
+            color: black;
+        }
+
+        .testStatus-running {
+            background-color: #6d09e8;
+            color: white;
+        }
+
+        .testStatus-waiting {
+            background-color: #6ac4c2;
+            color: black;
+        }
+
+        .testStatus-interrupted {
+            background-color: #b70018;
+            color: white;
+        }
+
+        .testStatus-finished {
+            background-color: #383647;
+            color: white;
+        }
+
+        .testStatus-unknown {
+            background-color: #dedada;
+            color: #6d6a6a;
+        }
+
+        .testResult-passed {
+            background-color: #40e809;
+            color: black;
+        }
+
+        .testResult-warning {
+            background-color: #d88602;
+            color: white;
+        }
+
+        .testResult-failed {
+            background-color: red;
+            color: white;
+        }
+
+        .testResult-review {
+            background-color: #6ac4c2;
+            color: black;
+        }
+
+        .testResult-skipped {
+            background-color: #d88602;
+            color: white;
+        }
+
+        .testResult-unknown {
+            background-color: #dedada;
+            color: #6d6a6a;
+        }
+        .result-success {
+            background-color: #00cc00;
+        }
+
+        .result-failure {
+            background-color: #cc0000;
+        }
+
+        .result-warning {
+            background-color: #d88602;
+        }
+
+        .result-review {
+            background-color: #00ccff;
+        }
+
+        .result-interrupted {
+            background-color: #ddbb88;
+        }
+
+        .result-finished {
+            background-color: #383647;
+        }
+
+        .result-info {
+            background-color: #e2bfce;
+        }
+
+        .result-skipped {
+            background-color: #d88602;
+        }
+
+        .result-default {
+            background-color: #00cc00;
+        }
+        .rounded-pill{
+            background-color: rgba(0.5, 0.5, 0.5, 0.5);
+            border-top-left-radius: 0.25em;
+            border-top-right-radius: 0.25em;
+            border-bottom-right-radius: 0.25em;
+            border-bottom-left-radius: 0.25em;
+            padding-left:0.4em;
+            padding-right:0.4em;
+            padding-top:0.1em;
+            padding-bottom:0.1em;
+            font-size:0.85em;
+        }
+        .requirement{
+            border:1px solid #ccc;
+            padding-left:0.3em;
+            padding-right:0.3em;
+            padding-top:0.2em;
+            padding-bottom:0.2em;
+            display:inline-block;
+            background-color: rgb(119, 119, 119);
+            color:#fff;
+            font-size:0.7em;
+            font-weight:normal;
+            text-decoration:none;
+        }
+        .log-http{
+        }
+        .more{
+            background-color:#fff;
+        }
+        .more-btn{
+        }
+        a.more-btn{
+            font-size:0.85em;
+            background-image: linear-gradient(rgb(255, 255, 255) 0px, rgb(224, 224, 224) 100%);
+            border:1px solid rgb(204, 204, 204);
+            padding-left: 0.4em;
+            padding-right: 0.4em;
+            padding-top:0.3em;
+            padding-bottom:0.3em;
+            color:rgb(51, 51, 51);
+            text-decoration: none;
+        }
+        .more-row{
+            border:1px solid #eee;
+            width:100%;
+        }
+        .more-key{
+            text-align:right;
+            vertical-align: top;
+            background-color: #edf2f4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-all;
+            padding-right:3px;
+        }
+        td.more-key{
+            width:15%;
+        }
+        .more-value{
+            vertical-align: top;
+            background-color: #f1f1f1;
+            padding-left:3px;
+            font-size:0.9em;
+        }
+        .more-text{
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .more-jwt{
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .more-json{
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .log-msg{
+        }
+        .log-src{
+            font-family: monospace;
+        }
+        .prettyprint{
+         }
+         .lang-javascript{
+         }
+         .block-title{
+            font-size:1.15em;
+            color:#fff;
+            padding-left:0.25em;
+            padding-right:0.25em;
+            padding-bottom:0.25em;
+            padding-top:0.25em;
+         }
+        .log-entry-title{
+        }
+        ul.stacktrace{
+            margin-top:3px;
+            margin-left:3px;
+        }
+        .stacktrace li{
+            list-style-type:none;
+            margin-top:2px;
+            margin-bottom:2px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .p-1{
+            padding:0.1em 0.1em 0.1em 0.1em;
+        }
+        .test-summary{
+            background-color: rgb(217, 237, 247);
+            border: 1px solid rgb(221, 221, 221);
+            padding-top:0.3em;
+            padding-left:0.3em;
+            padding-right:0.3em;
+            padding-bottom:0.3em;
+        }
+        #fixedtoplink{
+            position:fixed;
+            bottom:30px;
+            right:30px;
+            background-color:#999;
+            color:#fff;
+            opacity: 0.8;
+            padding-top:0.3em;
+            padding-left:0.3em;
+            padding-right:0.3em;
+            padding-bottom:0.3em;
+            font-size:0.85em;
+            text-decoration:none;
+        }
+
+        .review-img{
+            max-height: 50vh;
+            display: block;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+    </style>
+    <script>
+        function moreClicked(itemid){
+            var moreelem = document.getElementById('more_' + itemid);
+            if(moreelem.className.includes('collapse')){
+                moreelem.className='more';
+            }
+            else{
+                moreelem.className='more collapse';
+            }
+        }
+
+        function expandMores() {
+            var mores = document.querySelectorAll('.more');
+            for(var i in mores){
+                var moreelem = mores[i];
+                if(moreelem.className){
+                    moreelem.className='more';
+                }
+            }
+        }
+
+        function collapseMores(){
+            var mores = document.querySelectorAll('.more');
+            for(var i in mores){
+                var moreelem = mores[i];
+                if(moreelem.className){
+                    moreelem.className='more collapse';
+                }
+            }
+        }
+
+    </script>
+</head>
+<body>
+<h1>
+Test Summary
+</h1>
+<div  id="header">
+    <table style="width:auto;">
+        <tr>
+            <th>Test Name</th>
+            <td>oid4vci-1_0-issuer-metadata-test</td>
+        </tr>
+        <tr>
+            <th>Variant</th>
+            <td>client_auth_type=client_attestation, vci_authorization_code_flow_variant=wallet_initiated, credential_format=sd_jwt_vc, vci_profile=haip</td>
+        </tr>
+        <tr>
+            <th>Test ID</th>
+            <td>
+                <span>6W9gWYwYwuI79k7</span>
+                <a target="_blank" href="https://demo.certification.openid.net/log-detail.html?public=true&amp;log=6W9gWYwYwuI79k7">https://demo.certification.openid.net/log-detail.html?public=true&amp;log=6W9gWYwYwuI79k7</a>
+            </td>
+        </tr>
+        <tr>
+            <th>Created</th>
+            <td>2026-02-23T15:27:02.383347229Z</td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>Fikua Lab</td>
+        </tr>
+        <tr>
+            <th>Test Version</th>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <th>Test Owner</th>
+            <td>103772631682107199660 https://accounts.google.com</td>
+        </tr>
+        <tr>
+            <th>Plan ID</th>
+            <td>
+                <span>zFVhDK42fpkue</span>
+                <a target="_blank" href="https://demo.certification.openid.net/plan-detail.html?public=true&amp;plan=zFVhDK42fpkue">https://demo.certification.openid.net/plan-detail.html?public=true&amp;plan=zFVhDK42fpkue</a>
+            </td>
+        </tr>
+        <tr>
+            <th>Exported From</th>
+            <td>https://demo.certification.openid.net</td>
+        </tr>
+        <tr>
+            <th>Exported By</th>
+            <td>103772631682107199660 https://accounts.google.com</td>
+        </tr>
+        <tr>
+            <th>Suite Version</th>
+            <td>5.1.39</td>
+        </tr>
+        <tr>
+            <th>Exported</th>
+            <td>2026-02-23 18:38:35 (UTC)</td>
+        </tr>
+    </table>
+    <div class="test-summary">This test case validates the metadata exposed by the credential issuer,
+as defined in the OpenID for Verifiable Credential Issuance (OpenID4VCI) specification.
+
+This test will send a credential issuer metadata request with content-type: application/json.
+</div>
+    <hr>
+    <table>
+        <tr>
+            <td align="center">
+                Status:
+                <span class="label testStatus-finished">FINISHED</span>
+
+                Result:
+                <span class="label testResult-passed">PASSED</span>
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                <span class="label result-success">SUCCESS <span class="badge rounded-pill">14</span></span>
+
+                <span class="label result-failure">FAILURE <span class="badge rounded-pill">0</span></span>
+
+                <span class="label result-warning">WARNING <span class="badge rounded-pill">0</span></span>
+
+                <span class="label result-review">REVIEW <span class="badge rounded-pill">0</span></span>
+
+                <span class="label result-info">INFO <span class="badge rounded-pill">1</span></span>
+            </td>
+        </tr>
+        
+    </table>
+    <hr>
+</div>
+
+<h1 id="testresultsheader">Test Results</h1>
+<a href="javascript:expandMores()">Expand All</a>
+<a href="javascript:collapseMores()">Collapse All</a>
+<div>All times are UTC</div>
+<div id="results">
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-CqDzqqNzDujWQFD4QbTGHTxHcLJTlI7W">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-CqDzqqNzDujWQFD4QbTGHTxHcLJTlI7W&#39;)">(8) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-info">INFO</span>
+
+                
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">TEST-RUNNER</div>
+                <div class="log-msg">Test instance 6W9gWYwYwuI79k7 created</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-CqDzqqNzDujWQFD4QbTGHTxHcLJTlI7W">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">baseUrl</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://demo.certification.openid.net/test/a/fikua-lab-issuer-pid</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">variant</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;client_auth_type&quot;: &quot;client_attestation&quot;,
+  &quot;vci_authorization_code_flow_variant&quot;: &quot;wallet_initiated&quot;,
+  &quot;credential_format&quot;: &quot;sd_jwt_vc&quot;,
+  &quot;vci_profile&quot;: &quot;haip&quot;
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">alias</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">fikua-lab-issuer-pid</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">description</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">Fikua Lab</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">planId</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">zFVhDK42fpkue</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">config</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;alias&quot;: &quot;fikua-lab-issuer-pid&quot;,
+  &quot;description&quot;: &quot;Fikua Lab&quot;,
+  &quot;client&quot;: {
+    &quot;client_id&quot;: &quot;https://wallet.test.fikua.com&quot;,
+    &quot;scope&quot;: &quot;accounts&quot;,
+    &quot;dpop_signing_alg&quot;: &quot;ES256&quot;,
+    &quot;jwks&quot;: {
+      &quot;keys&quot;: [
+        {
+          &quot;kty&quot;: &quot;EC&quot;,
+          &quot;d&quot;: &quot;Qgtpttx2-BETmIEF9tGXJQwwNnGtLKBHS45qTOmD5Gg&quot;,
+          &quot;crv&quot;: &quot;P-256&quot;,
+          &quot;kid&quot;: &quot;wallet-test-1&quot;,
+          &quot;alg&quot;: &quot;ES256&quot;,
+          &quot;x&quot;: &quot;buJ2k-CI8SZRB8T2oRjxODpbxP1-hGNl8GITj-I6uBo&quot;,
+          &quot;y&quot;: &quot;z0Ngho9U-uxHvMLVn2kznJMgMxmRuKobwtE4d2pSdjs&quot;
+        }
+      ]
+    }
+  },
+  &quot;resource&quot;: {
+    &quot;resourceUrl&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/credential&quot;
+  },
+  &quot;vci&quot;: {
+    &quot;credential_issuer_url&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+    &quot;authorization_server&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+    &quot;credential_configuration_id&quot;: &quot;eu.europa.ec.eudi.pid.1&quot;,
+    &quot;client_attestation_issuer&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+    &quot;client_attester_keys_jwks&quot;: {
+      &quot;keys&quot;: [
+        {
+          &quot;kty&quot;: &quot;EC&quot;,
+          &quot;d&quot;: &quot;aWkZHTUTu6wi3eTpcVJhjYNNdLxh-VZ50xt3UKVyhOE&quot;,
+          &quot;use&quot;: &quot;sig&quot;,
+          &quot;crv&quot;: &quot;P-256&quot;,
+          &quot;kid&quot;: &quot;key1&quot;,
+          &quot;x&quot;: &quot;9MNv4aV79ikGdUC_u1LMtLA4b-JK3SicCzhQ9OUo14M&quot;,
+          &quot;y&quot;: &quot;NxP-pZpjRCDKHGZVcyjV5ogZYdAMkHX3EdI-5GFtXqs&quot;,
+          &quot;alg&quot;: &quot;ES256&quot;,
+          &quot;x5c&quot;: [
+            &quot;MIIBDzCBtqADAgECAgYBmBRGjiwwCgYIKoZIzj0EAwIwDzENMAsGA1UEAwwEa2V5MTAeFw0yNTA3MTYxNzI3MDVaFw0yNjA1MTIxNzI3MDVaMA8xDTALBgNVBAMMBGtleTEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAT0w2/hpXv2KQZ1QL+7Usy0sDhv4krdKJwLOFD05SjXgzcT/qWaY0QgyhxmVXMo1eaIGWHQDJB19xHSPuRhbV6rMAoGCCqGSM49BAMCA0gAMEUCIQDdBWn4DzxwYvSHc4yvZQAYJLCqoBmxuu/gimUa9g+hQgIgDdWnfetOylgDzQoBNF8aDRW/fU4V6NDIRiCZtACslr8\u003d&quot;
+          ]
+        }
+      ]
+    },
+    &quot;credential_proof_type_hint&quot;: &quot;jwt&quot;,
+    &quot;static_tx_code&quot;: &quot;1234&quot;
+  },
+  &quot;publish&quot;: &quot;everything&quot;,
+  &quot;federation&quot;: {
+    &quot;trust_anchor&quot;: &quot;https://demo.certification.openid.net/test/a/fikua-lab-issuer-pid/trust-anchor&quot;
+  }
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">baseMtlsUrl</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://mtls-demo.certification.openid.net/test-mtls/a/fikua-lab-issuer-pid</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">testName</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">oid4vci-1_0-issuer-metadata-test</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-lJ5m7lhrAB3ni10hN93GBOHxqBSwpKaS">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">oid4vci-1_0-issuer-metadata-test</div>
+                <div class="log-msg">Setup Done</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-lJ5m7lhrAB3ni10hN93GBOHxqBSwpKaS">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-dTCfzC1Fd5PvghmXBnzVhX8GQmqVgf11">
+    <tbody>
+        <tr>
+            <td colspan="3" class="block-title" style="background-color:#3a0ca3">Fetch Credential Issuer Metadata</td>
+        </tr>
+    </tbody>
+    
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-6Ty230UFmKVt2vKEqMTiLYIJWsR8bWfb">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-6Ty230UFmKVt2vKEqMTiLYIJWsR8bWfb&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.2">OID4VCI-1FINAL-12.2.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIGetDynamicCredentialIssuerMetadata</div>
+                <div class="log-msg">Using credential issuer metadata endpoint</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-6Ty230UFmKVt2vKEqMTiLYIJWsR8bWfb">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">credential_issuer_metadata_endpoint_url</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/openid-credential-issuer</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-A5vhEFaOn9tduu4O9Xw1DHF6P4MhDfdO">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-A5vhEFaOn9tduu4O9Xw1DHF6P4MhDfdO&#39;)">(4) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                <span class="log-http">
+                        
+                        
+                        
+                        
+                        
+                        
+                </span>
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIGetDynamicCredentialIssuerMetadata</div>
+                <div class="log-msg">HTTP request</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-A5vhEFaOn9tduu4O9Xw1DHF6P4MhDfdO">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">request_uri</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/openid-credential-issuer</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_method</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">GET</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_headers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;Accept&quot;: &quot;application/json&quot;,
+  &quot;Accept-Language&quot;: &quot;en, en-gb;q\u003d0.9, de;q\u003d0.8, fr;q\u003d0.7, *;q\u003d0.5&quot;,
+  &quot;Content-Length&quot;: &quot;0&quot;
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_body</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text"></pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-HGRM0Nw5kaJohJm72wxjffJfrC9j3Asf">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-HGRM0Nw5kaJohJm72wxjffJfrC9j3Asf&#39;)">(4) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                <span class="log-http">
+                        
+                        <span class="label bg-info">RESPONSE</span>
+                        
+                        
+                        
+                        
+                </span>
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIGetDynamicCredentialIssuerMetadata</div>
+                <div class="log-msg">HTTP response</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-HGRM0Nw5kaJohJm72wxjffJfrC9j3Asf">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">response_status_code</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">200 OK</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_status_text</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">OK</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_headers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;server&quot;: &quot;nginx/1.24.0 (Ubuntu)&quot;,
+  &quot;date&quot;: &quot;Mon, 23 Feb 2026 15:27:02 GMT&quot;,
+  &quot;content-type&quot;: &quot;application/json&quot;,
+  &quot;content-length&quot;: &quot;1439&quot;,
+  &quot;connection&quot;: &quot;keep-alive&quot;
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_body</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">{&quot;credential_issuer&quot;:&quot;https://issuer.lab.fikua.com&quot;,&quot;authorization_servers&quot;:[&quot;https://issuer.lab.fikua.com&quot;],&quot;credential_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/credential&quot;,&quot;nonce_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/nonce&quot;,&quot;notification_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/notification&quot;,&quot;credential_response_encryption&quot;:{&quot;encryption_required&quot;:false,&quot;enc_values_supported&quot;:[&quot;A128GCM&quot;,&quot;A256GCM&quot;],&quot;alg_values_supported&quot;:[&quot;ECDH-ES&quot;]},&quot;batch_credential_issuance&quot;:{&quot;batch_size&quot;:1},&quot;credential_configurations_supported&quot;:{&quot;eu.europa.ec.eudi.pid.1&quot;:{&quot;format&quot;:&quot;dc+sd-jwt&quot;,&quot;scope&quot;:&quot;eu.europa.ec.eudi.pid.1&quot;,&quot;cryptographic_binding_methods_supported&quot;:[&quot;jwk&quot;],&quot;credential_signing_alg_values_supported&quot;:[&quot;ES256&quot;],&quot;proof_types_supported&quot;:{&quot;jwt&quot;:{&quot;proof_signing_alg_values_supported&quot;:[&quot;ES256&quot;]}},&quot;vct&quot;:&quot;eu.europa.ec.eudi.pid.1&quot;,&quot;credential_metadata&quot;:{&quot;display&quot;:[{&quot;name&quot;:&quot;EUDI PID&quot;,&quot;description&quot;:&quot;EU Digital Identity Personal Identification Data&quot;,&quot;locale&quot;:&quot;en&quot;}],&quot;claims&quot;:[{&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Given Name&quot;}],&quot;path&quot;:[&quot;given_name&quot;]},{&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Surname&quot;}],&quot;path&quot;:[&quot;family_name&quot;]},{&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Date of Birth&quot;}],&quot;path&quot;:[&quot;birth_date&quot;]},{&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Issuing Authority&quot;}],&quot;path&quot;:[&quot;issuing_authority&quot;]},{&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Issuing Country&quot;}],&quot;path&quot;:[&quot;issuing_country&quot;]}]}}},&quot;display&quot;:[{&quot;locale&quot;:&quot;en&quot;,&quot;name&quot;:&quot;Fikua Lab Issuer&quot;}]}</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-01X1BisRxrJf4cKuDmHVkic3qSDFng2s">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-01X1BisRxrJf4cKuDmHVkic3qSDFng2s&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.2">OID4VCI-1FINAL-12.2.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIGetDynamicCredentialIssuerMetadata</div>
+                <div class="log-msg">Credential issuer metadata response indicates unsigned metadata</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-01X1BisRxrJf4cKuDmHVkic3qSDFng2s">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">contentType</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">application/json</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-yP9LaoMzjWTSIXmYkI7lygIoXdXpUac5">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-yP9LaoMzjWTSIXmYkI7lygIoXdXpUac5&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.2">OID4VCI-1FINAL-12.2.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIGetDynamicCredentialIssuerMetadata</div>
+                <div class="log-msg">Fetched credential issuer metadata from https://issuer.lab.fikua.com/.well-known/openid-credential-issuer</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-yP9LaoMzjWTSIXmYkI7lygIoXdXpUac5">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">contentType</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">application/json</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">status</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">200</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-A7cgMrDlmleTciddqSQnbjiOm5JvpRGY">
+    <tbody>
+        <tr>
+            <td colspan="3" class="block-title" style="background-color:#118ab2">Process Credential Issuer Metadata Response</td>
+        </tr>
+    </tbody>
+    
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-3v2oTiVzb2K8Kn9TuTFGqw0ojWrNlH7m">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.2">RFC8414-3.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">EnsureContentTypeJson</div>
+                <div class="log-msg">endpoint_response Content-Type: header is application/json</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-3v2oTiVzb2K8Kn9TuTFGqw0ojWrNlH7m">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-gPjGm1S4DjgKyJji5hC6jLty8wdxlo9v">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-gPjGm1S4DjgKyJji5hC6jLty8wdxlo9v&#39;)">(9) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.2">OID4VCI-1FINAL-12.2.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIParseCredentialIssuerMetadata</div>
+                <div class="log-msg">Successfully parsed credential issuer metadata</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-gPjGm1S4DjgKyJji5hC6jLty8wdxlo9v">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">credential_issuer</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_servers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;https://issuer.lab.fikua.com&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">credential_endpoint</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/oid4vci/v1/credential</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">nonce_endpoint</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/oid4vci/v1/nonce</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">notification_endpoint</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/oid4vci/v1/notification</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">credential_response_encryption</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;encryption_required&quot;: false,
+  &quot;enc_values_supported&quot;: [
+    &quot;A128GCM&quot;,
+    &quot;A256GCM&quot;
+  ],
+  &quot;alg_values_supported&quot;: [
+    &quot;ECDH-ES&quot;
+  ]
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">batch_credential_issuance</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;batch_size&quot;: 1
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">credential_configurations_supported</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;eu.europa.ec.eudi.pid.1&quot;: {
+    &quot;format&quot;: &quot;dc+sd-jwt&quot;,
+    &quot;scope&quot;: &quot;eu.europa.ec.eudi.pid.1&quot;,
+    &quot;cryptographic_binding_methods_supported&quot;: [
+      &quot;jwk&quot;
+    ],
+    &quot;credential_signing_alg_values_supported&quot;: [
+      &quot;ES256&quot;
+    ],
+    &quot;proof_types_supported&quot;: {
+      &quot;jwt&quot;: {
+        &quot;proof_signing_alg_values_supported&quot;: [
+          &quot;ES256&quot;
+        ]
+      }
+    },
+    &quot;vct&quot;: &quot;eu.europa.ec.eudi.pid.1&quot;,
+    &quot;credential_metadata&quot;: {
+      &quot;display&quot;: [
+        {
+          &quot;name&quot;: &quot;EUDI PID&quot;,
+          &quot;description&quot;: &quot;EU Digital Identity Personal Identification Data&quot;,
+          &quot;locale&quot;: &quot;en&quot;
+        }
+      ],
+      &quot;claims&quot;: [
+        {
+          &quot;display&quot;: [
+            {
+              &quot;locale&quot;: &quot;en&quot;,
+              &quot;name&quot;: &quot;Given Name&quot;
+            }
+          ],
+          &quot;path&quot;: [
+            &quot;given_name&quot;
+          ]
+        },
+        {
+          &quot;display&quot;: [
+            {
+              &quot;locale&quot;: &quot;en&quot;,
+              &quot;name&quot;: &quot;Surname&quot;
+            }
+          ],
+          &quot;path&quot;: [
+            &quot;family_name&quot;
+          ]
+        },
+        {
+          &quot;display&quot;: [
+            {
+              &quot;locale&quot;: &quot;en&quot;,
+              &quot;name&quot;: &quot;Date of Birth&quot;
+            }
+          ],
+          &quot;path&quot;: [
+            &quot;birth_date&quot;
+          ]
+        },
+        {
+          &quot;display&quot;: [
+            {
+              &quot;locale&quot;: &quot;en&quot;,
+              &quot;name&quot;: &quot;Issuing Authority&quot;
+            }
+          ],
+          &quot;path&quot;: [
+            &quot;issuing_authority&quot;
+          ]
+        },
+        {
+          &quot;display&quot;: [
+            {
+              &quot;locale&quot;: &quot;en&quot;,
+              &quot;name&quot;: &quot;Issuing Country&quot;
+            }
+          ],
+          &quot;path&quot;: [
+            &quot;issuing_country&quot;
+          ]
+        }
+      ]
+    }
+  }
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">display</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  {
+    &quot;locale&quot;: &quot;en&quot;,
+    &quot;name&quot;: &quot;Fikua Lab Issuer&quot;
+  }
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-Vr1RuM5koeFbgqH03mjViXexd4VxS5jz">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-Vr1RuM5koeFbgqH03mjViXexd4VxS5jz&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIExtractTlsInfoFromCredentialIssuer</div>
+                <div class="log-msg">Extracted TLS configuration from credential issuer URL</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-Vr1RuM5koeFbgqH03mjViXexd4VxS5jz">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">tls</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;testHost&quot;: &quot;issuer.lab.fikua.com&quot;,
+  &quot;testPort&quot;: 443
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-PjxWKL6P93TNrR6SHvG95zUVqU9gtNTS">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-PjxWKL6P93TNrR6SHvG95zUVqU9gtNTS&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCICheckRequiredMetadataFields</div>
+                <div class="log-msg">Found all root level required fields </div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-PjxWKL6P93TNrR6SHvG95zUVqU9gtNTS">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">required_fields</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;credential_issuer&quot;,
+  &quot;credential_endpoint&quot;,
+  &quot;credential_configurations_supported&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-cpeEvLfCizbAouRBOpQL6CBcbfy66TcI">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIEnsureHttpsUrlsMetadata</div>
+                <div class="log-msg">All detected endpoints use HTTPS</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-cpeEvLfCizbAouRBOpQL6CBcbfy66TcI">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-GCtiuJ0ZdGcWuJsjcF0v1i0hGP1b2mFm">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-GCtiuJ0ZdGcWuJsjcF0v1i0hGP1b2mFm&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.1">OID4VCI-1FINAL-12.2.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIValidateCredentialIssuerUri</div>
+                <div class="log-msg">credential_issuer URI is valid</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-GCtiuJ0ZdGcWuJsjcF0v1i0hGP1b2mFm">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">credential_issuer</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-lbBsAWQ2AQn9CjIF25WRolFhjEYsZ7ZK">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-lbBsAWQ2AQn9CjIF25WRolFhjEYsZ7ZK&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCICredentialIssuerMetadataValidation</div>
+                <div class="log-msg">OID4VCI Credential Issuer metadata input is valid</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-lbBsAWQ2AQn9CjIF25WRolFhjEYsZ7ZK">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">input</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;credential_issuer&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+  &quot;authorization_servers&quot;: [
+    &quot;https://issuer.lab.fikua.com&quot;
+  ],
+  &quot;credential_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/credential&quot;,
+  &quot;nonce_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/nonce&quot;,
+  &quot;notification_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/notification&quot;,
+  &quot;credential_response_encryption&quot;: {
+    &quot;encryption_required&quot;: false,
+    &quot;enc_values_supported&quot;: [
+      &quot;A128GCM&quot;,
+      &quot;A256GCM&quot;
+    ],
+    &quot;alg_values_supported&quot;: [
+      &quot;ECDH-ES&quot;
+    ]
+  },
+  &quot;batch_credential_issuance&quot;: {
+    &quot;batch_size&quot;: 1
+  },
+  &quot;credential_configurations_supported&quot;: {
+    &quot;eu.europa.ec.eudi.pid.1&quot;: {
+      &quot;format&quot;: &quot;dc+sd-jwt&quot;,
+      &quot;scope&quot;: &quot;eu.europa.ec.eudi.pid.1&quot;,
+      &quot;cryptographic_binding_methods_supported&quot;: [
+        &quot;jwk&quot;
+      ],
+      &quot;credential_signing_alg_values_supported&quot;: [
+        &quot;ES256&quot;
+      ],
+      &quot;proof_types_supported&quot;: {
+        &quot;jwt&quot;: {
+          &quot;proof_signing_alg_values_supported&quot;: [
+            &quot;ES256&quot;
+          ]
+        }
+      },
+      &quot;vct&quot;: &quot;eu.europa.ec.eudi.pid.1&quot;,
+      &quot;credential_metadata&quot;: {
+        &quot;display&quot;: [
+          {
+            &quot;name&quot;: &quot;EUDI PID&quot;,
+            &quot;description&quot;: &quot;EU Digital Identity Personal Identification Data&quot;,
+            &quot;locale&quot;: &quot;en&quot;
+          }
+        ],
+        &quot;claims&quot;: [
+          {
+            &quot;display&quot;: [
+              {
+                &quot;locale&quot;: &quot;en&quot;,
+                &quot;name&quot;: &quot;Given Name&quot;
+              }
+            ],
+            &quot;path&quot;: [
+              &quot;given_name&quot;
+            ]
+          },
+          {
+            &quot;display&quot;: [
+              {
+                &quot;locale&quot;: &quot;en&quot;,
+                &quot;name&quot;: &quot;Surname&quot;
+              }
+            ],
+            &quot;path&quot;: [
+              &quot;family_name&quot;
+            ]
+          },
+          {
+            &quot;display&quot;: [
+              {
+                &quot;locale&quot;: &quot;en&quot;,
+                &quot;name&quot;: &quot;Date of Birth&quot;
+              }
+            ],
+            &quot;path&quot;: [
+              &quot;birth_date&quot;
+            ]
+          },
+          {
+            &quot;display&quot;: [
+              {
+                &quot;locale&quot;: &quot;en&quot;,
+                &quot;name&quot;: &quot;Issuing Authority&quot;
+              }
+            ],
+            &quot;path&quot;: [
+              &quot;issuing_authority&quot;
+            ]
+          },
+          {
+            &quot;display&quot;: [
+              {
+                &quot;locale&quot;: &quot;en&quot;,
+                &quot;name&quot;: &quot;Issuing Country&quot;
+              }
+            ],
+            &quot;path&quot;: [
+              &quot;issuing_country&quot;
+            ]
+          }
+        ]
+      }
+    }
+  },
+  &quot;display&quot;: [
+    {
+      &quot;locale&quot;: &quot;en&quot;,
+      &quot;name&quot;: &quot;Fikua Lab Issuer&quot;
+    }
+  ]
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-HitWrXoRNfxOxhUX2RPduZ5hSBwIJWvc">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-HitWrXoRNfxOxhUX2RPduZ5hSBwIJWvc&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.github.io/OpenID4VC-HAIP/openid4vc-high-assurance-interoperability-profile-wg-draft.html#section-4.1-5">HAIP-4.1-5</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIValidateNonceEndpointInIssuerMetadata</div>
+                <div class="log-msg">Found expected nonce_endpoint in credential_issuer_metadata</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-HitWrXoRNfxOxhUX2RPduZ5hSBwIJWvc">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">nonce_endpoint</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/oid4vci/v1/nonce</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-YtF61XRz5a59OqsZSiWxLHYjEKGVSDJI">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-YtF61XRz5a59OqsZSiWxLHYjEKGVSDJI&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#appendix-A.2">OID4VCI-1FINALA-A.2</a><a class="label requirement" target="_blank" href="https://openid.github.io/OpenID4VC-HAIP/openid4vc-high-assurance-interoperability-profile-wg-draft.html#section-6">HAIP-6</a><a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#appendix-A.3.1">OID4VCI-1FINALA-A.3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIValidateFormatOfCredentialConfigurationsInMetadata</div>
+                <div class="log-msg">Found credential configuration with a format supported by HAIP</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-YtF61XRz5a59OqsZSiWxLHYjEKGVSDJI">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">standard_haip_credential_formats</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;dc+sd-jwt&quot;,
+  &quot;mso_mdoc&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">found_haip_credential_formats</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;dc+sd-jwt&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-ZOhUOcB4q0L8bEpMadVSGQW4zYf5LmmE">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#appendix-A.2">OID4VCI-1FINALA-A.2</a><a class="label requirement" target="_blank" href="https://openid.github.io/OpenID4VC-HAIP/openid4vc-high-assurance-interoperability-profile-wg-draft.html#section-6">HAIP-6</a><a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#appendix-A.3.1">OID4VCI-1FINALA-A.3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIValidateFormatOfCredentialConfigurationsInMetadata</div>
+                <div class="log-msg">Found only credential configurations with supported formats</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-ZOhUOcB4q0L8bEpMadVSGQW4zYf5LmmE">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-ETHUyZuVIiQ9ACIIXj2QMbtG0GPN9lSY">
+    <tbody>
+        <tr>
+            <td colspan="3" class="block-title" style="background-color:#3a0ca3">Fetch OAuth Authorization Server Metadata</td>
+        </tr>
+    </tbody>
+    
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-HN0PWqOQhE36SRRKP1E7aV3v1w0FhtW9">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-HN0PWqOQhE36SRRKP1E7aV3v1w0FhtW9&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a><a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.1">RFC8414-3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">Found explicit authorization_servers list with 1 entries.</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-HN0PWqOQhE36SRRKP1E7aV3v1w0FhtW9">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_servers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;https://issuer.lab.fikua.com&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-6sDsAihbv0XAb85cbaAAPJhaWLWqg41w">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-6sDsAihbv0XAb85cbaAAPJhaWLWqg41w&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a><a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.1">RFC8414-3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">Derived authorization server 0 metadata endpoint URL from OAuth authorization server issuer.</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-6sDsAihbv0XAb85cbaAAPJhaWLWqg41w">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_metadata_url</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/oauth-authorization-server</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_issuer</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-gvL4OESCtebVg4ekjMmIQqEH3LGJyh1i">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-gvL4OESCtebVg4ekjMmIQqEH3LGJyh1i&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a><a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.1">RFC8414-3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">Fetching metadata from authorization server: 0</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-gvL4OESCtebVg4ekjMmIQqEH3LGJyh1i">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_metadata_url</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/oauth-authorization-server</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_issuer</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-Rr3dM9HCGPA7u8jEB0cQ01pxCdzhxn1C">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:02</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-Rr3dM9HCGPA7u8jEB0cQ01pxCdzhxn1C&#39;)">(4) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                <span class="log-http">
+                        
+                        
+                        
+                        
+                        
+                        
+                </span>
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">HTTP request</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-Rr3dM9HCGPA7u8jEB0cQ01pxCdzhxn1C">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">request_uri</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/oauth-authorization-server</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_method</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">GET</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_headers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;Accept&quot;: &quot;text/plain, application/json, application/yaml, application/*+json, */*&quot;,
+  &quot;Content-Length&quot;: &quot;0&quot;
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">request_body</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text"></pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-sdBAsJ8Hm6sxqhD6ZVstA2jTmwtp3Sl9">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-sdBAsJ8Hm6sxqhD6ZVstA2jTmwtp3Sl9&#39;)">(4) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                <span class="log-http">
+                        
+                        <span class="label bg-info">RESPONSE</span>
+                        
+                        
+                        
+                        
+                </span>
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">HTTP response</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-sdBAsJ8Hm6sxqhD6ZVstA2jTmwtp3Sl9">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">response_status_code</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">200 OK</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_status_text</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">OK</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_headers</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;server&quot;: &quot;nginx/1.24.0 (Ubuntu)&quot;,
+  &quot;date&quot;: &quot;Mon, 23 Feb 2026 15:27:03 GMT&quot;,
+  &quot;content-type&quot;: &quot;application/json&quot;,
+  &quot;content-length&quot;: &quot;888&quot;,
+  &quot;connection&quot;: &quot;keep-alive&quot;
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">response_body</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">{&quot;issuer&quot;:&quot;https://issuer.lab.fikua.com&quot;,&quot;token_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/token&quot;,&quot;authorization_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/authorize&quot;,&quot;pushed_authorization_request_endpoint&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/par&quot;,&quot;jwks_uri&quot;:&quot;https://issuer.lab.fikua.com/oid4vci/v1/jwks&quot;,&quot;response_types_supported&quot;:[&quot;code&quot;],&quot;grant_types_supported&quot;:[&quot;authorization_code&quot;],&quot;code_challenge_methods_supported&quot;:[&quot;S256&quot;],&quot;token_endpoint_auth_methods_supported&quot;:[&quot;attest_jwt_client_auth&quot;],&quot;dpop_signing_alg_values_supported&quot;:[&quot;ES256&quot;],&quot;client_attestation_signing_alg_values_supported&quot;:[&quot;ES256&quot;],&quot;client_attestation_pop_signing_alg_values_supported&quot;:[&quot;ES256&quot;],&quot;require_pushed_authorization_requests&quot;:true,&quot;token_endpoint_auth_signing_alg_values_supported&quot;:[&quot;ES256&quot;],&quot;authorization_response_iss_parameter_supported&quot;:true,&quot;subject_types_supported&quot;:[&quot;public&quot;]}</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-14IU5lHUsV47M95tENU2lcpQJKkNLwdT">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-14IU5lHUsV47M95tENU2lcpQJKkNLwdT&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a><a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.1">RFC8414-3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">Fetched metadata from authorization server: 0</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-14IU5lHUsV47M95tENU2lcpQJKkNLwdT">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_metadata_url</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com/.well-known/oauth-authorization-server</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_issuer</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-poPFBdkc0Tm1n9jWhQwdUBsEvZjYpLhP">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-poPFBdkc0Tm1n9jWhQwdUBsEvZjYpLhP&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a><a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.1">RFC8414-3.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIFetchOAuthorizationServerMetadata</div>
+                <div class="log-msg">Fetched authorization server metadata from single server</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-poPFBdkc0Tm1n9jWhQwdUBsEvZjYpLhP">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">https://issuer.lab.fikua.com</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">authorization_server_metadata_list</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  {
+    &quot;issuer&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+    &quot;token_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/token&quot;,
+    &quot;authorization_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/authorize&quot;,
+    &quot;pushed_authorization_request_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/par&quot;,
+    &quot;jwks_uri&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/jwks&quot;,
+    &quot;response_types_supported&quot;: [
+      &quot;code&quot;
+    ],
+    &quot;grant_types_supported&quot;: [
+      &quot;authorization_code&quot;
+    ],
+    &quot;code_challenge_methods_supported&quot;: [
+      &quot;S256&quot;
+    ],
+    &quot;token_endpoint_auth_methods_supported&quot;: [
+      &quot;attest_jwt_client_auth&quot;
+    ],
+    &quot;dpop_signing_alg_values_supported&quot;: [
+      &quot;ES256&quot;
+    ],
+    &quot;client_attestation_signing_alg_values_supported&quot;: [
+      &quot;ES256&quot;
+    ],
+    &quot;client_attestation_pop_signing_alg_values_supported&quot;: [
+      &quot;ES256&quot;
+    ],
+    &quot;require_pushed_authorization_requests&quot;: true,
+    &quot;token_endpoint_auth_signing_alg_values_supported&quot;: [
+      &quot;ES256&quot;
+    ],
+    &quot;authorization_response_iss_parameter_supported&quot;: true,
+    &quot;subject_types_supported&quot;: [
+      &quot;public&quot;
+    ]
+  }
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-058Ob7Jgk41KwLMljTtBkOm9eD0Td5Rz">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://tools.ietf.org/html/rfc8414#section-3.2">RFC8414-3.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">EnsureContentTypeJson</div>
+                <div class="log-msg">endpoint_response Content-Type: header is application/json</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-058Ob7Jgk41KwLMljTtBkOm9eD0Td5Rz">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-lhWS7fFronOYN1R36F2bX5rZ78cjNXvW">
+    <tbody>
+        <tr>
+            <td colspan="3" class="block-title" style="background-color:#0077b6">Verify OAuth Authorization Server Metadata Response</td>
+        </tr>
+    </tbody>
+    
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-zSZkZRUFPABc6VYIxhwbgqL6PrRDH4W6">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-zSZkZRUFPABc6VYIxhwbgqL6PrRDH4W6&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.3">OID4VCI-1FINAL-12.3</a><a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.3">OID4VCI-1FINAL-12.2.3</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIAuthorizationServerMetadataValidation</div>
+                <div class="log-msg">OAuth Authorization Server metadata input is valid</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-zSZkZRUFPABc6VYIxhwbgqL6PrRDH4W6">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">input</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">{
+  &quot;issuer&quot;: &quot;https://issuer.lab.fikua.com&quot;,
+  &quot;token_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/token&quot;,
+  &quot;authorization_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/authorize&quot;,
+  &quot;pushed_authorization_request_endpoint&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/par&quot;,
+  &quot;jwks_uri&quot;: &quot;https://issuer.lab.fikua.com/oid4vci/v1/jwks&quot;,
+  &quot;response_types_supported&quot;: [
+    &quot;code&quot;
+  ],
+  &quot;grant_types_supported&quot;: [
+    &quot;authorization_code&quot;
+  ],
+  &quot;code_challenge_methods_supported&quot;: [
+    &quot;S256&quot;
+  ],
+  &quot;token_endpoint_auth_methods_supported&quot;: [
+    &quot;attest_jwt_client_auth&quot;
+  ],
+  &quot;dpop_signing_alg_values_supported&quot;: [
+    &quot;ES256&quot;
+  ],
+  &quot;client_attestation_signing_alg_values_supported&quot;: [
+    &quot;ES256&quot;
+  ],
+  &quot;client_attestation_pop_signing_alg_values_supported&quot;: [
+    &quot;ES256&quot;
+  ],
+  &quot;require_pushed_authorization_requests&quot;: true,
+  &quot;token_endpoint_auth_signing_alg_values_supported&quot;: [
+    &quot;ES256&quot;
+  ],
+  &quot;authorization_response_iss_parameter_supported&quot;: true,
+  &quot;subject_types_supported&quot;: [
+    &quot;public&quot;
+  ]
+}</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-7F449DBiULKynFD9JE5VbMnUqqW9MflQ">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-7F449DBiULKynFD9JE5VbMnUqqW9MflQ&#39;)">(3) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-attestation-based-client-auth-07#section-13.4">OAuth2-ATCA07-13.4</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">EnsureServerConfigurationSupportsAttestJwtClientAuth</div>
+                <div class="log-msg">Contents of &#39;token_endpoint_auth_methods_supported&#39; in discovery document matches expectations.</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-7F449DBiULKynFD9JE5VbMnUqqW9MflQ">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">actual</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;attest_jwt_client_auth&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">expected</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;attest_jwt_client_auth&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">minimum_matches_required</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">1</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-79SJukhFRYPB7XJ6ZrIn62aFYnZQINnV">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-79SJukhFRYPB7XJ6ZrIn62aFYnZQINnV&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-success">SUCCESS</span>
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-attestation-based-client-auth-07#section-10.1">OAuth2-ATCA07-10.1</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">CheckDiscEndpointClientAttestationSigningAlgValuesSupported</div>
+                <div class="log-msg">Authorization Server metadata contains required client attestation signing algorithm values</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-79SJukhFRYPB7XJ6ZrIn62aFYnZQINnV">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">client_attestation_signing_alg_values_supported</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;ES256&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">client_attestation_pop_signing_alg_values_supported</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    <pre class="more-json prettyprint lang-javascript">[
+  &quot;ES256&quot;
+]</pre>
+                                    
+                                    
+                                    
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-w5FgnG8nzy12ZoiwZhAw0gh9sHTFs69p">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    <a class="label requirement" target="_blank" href="https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-12.2.4-2.11.2.2">OID4VCI-1FINAL-12.2.4-2.11.2.2</a>
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">VCIEnsureAuthorizationDetailsTypesSupportedContainOpenIdCredentialIfScopeIsMissing</div>
+                <div class="log-msg">scope is defined for all supported credential configurations, therefore there is no need for authorization_details_types_supported in oauth authorization server metadata</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-w5FgnG8nzy12ZoiwZhAw0gh9sHTFs69p">
+                    
+
+                    
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-Fy59GpGAT9JcXkyyIAtpkGgp4GhS6IEf">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:03</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-Fy59GpGAT9JcXkyyIAtpkGgp4GhS6IEf&#39;)">(1) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                <span class="label result-finished">FINISHED</span>
+
+                
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">oid4vci-1_0-issuer-metadata-test</div>
+                <div class="log-msg">Test has run to completion</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-Fy59GpGAT9JcXkyyIAtpkGgp4GhS6IEf">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">testmodule_result</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">PASSED</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+    <div class="log-item">
+<table cellpadding="0" cellspacing="0" id="6W9gWYwYwuI79k7-t6UO95Vjfbz8s0cKbHLQOTsKhSqSje9r">
+    
+    <tbody>
+        <tr class="log-entry-title">
+
+            <td class="col-1">
+                <span>2026-02-23 15:27:06</span>
+                <div>
+                    <a class="more-btn" href="javascript:moreClicked(&#39;6W9gWYwYwuI79k7-t6UO95Vjfbz8s0cKbHLQOTsKhSqSje9r&#39;)">(2) More</a>
+                </div>
+            </td>
+
+            <td class="col-2 labelCollection">
+                
+
+                
+
+                
+                <div>
+                    
+                </div>
+            </td>
+
+            <td class="col-3">
+                <div class="log-src">TEST-RUNNER</div>
+                <div class="log-msg">Alias has now been claimed by another test</div>
+            </td>
+        </tr>
+        
+        <tr>
+            <td colspan="3">
+                <div class="more" id="more_6W9gWYwYwuI79k7-t6UO95Vjfbz8s0cKbHLQOTsKhSqSje9r">
+                    
+
+                    <table>
+                        <tr class="more-row">
+                            <td class="more-key">alias</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">fikua-lab-issuer-pid</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="more-row">
+                            <td class="more-key">new_test_id</td>
+                            <td class="more-value">
+                                <div>
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    <pre class="more-text">3F1Me6oGcLwgdNa</pre>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+</div>
+<a href="#testresultsheader" id="fixedtoplink">Test Results</a>
+</body>
+</html>
