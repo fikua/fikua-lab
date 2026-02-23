@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-23
+
+mso_mdoc PID credential support and 12 OIDF credential configurations.
+
+### Added
+
+- **mso_mdoc credential builder (ISO 18013-5):** New `com.fikua.core.mdoc` package with `CoseSign1` (RFC 9052 §4.4), `MdocBuilder` (ISO 18013-5 Document structure with IssuerSignedItem tag 24, MSO with valueDigests/deviceKeyInfo/validityInfo), and `MdocDocument` record. Supports EC P-256 (ES256) signing with x5c certificate chain.
+- **CBOR dependency:** `com.upokecenter:cbor:4.5.2` added to fikua-core (pure Java, zero I/O).
+- **SigningKey.signRawBytes():** Raw ECDSA signing (`SHA256withECDSAinP1363Format`) for COSE_Sign1 signatures (r||s 64 bytes for P-256).
+- **12 OIDF credential configurations in metadata:** Issuer metadata now exposes all credential configurations the OIDF conformance suite expects — 6 sd-jwt PID variants (base, attestation, jwt.keyattest, attestation.keyattest, jwt_and_attestation.keyattest, nobinding), 4 mdoc PID variants (base, attestation, jwt.keyattest, attestation.keyattest), and 2 mDL variants (base, attestation).
+- **Format-aware credential issuance:** `issueCredential()` dispatches by `credential_configuration_id` format — `dc+sd-jwt` builds SD-JWT VC, `mso_mdoc` builds mdoc Document via `MdocBuilder`.
+- **21 new tests:** CoseSign1Test (8), MdocBuilderTest (10), CredentialIssuerMetadataTest multi-config (1), IssuanceServiceTest mdoc scope/claims (2).
+
+### Fixed
+
+- **CredentialFormat enum:** `SD_JWT_VC` oid4vciFormat corrected from `vc+sd-jwt` to `dc+sd-jwt`.
+
+### Spec references
+
+- ISO 18013-5 (mobile documents), RFC 9052 §4.4 (COSE_Sign1), RFC 8949 (CBOR), OID4VCI 1.0 Final §10 (credential_configurations_supported)
+
 ## [0.5.0] - 2026-02-23
 
 Wallet-initiated issuance flow with identification portal.

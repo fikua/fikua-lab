@@ -2,7 +2,7 @@
 
 **Project source of truth. Claude agents must read this before working and update it when making significant changes.**
 
-**Last updated:** 2026-02-21
+**Last updated:** 2026-02-23
 
 ---
 
@@ -73,6 +73,7 @@ Fikua Lab shares a visual system with oriolcanades.com. The Fikua ID Suite brand
 | Migrations | Flyway | 11.3.1 | Schema versioning |
 | JWT/JWK | nimbus-jose-jwt | 10.2 | JWT signing, JWK, SD-JWT |
 | JSON | Jackson | 2.18.3 | Serialization |
+| CBOR | com.upokecenter:cbor | 4.5.2 | ISO 18013-5 mdoc encoding (RFC 8949) |
 | Crypto | Bouncy Castle | 1.80 | EC curves, X.509 |
 | Frontend | HTML, CSS, JS | vanilla | No build step, served by nginx |
 | Containers | Docker + Docker Compose | - | Full stack deployment |
@@ -89,7 +90,7 @@ The backend follows a layered architecture inspired by hexagonal/ports-and-adapt
 
 ```text
 fikua-core        Domain — Pure protocol library. ZERO I/O, ZERO state, ZERO framework deps.
-                  OID4VCI, OID4VP, SD-JWT, OAuth2, crypto types and validators.
+                  OID4VCI, OID4VP, SD-JWT, mso_mdoc, OAuth2, crypto types and validators.
                   Publishable as a standalone JAR. Reusable by any service or framework.
 
 fikua-issuer      Service — Credential Issuer (OID4VCI server-side).
@@ -141,7 +142,7 @@ Each service module (issuer, wallet, verifier) follows three internal layers:
 ### Gradle dependency graph
 
 ```text
-fikua-core              ← nimbus-jose-jwt, jackson, bouncycastle (ZERO framework deps)
+fikua-core              ← nimbus-jose-jwt, jackson, bouncycastle, cbor (ZERO framework deps)
     ↑
     ├── fikua-issuer     ← core + Javalin + PostgreSQL + HikariCP
     ├── fikua-wallet     ← core + Javalin (+ HTTP client for OID4VCI)
@@ -214,6 +215,7 @@ fikua-lab/
 │       │   ├── build.gradle.kts                   # nimbus-jose-jwt, jackson, bouncycastle
 │       │   └── src/main/java/com/fikua/core/
 │       │       ├── crypto/                        # SigningKey (interface), KeyOps, JwkUtils
+│       │       ├── mdoc/                          # mso_mdoc: CoseSign1, MdocBuilder, MdocDocument
 │       │       ├── oauth2/                        # TokenGrant, DPoP, PKCE, errors
 │       │       ├── oid4vci/                       # Metadata, offers, credentials, proofs
 │       │       ├── oid4vp/                        # VP authorization, DCQL, JAR signing
@@ -546,12 +548,14 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-134 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, and infrastructure:
+155 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
 | `AuthServerMetadataTest` | core | 6 | HAIP + pre-auth metadata, JSON contract, RFC 9207 iss parameter |
-| `CredentialIssuerMetadataTest` | core | 12 | HAIP + plain metadata, credential configs |
+| `CredentialIssuerMetadataTest` | core | 13 | HAIP + plain metadata, credential configs, multi-format (sd-jwt + mdoc) |
+| `CoseSign1Test` | core | 8 | RFC 9052 §4.4: tag 18, 4-element array, alg ES256, sig 64 bytes, x5chain |
+| `MdocBuilderTest` | core | 10 | ISO 18013-5: Document CBOR, nameSpaces tag 24, issuerAuth, deviceKey, validityInfo, digests |
 | `ClientAttestationValidatorTest` | core | 9 | WIA~PoP parsing, assertion types, HTTP 401 status, RSA key support |
 | `DPoPValidatorTest` | core | 14 | All RFC 9449 validation branches |
 | `ProofValidatorTest` | core | 16 | OID4VCI §7.2.1 proof of possession, Appendix F.1 key reference exclusivity |
@@ -566,6 +570,7 @@ The backend uses a dual error format:
 | `DisclosureTest` | core | 9 | Create/digest/parse round-trip |
 | `SdJwtVerifierTest` | core | 5 | Signature verification, expiry, claim resolution |
 | `SdJwtBuilderTest` | core | ~3 | SD-JWT building (pre-existing) |
+| `IssuanceServiceTest` | issuer | 11 | Wallet-initiated, issuer-initiated, identification, mdoc scope/claims |
 | `PemKeyLoaderTest` | issuer | 5 | HAIP 6.1.1 x5c chain, CA-signed cert, PEM loading, SD-JWT header |
 
 ### Error pages
@@ -629,8 +634,8 @@ ARF 2.8 (EU regulatory layer: Trusted Lists, WUA/WIA, signed metadata, ETSI cert
 
 | # | Role | Grant Type | Format | Notes |
 |---|------|-----------|--------|-------|
-| 1-2 | Issuer | pre_authorization_code | sd-jwt-vc | No DPoP, no client auth |
-| 3-4 | Issuer | authorization_code (HAIP) | sd-jwt-vc | DPoP + PAR + PKCE S256 |
+| 1-2 | Issuer | pre_authorization_code | sd-jwt-vc, mdoc | No DPoP, no client auth |
+| 3-4 | Issuer | authorization_code (HAIP) | sd-jwt-vc, mdoc | DPoP + PAR + PKCE S256 |
 | 5-8 | Wallet | pre_auth / auth_code | sd-jwt-vc | Wallet as holder |
 | 9-12 | Verifier | - | sd-jwt-vc | direct_post, x509_san_dns/x509_hash |
 
@@ -739,7 +744,7 @@ GET  /admin/health                Health check for endpoints
 | POST | `/oid4vci/v1/issuance` | Trigger issuance (creates offer + links credential_data) |
 | GET | `/oid4vci/v1/credential-offer/{id}` | Credential Offer by reference |
 | POST | `/oid4vci/v1/token` | Pre-auth code or auth code → access_token |
-| POST | `/oid4vci/v1/credential` | SD-JWT VC issuance |
+| POST | `/oid4vci/v1/credential` | Credential issuance (SD-JWT VC or mso_mdoc by config format) |
 | POST | `/oid4vci/v1/nonce` | Fresh c_nonce |
 | GET | `/oid4vci/v1/jwks` | JWK Set (EC P-256) |
 | GET | `/oid4vci/v1/authorize` | Authorization endpoint (HAIP) |
