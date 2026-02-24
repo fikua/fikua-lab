@@ -19,6 +19,6 @@ public class NoOpEmailService implements EmailService {
 
     @Override
     public void sendOtp(String recipientEmail, String otp) {
-        log.info("[NoOp Email] OTP to {}: {}", recipientEmail, otp);
+        log.info("[NoOp Email] OTP to {}: {}****", recipientEmail, otp.substring(0, 2));
     }
 }

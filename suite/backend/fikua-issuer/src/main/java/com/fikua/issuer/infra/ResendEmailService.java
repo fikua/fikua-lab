@@ -87,7 +87,7 @@ public class ResendEmailService implements EmailService {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 log.info("Email sent to {} — subject: {}", to, subject);
             } else {
-                log.error("Resend API error (HTTP {}): {}", response.statusCode(), response.body());
+                log.error("Resend API error (HTTP {})", response.statusCode());
             }
         } catch (Exception e) {
             log.error("Failed to send email to {}", to, e);
