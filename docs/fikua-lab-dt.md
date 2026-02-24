@@ -126,7 +126,7 @@ Each service module (issuer, wallet, verifier) follows three internal layers:
 │  Use case services │ Port interfaces │ Application models           │
 │  Orchestrates domain objects. No HTTP, no SQL, no I/O.              │
 │  Ports defined HERE — each service owns its contracts.              │
-└──────────────────────────────────┬──────────────────────────────────┘
+└──────────────────────────────────┬───────────────────────────────���──┘
                                    │ depends on
 ┌──────────────────────────────────▼──────────────────────────────────┐
 │                     Domain (fikua-core, shared)                      │
@@ -221,7 +221,7 @@ fikua-lab/
 │   │   │       ├── cbor.ts                        # Minimal CBOR decoder (RFC 8949)
 │   │   │       ├── mdoc.ts                        # mso_mdoc IssuerSigned parser (ISO 18013-5)
 │   │   │       ├── protocol.ts                    # OID4VCI flows, DPoP, WIA, PAR
-│   │   │       ├── qr-decode-worker.ts             # Web Worker for qr library decode
+│   │   │       ├── qr-decode-worker.ts             # Web Worker for jsQR library decode
 │   │   │       ├── qr-scanner.ts                  # Hybrid QR scanner (BarcodeDetector + Worker)
 │   │   │       ├── main.ts                        # UI, flow orchestrators, init
 │   │   │       ├── style.css                      # Full design system
