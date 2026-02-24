@@ -201,7 +201,7 @@ fikua-lab/
 │   │   │   ├── index.html
 │   │   │   ├── style.css
 │   │   │   └── app.js
-│   │   ├── issuer/                                # Issuer UI
+│   │   ├── issuer/                                # Issuer UI (credential selector, form, QR, records)
 │   │   ├── cert/                                  # Certificate selection (mTLS)
 │   │   ├── identify/                              # Identification portal (wallet-initiated)
 │   │   ├── holder/                                # Wallet PWA (Vite + TypeScript)
@@ -505,7 +505,9 @@ location = /cert-info {
 
 Certificate data is sent via HTTP headers (not JSON body) because Distinguished Names contain escaped commas (`TORRES RUIZ\, ANA BELEN`) that break nginx's inline JSON parsing.
 
-**Issuer → cert → issuer flow:**
+**Issuer → cert → issuer flow (deprecated):**
+
+> **Note:** The issuer frontend no longer uses this flow. Since v0.9.0, the issuer UI has a direct credential selector and form. Certificate-based identification is handled by the identification portal (`identify.lab.fikua.com`) for wallet-initiated flows only.
 
 ```text
 1. User clicks "Identify with certificate" at issuer.lab.fikua.com
@@ -797,6 +799,7 @@ GET  /admin/health                Health check for endpoints
 |--------|------|---------|
 | GET | `/.well-known/openid-credential-issuer` | Credential Issuer Metadata |
 | GET | `/.well-known/oauth-authorization-server` | Authorization Server Metadata |
+| GET | `/oid4vci/v1/issuance` | List issuance records (paginated: `page`, `size`, `sort`, `order`) |
 | POST | `/oid4vci/v1/issuance` | Trigger issuance (creates offer + links credential_data) |
 | GET | `/oid4vci/v1/credential-offer/{id}` | Credential Offer by reference |
 | POST | `/oid4vci/v1/token` | Pre-auth code or auth code → access_token |

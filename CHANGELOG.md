@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-02-24
+
+Issuer frontend redesign with credential selector, dynamic form, QR/deeplink, and paginated issuance records management.
+
+### Added
+
+- **Issuer credential selector:** Fetches `/.well-known/openid-credential-issuer` and displays all 12 credential configurations as cards with name, format badge (sd-jwt/mdoc), and description. Click selects configuration and opens dynamic form.
+- **Dynamic issuance form:** Form fields generated from credential configuration claims metadata. Backend-managed fields (`issuing_authority`, `issuing_country`) are hidden. Supports transaction code option. Submit triggers `POST /oid4vci/v1/issuance` with credential data.
+- **QR code + deeplink result:** After successful issuance, shows QR code (via qrcode-generator CDN), copyable offer URI, "Open in Wallet" deeplink (`openid-credential-offer://`), and transaction code badge when applicable.
+- **Issuance records management (tab "Records"):** Paginated table with columns ID (short UUID), Subject (extracted from credential data), Type (badge), Status (colored badge), Created. Click-sortable columns. Click row opens `<dialog>` with full record detail including credential data claims.
+- **`GET /oid4vci/v1/issuance` endpoint:** Backend paginated listing with `page`, `size`, `sort`, `order` query params. Returns records with `subject_name` extracted from `credential_data` JSON (`given_name` + `family_name`). Whitelist-validated sort fields and order.
+- **`IssuanceStore.findAll()` + `count()`:** New port methods for paginated record retrieval. Implemented in `JdbcIssuanceStore` with SQL `ORDER BY` / `LIMIT` / `OFFSET` and safe field/order whitelisting.
+
+### Removed
+
+- **Certificate-based identification flow:** Issuer frontend no longer redirects to `cert.lab.fikua.com` for certificate selection. The identification portal (`identify.lab.fikua.com`) handles user identification for wallet-initiated flows. Issuer UI now directly issues credentials via the admin portal.
+
 ## [0.8.0] - 2026-02-24
 
 Wallet mso_mdoc support, full privacy blur, PWA install flow, and responsive fixes.
