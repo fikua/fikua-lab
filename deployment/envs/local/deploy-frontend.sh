@@ -6,7 +6,7 @@
 # Portal:      http://localhost:3001
 # Issuer:      http://localhost:3002
 # Certificate: http://localhost:3003
-# Wallet:      http://localhost:3004
+# Wallet:      http://localhost:5173 (Vite dev server)
 # Verifier:    http://localhost:3005
 # Identify:    http://localhost:3006
 # =============================================================================
@@ -27,7 +27,7 @@ echo "  Landing:     http://localhost:3000"
 echo "  Portal:      http://localhost:3001"
 echo "  Issuer:      http://localhost:3002"
 echo "  Certificate: http://localhost:3003"
-echo "  Wallet:      http://localhost:3004"
+echo "  Wallet:      http://localhost:5173 (run 'npm run dev' in suite/frontend/holder)"
 echo "  Verifier:    http://localhost:3005"
 echo "  Identify:    http://localhost:3006"
 echo ""
@@ -38,7 +38,8 @@ python3 -m http.server 3000 -d suite/frontend/landing &
 python3 -m http.server 3001 -d suite/frontend/portal &
 python3 -m http.server 3002 -d suite/frontend/issuer &
 python3 -m http.server 3003 -d suite/frontend/cert &
-python3 -m http.server 3004 -d suite/frontend/holder &
+# Wallet uses Vite dev server — run separately: cd suite/frontend/holder && npm run dev
+echo "  NOTE: Wallet requires separate Vite server: cd suite/frontend/holder && npm run dev"
 python3 -m http.server 3005 -d suite/frontend/verifier &
 python3 -m http.server 3006 -d suite/frontend/identify &
 wait

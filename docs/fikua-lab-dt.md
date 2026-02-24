@@ -2,7 +2,7 @@
 
 **Project source of truth. Claude agents must read this before working and update it when making significant changes.**
 
-**Last updated:** 2026-02-23
+**Last updated:** 2026-02-24
 
 ---
 
@@ -56,7 +56,7 @@ Fikua Lab shares a visual system with oriolcanades.com. The Fikua ID Suite brand
 | Language | Java 25 (LTS) | Migrated from Java 24. Records, sealed interfaces, virtual threads. Supported until 2033. |
 | HTTP Framework | Javalin | Transparent, minimal, no annotations. The lab's purpose is learning protocols, not frameworks. |
 | Why not Quarkus | Discarded | Over-engineering for a lab. CDI, Vert.x, ArC add layers that hide what happens on the wire. If migration is needed, fikua-core is 100% framework-agnostic. |
-| Frontend build | None (vanilla HTML/CSS/JS) | No Vite, no Node, no build step. Served directly by nginx. |
+| Frontend build | Vanilla HTML/CSS/JS (most apps), Vite + TypeScript (wallet) | No build step for landing/portal/issuer/cert/identify/verifier. Wallet uses Vite + TypeScript for PWA, module bundling, and unit tests. |
 | Database | PostgreSQL 17 | JSONB for profiles, Flyway for migrations. |
 | Certificates | X.509 self-signed (EC P-256) | eIDAS-aligned. No DIDs, no QTSP. |
 | Deployment | Docker Compose + nginx | OVH VPS (EU). European data residency. |
@@ -75,7 +75,8 @@ Fikua Lab shares a visual system with oriolcanades.com. The Fikua ID Suite brand
 | JSON | Jackson | 2.18.3 | Serialization |
 | CBOR | com.upokecenter:cbor | 4.5.2 | ISO 18013-5 mdoc encoding (RFC 8949) |
 | Crypto | Bouncy Castle | 1.80 | EC curves, X.509 |
-| Frontend | HTML, CSS, JS | vanilla | No build step, served by nginx |
+| Frontend | HTML, CSS, JS | vanilla | No build step for most apps, served by nginx |
+| Wallet Frontend | TypeScript, Vite, Vitest | 5.9 / 7.3 / 4.0 | PWA with module bundling and unit tests |
 | Containers | Docker + Docker Compose | - | Full stack deployment |
 | Reverse Proxy | nginx | alpine | TLS termination, frontend serving |
 | Hosting | OVH VPS (EU) | - | European data residency |
@@ -203,7 +204,24 @@ fikua-lab/
 │   │   ├── issuer/                                # Issuer UI
 │   │   ├── cert/                                  # Certificate selection (mTLS)
 │   │   ├── identify/                              # Identification portal (wallet-initiated)
-│   │   ├── holder/                                # Wallet UI
+│   │   ├── holder/                                # Wallet PWA (Vite + TypeScript)
+│   │   │   ├── package.json                       # @fikua/wallet v0.7.0
+│   │   │   ├── tsconfig.json                      # Strict, ES2022, bundler resolution
+│   │   │   ├── vite.config.ts                     # PWA plugin, dev proxy to :8090
+│   │   │   ├── vitest.config.ts                   # jsdom + fake-indexeddb
+│   │   │   ├── index.html                         # SPA entry (4 screens)
+│   │   │   ├── public/favicon.svg
+│   │   │   └── src/
+│   │   │       ├── types.ts                       # OID4VCI protocol types
+│   │   │       ├── constants.ts                   # Issuer URL, DB config, keys
+│   │   │       ├── utils.ts                       # base64url, escaping, formatting
+│   │   │       ├── crypto.ts                      # Web Crypto (EC P-256, ES256, PKCE)
+│   │   │       ├── storage.ts                     # IndexedDB (credentials + activity)
+│   │   │       ├── sdjwt.ts                       # SD-JWT VC parser
+│   │   │       ├── protocol.ts                    # OID4VCI flows, DPoP, WIA, PAR
+│   │   │       ├── main.ts                        # UI, flow orchestrators, init
+│   │   │       ├── style.css                      # Full design system
+│   │   │       └── *.test.ts                      # 60 Vitest unit tests (5 files)
 │   │   ├── verifier/                              # Verifier UI
 │   │   └── shared/                                # Shared assets (404.html, 50x.html, favicon.svg)
 │   │
@@ -432,7 +450,7 @@ Nginx decides whether to serve static files (frontends) or proxy to the backend.
 | `cert.lab.fikua.com` | `/cert-info` | Headers with TLS client certificate data | nginx `return 204` |
 | `identify.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/identify/` | Static (identification portal) |
 | `identify.lab.fikua.com` | `/oid4vci/v1/` | Proxy → backend `:8090` | Identification API |
-| `wallet.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/holder/` | Static (wallet UI) |
+| `wallet.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/holder/dist/` | Static (wallet PWA, Vite build) |
 | `wallet.lab.fikua.com` | `/oid4vci/` | Proxy → backend `:8090` | Wallet API |
 | `wallet.lab.fikua.com` | `/oid4vp/` | Proxy → backend `:8090` | Wallet API |
 | `verifier.lab.fikua.com` | `/` | `/opt/vps/frontends/lab/verifier/` | Static (verifier UI) |
@@ -577,7 +595,7 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-165 unit tests across `fikua-core` and `fikua-issuer` covering security validators, protocol records, error handling, mdoc building, and infrastructure:
+225 unit tests across `fikua-core`, `fikua-issuer`, and `@fikua/wallet` covering security validators, protocol records, error handling, mdoc building, infrastructure, and wallet client-side logic:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
@@ -601,6 +619,11 @@ The backend uses a dual error format:
 | `SdJwtBuilderTest` | core | 3 | SD-JWT building |
 | `IssuanceServiceTest` | issuer | 10 | Wallet-initiated, issuer-initiated, identification, mdoc scope/claims, COSE alg integers |
 | `PemKeyLoaderTest` | issuer | 5 | HAIP 6.1.1 x5c chain, CA-signed cert, PEM loading, SD-JWT header |
+| `utils.test.ts` | wallet | 15 | base64url encode/decode round-trip, JSON round-trip, XSS escaping, date formatting, random string |
+| `crypto.test.ts` | wallet | 13 | EC P-256 key generation (extractable/non-extractable), export/import, SHA-256 vectors, JWT structure, PKCE |
+| `sdjwt.test.ts` | wallet | 9 | SD-JWT header/payload parsing, disclosure extraction, claim merging, internal field exclusion |
+| `protocol.test.ts` | wallet | 13 | Credential offer parsing (by_value/by_reference), grant analysis, pre-auth code helpers |
+| `storage.test.ts` | wallet | 10 | IndexedDB CRUD (credentials + activity), upsert, auto-increment, detail handling |
 
 ### Error pages
 

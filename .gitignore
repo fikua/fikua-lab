@@ -46,3 +46,8 @@ META-INF/
 
 # Backups
 backups/
+
+# Wallet PWA (Vite + TypeScript)
+suite/frontend/holder/node_modules/
+suite/frontend/holder/dist/
+suite/frontend/holder/package-lock.json

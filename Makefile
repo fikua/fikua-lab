@@ -1,6 +1,7 @@
 # Fikua Lab — build and deployment shortcuts
 
 .PHONY: help build run test clean compile local-up local-down local-logs local-frontend \
+        wallet-dev wallet-build wallet-test \
         integration-test load-test \
         docker-push deploy deploy-frontend deploy-nginx full-deploy \
         cleanup ssh logs status backup vps-reset reset \
@@ -37,7 +38,10 @@ help: ## Show available commands
 	@echo "  make local-up         Start backend + postgres (Docker Compose)"
 	@echo "  make local-down       Stop local environment"
 	@echo "  make local-logs       Tail backend logs (local)"
-	@echo "  make local-frontend   Serve frontend locally (ports 3000-3005)"
+	@echo "  make local-frontend   Serve frontend locally (ports 3000-3006)"
+	@echo "  make wallet-dev       Start wallet Vite dev server (port 5173)"
+	@echo "  make wallet-build     Build wallet for production (dist/)"
+	@echo "  make wallet-test      Run wallet unit tests (Vitest)"
 	@echo "  make local-db-reset   Drop all tables and restart (local)"
 	@echo ""
 	@echo "  Docker"
@@ -138,9 +142,22 @@ local-down:
 local-logs:
 	cd deployment/envs/local && docker compose logs -f fikua-lab
 
-# Serve frontend locally (landing:3000, portal:3001, issuer:3002, cert:3003, wallet:3004, verifier:3005)
+# Serve frontend locally (landing:3000, portal:3001, issuer:3002, cert:3003, verifier:3005, identify:3006)
+# Note: Wallet uses Vite — run 'make wallet-dev' separately
 local-frontend:
 	chmod +x deployment/envs/local/deploy-frontend.sh && ./deployment/envs/local/deploy-frontend.sh
+
+# Wallet Vite dev server (http://localhost:5173)
+wallet-dev:
+	cd suite/frontend/holder && npm run dev
+
+# Build wallet for production
+wallet-build:
+	cd suite/frontend/holder && npm ci --silent && npm run build
+
+# Run wallet unit tests
+wallet-test:
+	cd suite/frontend/holder && npm test
 
 # Drop all tables and restart backend (local) — profiles re-seeded on restart
 local-db-reset:

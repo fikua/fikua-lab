@@ -7,6 +7,48 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-02-24
+
+Wallet PWA — OID4VCI client with Vite + TypeScript, Web Crypto holder binding, and unit tests.
+
+### Added
+
+- **Wallet PWA (Vite + TypeScript):** Complete rewrite of the holder frontend from vanilla JS to a modular TypeScript application bundled with Vite. Installable as a Progressive Web App with offline caching via Workbox (`vite-plugin-pwa`).
+- **OID4VCI client-side protocol engine:** Full implementation of the credential issuance flow — credential offer parsing (by_value / by_reference), issuer metadata discovery, token request, nonce request, proof JWT generation, credential request, and issuer notification. Supports both pre-authorized code (Plain profile) and authorization code (HAIP profile) grant types.
+- **Holder binding with Web Crypto API:** EC P-256 key pairs generated per credential. Private keys are non-extractable (`CryptoKey` handles stored in IndexedDB via structured clone). Public keys exported as JWK for proof JWT headers. DPoP/WIA keys are extractable for sessionStorage serialization during auth code redirect.
+- **DPoP proof and WIA generation:** `buildDpopProof()` with htm/htu/iat/jti/ath/nonce claims. Self-signed WIA (`wallet-attestation+jwt`) and WIA PoP (`wallet-attestation-pop+jwt`) for HAIP testing.
+- **PAR support:** Pushed Authorization Requests with DPoP + client attestation headers, PKCE S256, and state management across browser redirect.
+- **SD-JWT VC parser:** Splits SD-JWT by `~`, decodes JWT header + payload, parses disclosures (base64url → [salt, name, value]), merges claims with internal field exclusion (`_sd`, `_sd_alg`, `cnf`, `status`).
+- **IndexedDB persistence:** Two object stores — `credentials` (keyed by id, with issuedAt index) and `activity` (auto-increment, with timestamp index). Raw API, no framework.
+- **Wallet-initiated issuance:** "Add Credential" button fetches `.well-known/openid-credential-issuer` from the hardcoded issuer (`https://issuer.lab.fikua.com`), lists available credential configurations, and starts the auth code flow on user selection.
+- **Issuer-initiated issuance:** Detects `credential_offer` / `credential_offer_uri` in URL query params at init. Offers received before authentication are preserved in sessionStorage.
+- **Credential consent UI:** Promise-based accept/reject dialog showing decoded claims and issuer info before storing the credential.
+- **Credential detail view:** Click on credential card → full detail with claims, metadata (algorithm, dates, vct, issuer URL), and delete button with issuer notification (`credential_deleted` event).
+- **Privacy mode:** Eye icon toggle blurs claim values and personal data in activity. Title + issuer remain visible. Persisted in localStorage.
+- **Activity logging:** All issuance/deletion/failure events logged to IndexedDB with action, credential name, issuer identity, type, timestamp, and optional details.
+- **QR scanner:** Camera-based QR code scanning with manual URI input fallback for credential offers.
+- **PWA install prompt:** Captures `beforeinstallprompt` event, shows "Install App" button, hidden after installation.
+- **WebAuthn passkey authentication:** Preserved from previous implementation. Platform authenticator with user verification.
+- **60 Vitest unit tests** across 5 test files:
+  - `utils.test.ts` (15) — base64url encode/decode round-trip, JSON round-trip, XSS escaping, date formatting, random string generation
+  - `crypto.test.ts` (13) — EC P-256 key generation (extractable/non-extractable), export/import round-trip, SHA-256 known vectors, JWT structure (3-part, 64-byte raw signature), PKCE
+  - `sdjwt.test.ts` (9) — header/payload parsing, disclosure extraction, claim merging, internal field exclusion, malformed segment handling, numeric/object values
+  - `protocol.test.ts` (13) — credential offer parsing (by_value/by_reference/URL-encoded), grant analysis (pre-auth/auth-code/preference/error), getPreAuthCode, getPreAuthTxCode
+  - `storage.test.ts` (10) — IndexedDB CRUD (save/get/getAll/delete/upsert), activity logging (details, auto-increment, null handling)
+
+### Technical details
+
+- **Build:** Vite 7.3 + TypeScript 5.9 (strict mode, ES2022 target, bundler module resolution)
+- **PWA:** `vite-plugin-pwa` with Workbox — precache statics, NetworkOnly for API routes (`/oid4vci/`, `/oid4vp/`, `/admin/`, `/.well-known/`)
+- **Test framework:** Vitest 4.0 with jsdom environment + fake-indexeddb
+- **DER-to-raw signature conversion:** Custom `derToRaw()` for ES256 JWT compatibility (WebCrypto returns DER-encoded ECDSA, JWT requires raw R||S 64 bytes)
+- **Module structure:** `types.ts`, `constants.ts`, `utils.ts`, `crypto.ts`, `storage.ts`, `sdjwt.ts`, `protocol.ts`, `main.ts`
+- **Dev server:** Vite on port 3004 with proxy to backend on port 8090 (`/.well-known`, `/oid4vci`, `/oid4vp`, `/admin`)
+
+### Spec references
+
+- OID4VCI 1.0 Final (Credential Offer §4.1, Token §6, Nonce §7, Credential §8, Notification §10), HAIP 1.0 (DPoP, PAR, PKCE S256, Client Attestation), SD-JWT VC draft-14, RFC 9449 (DPoP), RFC 9126 (PAR), RFC 7636 (PKCE), RFC 7515 (JWS/ES256), OAuth Attestation-Based Client Authentication
+
 ## [0.6.2] - 2026-02-24
 
 Credential response returns IssuerSigned CBOR per OID4VCI A.2.4.

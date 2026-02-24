@@ -94,11 +94,16 @@ if [ -d "suite/frontend/identify" ]; then
     log_success "Identification → https://identify.lab.fikua.com"
 fi
 
-# --- Wallet → wallet.lab.fikua.com ---
+# --- Wallet → wallet.lab.fikua.com (Vite build) ---
 if [ -d "suite/frontend/holder" ]; then
-    log_step "Uploading wallet..."
-    ssh ${SSH_OPTS} "${VPS_USER}@${VPS_IP}" "sudo mkdir -p /opt/vps/frontends/lab/holder && sudo chown -R ubuntu:ubuntu /opt/vps/frontends/lab/holder"
-    scp ${SCP_OPTS} -r "suite/frontend/holder/." "${VPS_USER}@${VPS_IP}:/opt/vps/frontends/lab/holder/"
+    log_step "Building wallet (Vite)..."
+    cd suite/frontend/holder
+    npm ci --silent
+    npm run build
+    cd ../../..
+    log_step "Uploading wallet dist/..."
+    ssh ${SSH_OPTS} "${VPS_USER}@${VPS_IP}" "sudo mkdir -p /opt/vps/frontends/lab/holder/dist && sudo chown -R ubuntu:ubuntu /opt/vps/frontends/lab/holder"
+    scp ${SCP_OPTS} -r "suite/frontend/holder/dist/." "${VPS_USER}@${VPS_IP}:/opt/vps/frontends/lab/holder/dist/"
     log_success "Wallet → https://wallet.lab.fikua.com"
 fi
 
