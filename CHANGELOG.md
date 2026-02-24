@@ -7,6 +7,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-02-24
+
+Wallet QR scanner, protocol logs, and UI polish.
+
+### Fixed
+
+- **QR scanner decoding:** The QR scanner previously only opened the camera but did not decode QR codes — users had to manually paste URIs. Now uses `qr` library (Paul Miller, 0-dep, ~16KB gzipped) with a `requestAnimationFrame` loop throttled to ~7 fps. Canvas downscaled to max 480px for faster decode. `willReadFrequently` hint for optimal `getImageData()`. `AbortController` for clean cancellation. Frame counter status indicator with pulse animation.
+- **Greeting simplified:** Removed "User Wallet" / fallback name from the greeting — now shows just "Hello,".
+
+### Added
+
+- **`qr-scanner.ts` module:** `startScanning(video, callbacks) → AbortController` — encapsulates the decode loop, canvas management, frame throttling, and status callbacks (`onResult`, `onStatus`).
+- **Protocol Logs tab:** New "Logs" tab with timestamped, color-coded log entries (INFO/STEP/OK/ERROR). Logs OID4VCI flow progress — issuer metadata, token, nonce, proof, credential response. Monospace font, max 200 entries, auto-scroll.
+- **`plog()` logging system:** Internal protocol logger integrated into `updateFlowStatus`, `showFlowError`, `handleOfferUri`, and `executeIssuanceFlow`.
+- **5 new Vitest tests** in `qr-scanner.test.ts` — AbortController lifecycle, rAF scheduling, abort cancellation, video readyState guard, continuous frame scheduling.
+
 ## [0.9.0] - 2026-02-24
 
 Issuer frontend redesign with credential selector, dynamic form, QR/deeplink, and paginated issuance records management.
