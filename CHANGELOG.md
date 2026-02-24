@@ -7,6 +7,29 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-02-24
+
+Wallet mso_mdoc support, full privacy blur, PWA install flow, and responsive fixes.
+
+### Added
+
+- **mso_mdoc credential parsing (ISO 18013-5):** New `cbor.ts` — minimal CBOR decoder (RFC 8949) supporting unsigned/negative ints, byte strings, text strings, arrays, maps, tags (including tag 24 encoded-cbor), and simple values. New `mdoc.ts` — parses base64url-encoded IssuerSigned CBOR into structured `ParsedMdoc` with claims extraction from nameSpaces, docType from MSO, and validity dates from validityInfo.
+- **Format-aware credential processing:** `processCredentialResponse()` now dispatches by credential format — `mso_mdoc` uses `parseMdoc()`, `dc+sd-jwt` uses `parseSdJwt()`. Consent dialog and credential storage are format-agnostic.
+- **PWA install phase at login:** New first-time user experience — when no passkey exists and the app is not installed, the login screen shows an "Install App" phase with install button and "Continue in browser" skip option. iOS Safari shows Share > Add to Home Screen instructions.
+- **PNG PWA icons:** Added `icon-192.png`, `icon-512.png`, and `apple-touch-icon.png` for proper PWA manifest and iOS home screen display. SVG favicon updated to 512x512 with rounded rect.
+- **17 new Vitest tests** across 2 test files:
+  - `cbor.test.ts` (11) — unsigned/negative ints, text/byte strings, arrays, maps (string + integer keys), tag 24 (encoded-cbor), tag 0 (datetime), simple values, nested structures
+  - `mdoc.test.ts` (6) — claims extraction, docType from MSO, validity dates, raw preservation, multiple elements, invalid CBOR error
+
+### Changed
+
+- **Full privacy blur:** Privacy mode now blurs all credential content — title, issuer, format, algorithm, status badge, claim labels, claim values, section headers, activity names, timestamps. Previously only claim values and activity details were blurred.
+- **Identify portal responsive:** Added `@media (max-width: 480px)` breakpoints for small mobile screens — stacked layouts, hidden nav name, full-width buttons, smaller icons.
+
+### Spec references
+
+- ISO 18013-5 (IssuerSigned structure, IssuerSignedItem, MSO), RFC 8949 (CBOR), OID4VCI 1.0 Final Appendix A.2.4 (mso_mdoc credential response)
+
 ## [0.7.0] - 2026-02-24
 
 Wallet PWA — OID4VCI client with Vite + TypeScript, Web Crypto holder binding, and unit tests.

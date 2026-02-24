@@ -637,6 +637,48 @@ public class IssuanceService {
         }
     }
 
+    public Map<String, Object> listIssuanceRecords(int page, int size, String sort, String order) {
+        int offset = (page - 1) * size;
+        var records = issuanceStore.findAll(offset, size, sort, order);
+        int total = issuanceStore.count();
+
+        var items = new ArrayList<Map<String, Object>>();
+        for (var r : records) {
+            var item = new LinkedHashMap<String, Object>();
+            item.put("id", r.id());
+            item.put("credential_type", r.credentialType());
+            item.put("status", r.status());
+            item.put("source_type", r.sourceType());
+            item.put("source_ref", r.sourceRef());
+            item.put("pre_auth_code", r.preAuthCode());
+            item.put("offer_id", r.offerId());
+            item.put("created_at", r.createdAt() != null ? r.createdAt().toInstant().toString() : null);
+            item.put("updated_at", r.updatedAt() != null ? r.updatedAt().toInstant().toString() : null);
+
+            // Extract subject name from credentialData JSON
+            String subjectName = null;
+            try {
+                var data = MAPPER.readTree(r.credentialData());
+                String given = data.has("given_name") ? data.get("given_name").asText() : null;
+                String family = data.has("family_name") ? data.get("family_name").asText() : null;
+                if (given != null && family != null) subjectName = given + " " + family;
+                else if (given != null) subjectName = given;
+                else if (family != null) subjectName = family;
+            } catch (Exception ignored) {}
+            item.put("subject_name", subjectName);
+            item.put("credential_data", r.credentialData());
+
+            items.add(item);
+        }
+
+        var result = new LinkedHashMap<String, Object>();
+        result.put("records", items);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        return result;
+    }
+
     public void resetState() {
         sessionStore.clear();
     }

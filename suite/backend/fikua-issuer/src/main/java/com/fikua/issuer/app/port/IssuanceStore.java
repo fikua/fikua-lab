@@ -1,6 +1,7 @@
 package com.fikua.issuer.app.port;
 
 import java.sql.Timestamp;
+import java.util.List;
 
 /**
  * Port for persistent issuance records.
@@ -24,6 +25,8 @@ public interface IssuanceStore {
 
     IssuanceRecord create(String credentialType, String credentialData, String sourceType, String sourceRef);
     IssuanceRecord findById(String id);
+    List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder);
+    int count();
     void updateStatus(String id, String status);
     void updatePreAuthCode(String id, String preAuthCode);
     void updateOfferId(String id, String offerId);

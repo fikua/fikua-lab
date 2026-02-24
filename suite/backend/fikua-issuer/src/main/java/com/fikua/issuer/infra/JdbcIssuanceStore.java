@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -59,6 +62,49 @@ public class JdbcIssuanceStore implements IssuanceStore {
         } catch (Exception e) {
             log.error("Failed to find issuance record {}", id, e);
             return null;
+        }
+    }
+
+    private static final Set<String> ALLOWED_SORT_FIELDS =
+            Set.of("created_at", "updated_at", "status", "credential_type");
+    private static final Set<String> ALLOWED_SORT_ORDERS = Set.of("asc", "desc");
+
+    @Override
+    public List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder) {
+        String safeField = ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "created_at";
+        String safeOrder = ALLOWED_SORT_ORDERS.contains(sortOrder) ? sortOrder : "desc";
+        String sql = """
+                SELECT id, credential_type, credential_data, source_type, source_ref,
+                       status, pre_auth_code, offer_id, created_at, updated_at
+                FROM issuance_records ORDER BY %s %s LIMIT ? OFFSET ?
+                """.formatted(safeField, safeOrder);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            ps.setInt(2, offset);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<IssuanceRecord> records = new ArrayList<>();
+                while (rs.next()) {
+                    records.add(mapRow(rs));
+                }
+                return records;
+            }
+        } catch (Exception e) {
+            log.error("Failed to list issuance records", e);
+            return List.of();
+        }
+    }
+
+    @Override
+    public int count() {
+        String sql = "SELECT count(*) FROM issuance_records";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (Exception e) {
+            log.error("Failed to count issuance records", e);
+            return 0;
         }
     }
 

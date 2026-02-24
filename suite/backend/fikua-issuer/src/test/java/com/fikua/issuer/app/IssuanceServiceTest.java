@@ -390,6 +390,15 @@ class IssuanceServiceTest {
         }
 
         @Override
+        public java.util.List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder) {
+            var list = new java.util.ArrayList<>(records.values());
+            return list.subList(Math.min(offset, list.size()), Math.min(offset + limit, list.size()));
+        }
+
+        @Override
+        public int count() { return records.size(); }
+
+        @Override
         public void updatePreAuthCode(String id, String preAuthCode) {}
 
         @Override

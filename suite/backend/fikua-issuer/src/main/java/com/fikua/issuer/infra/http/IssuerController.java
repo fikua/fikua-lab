@@ -62,7 +62,8 @@ public class IssuerController {
         app.get(API_PREFIX + "/identify/claims", this::identificationClaims);
         app.post(API_PREFIX + "/identify/complete", this::completeIdentification);
 
-        // Issuance trigger
+        // Issuance management
+        app.get(API_PREFIX + "/issuance", this::listIssuanceRecords);
         app.post(API_PREFIX + "/issuance", this::triggerIssuance);
     }
 
@@ -238,6 +239,15 @@ public class IssuerController {
         ctx.status(201).json(result);
     }
 
+    private void listIssuanceRecords(Context ctx) {
+        int page = parseIntParam(ctx.queryParam("page"), 1);
+        int size = parseIntParam(ctx.queryParam("size"), 20);
+        String sort = ctx.queryParam("sort") != null ? ctx.queryParam("sort") : "created_at";
+        String order = ctx.queryParam("order") != null ? ctx.queryParam("order") : "desc";
+        log.info("GET /issuance — page={}, size={}, sort={}, order={}", page, size, sort, order);
+        ctx.json(service.listIssuanceRecords(page, size, sort, order));
+    }
+
     private void triggerIssuance(Context ctx) {
         ProfileConfig config = service.getActiveConfig();
         log.info("POST /issuance — profile={}", config.isHaip() ? "HAIP" : "pre-auth");
@@ -255,6 +265,11 @@ public class IssuerController {
             return authHeader.substring(5).trim();
         }
         return null;
+    }
+
+    private int parseIntParam(String value, int defaultValue) {
+        if (value == null) return defaultValue;
+        try { return Integer.parseInt(value); } catch (NumberFormatException e) { return defaultValue; }
     }
 
     private Map<String, String> parseFormParams(Context ctx) {

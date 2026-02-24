@@ -205,7 +205,7 @@ fikua-lab/
 │   │   ├── cert/                                  # Certificate selection (mTLS)
 │   │   ├── identify/                              # Identification portal (wallet-initiated)
 │   │   ├── holder/                                # Wallet PWA (Vite + TypeScript)
-│   │   │   ├── package.json                       # @fikua/wallet v0.7.0
+│   │   │   ├── package.json                       # @fikua/wallet v0.8.0
 │   │   │   ├── tsconfig.json                      # Strict, ES2022, bundler resolution
 │   │   │   ├── vite.config.ts                     # PWA plugin, dev proxy to :8090
 │   │   │   ├── vitest.config.ts                   # jsdom + fake-indexeddb
@@ -218,10 +218,12 @@ fikua-lab/
 │   │   │       ├── crypto.ts                      # Web Crypto (EC P-256, ES256, PKCE)
 │   │   │       ├── storage.ts                     # IndexedDB (credentials + activity)
 │   │   │       ├── sdjwt.ts                       # SD-JWT VC parser
+│   │   │       ├── cbor.ts                        # Minimal CBOR decoder (RFC 8949)
+│   │   │       ├── mdoc.ts                        # mso_mdoc IssuerSigned parser (ISO 18013-5)
 │   │   │       ├── protocol.ts                    # OID4VCI flows, DPoP, WIA, PAR
 │   │   │       ├── main.ts                        # UI, flow orchestrators, init
 │   │   │       ├── style.css                      # Full design system
-│   │   │       └── *.test.ts                      # 60 Vitest unit tests (5 files)
+│   │   │       └── *.test.ts                      # 77 Vitest unit tests (7 files)
 │   │   ├── verifier/                              # Verifier UI
 │   │   └── shared/                                # Shared assets (404.html, 50x.html, favicon.svg)
 │   │
@@ -595,7 +597,7 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-225 unit tests across `fikua-core`, `fikua-issuer`, and `@fikua/wallet` covering security validators, protocol records, error handling, mdoc building, infrastructure, and wallet client-side logic:
+242 unit tests across `fikua-core`, `fikua-issuer`, and `@fikua/wallet` covering security validators, protocol records, error handling, mdoc building, infrastructure, and wallet client-side logic:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
@@ -624,6 +626,8 @@ The backend uses a dual error format:
 | `sdjwt.test.ts` | wallet | 9 | SD-JWT header/payload parsing, disclosure extraction, claim merging, internal field exclusion |
 | `protocol.test.ts` | wallet | 13 | Credential offer parsing (by_value/by_reference), grant analysis, pre-auth code helpers |
 | `storage.test.ts` | wallet | 10 | IndexedDB CRUD (credentials + activity), upsert, auto-increment, detail handling |
+| `cbor.test.ts` | wallet | 11 | Unsigned/negative ints, text/byte strings, arrays, maps (string + integer keys), tag 24, tag 0, simple values, nested |
+| `mdoc.test.ts` | wallet | 6 | Claims extraction, docType from MSO, validity dates, raw preservation, multiple elements, invalid CBOR |
 
 ### Error pages
 
