@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-02-24
+
+Wallet QR scanner performance — hybrid BarcodeDetector + Web Worker architecture.
+
+### Changed
+
+- **QR scanner rewritten as hybrid decoder:** Native `BarcodeDetector` API for Chrome/Edge Android (~0ms decode, ~30-60 fps). Web Worker fallback with `qr` library for iOS Safari/Firefox (off main thread, 0ms UI blocking, ~8-10 fps). Previously, `decodeQR` ran synchronously on the main thread blocking rendering for 15-25ms per frame.
+- **New `qr-decode-worker.ts`:** Dedicated Web Worker that imports `decodeQR` and processes frames via `postMessage` with `Transferable` buffer (zero-copy). Vite bundles it as a separate chunk automatically.
+- **Worker backpressure:** `workerBusy` flag prevents queuing frames while a decode is in progress. Throttle reduced from 150ms to 100ms since decode no longer blocks the main thread.
+- **6 Vitest tests** in `qr-scanner.test.ts` (+1 new: worker termination on abort). Tests mock `Worker` and `BarcodeDetector` globals via `vi.stubGlobal`.
+
 ## [0.9.1] - 2026-02-24
 
 Wallet QR scanner, protocol logs, and UI polish.
