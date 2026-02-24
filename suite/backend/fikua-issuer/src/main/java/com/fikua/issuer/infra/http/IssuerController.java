@@ -61,6 +61,8 @@ public class IssuerController {
         // Identification (wallet-initiated)
         app.get(API_PREFIX + "/identify/claims", this::identificationClaims);
         app.post(API_PREFIX + "/identify/complete", this::completeIdentification);
+        app.post(API_PREFIX + "/identify/request-otp", this::requestEmailOtp);
+        app.post(API_PREFIX + "/identify/validate-otp", this::validateEmailOtp);
 
         // Issuance management
         app.get(API_PREFIX + "/issuance", this::listIssuanceRecords);
@@ -252,6 +254,44 @@ public class IssuerController {
         ProfileConfig config = service.getActiveConfig();
         log.info("POST /issuance — profile={}", config.isHaip() ? "HAIP" : "pre-auth");
         ctx.json(service.triggerIssuance(ctx.body(), config));
+    }
+
+    private void requestEmailOtp(Context ctx) {
+        log.info("POST /identify/request-otp");
+        try {
+            var body = MAPPER.readTree(ctx.body());
+            String session = body.get("session").asText();
+            String email = body.get("email").asText();
+            ctx.json(service.requestEmailOtp(session, email));
+        } catch (OAuthErrorException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("OTP request error", e);
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid OTP request: " + e.getMessage());
+        }
+    }
+
+    private void validateEmailOtp(Context ctx) {
+        log.info("POST /identify/validate-otp");
+        try {
+            var body = MAPPER.readTree(ctx.body());
+            String session = body.get("session").asText();
+            String email = body.get("email").asText();
+            String otp = body.get("otp").asText();
+            var result = service.validateEmailOtp(session, email, otp);
+
+            String redirect = result.redirectUri() + "?code=" + result.code();
+            if (result.state() != null) redirect += "&state=" + result.state();
+            redirect += "&iss=" + java.net.URLEncoder.encode(baseUrl, java.nio.charset.StandardCharsets.UTF_8);
+            ctx.json(Map.of("redirect", redirect));
+        } catch (OAuthErrorException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("OTP validation error", e);
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid OTP validation request: " + e.getMessage());
+        }
     }
 
     // --- Helpers ---

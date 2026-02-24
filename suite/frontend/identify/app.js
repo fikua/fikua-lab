@@ -30,6 +30,8 @@
         identify: document.getElementById('phase-identify'),
         loading: document.getElementById('phase-loading'),
         form: document.getElementById('phase-form'),
+        email: document.getElementById('phase-email'),
+        otp: document.getElementById('phase-otp'),
         confirm: document.getElementById('phase-confirm'),
         submitting: document.getElementById('phase-submitting'),
         success: document.getElementById('phase-success'),
@@ -220,6 +222,79 @@
     document.getElementById('btn-form-cancel').addEventListener('click', function() {
         showPhase('identify');
     });
+
+    // --- Method: Email OTP ---
+    var emailForOtp = null;
+
+    document.getElementById('method-email').addEventListener('click', function() {
+        document.getElementById('email-input').value = '';
+        showPhase('email');
+    });
+
+    document.getElementById('btn-email-send').addEventListener('click', function() {
+        var email = document.getElementById('email-input').value.trim();
+        if (!email) return;
+        emailForOtp = email;
+
+        var btn = document.getElementById('btn-email-send');
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        fetch(ISSUER_API + '/identify/request-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session: sessionToken, email: email })
+        })
+        .then(function(res) {
+            if (!res.ok) return res.json().then(function(err) { throw new Error(err.error_description || 'Failed to send code'); });
+            return res.json();
+        })
+        .then(function() {
+            document.getElementById('otp-email-display').textContent = email;
+            document.getElementById('otp-input').value = '';
+            showPhase('otp');
+        })
+        .catch(function(err) { showError('Failed to send verification code: ' + err.message); })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Send Code';
+        });
+    });
+
+    document.getElementById('btn-otp-verify').addEventListener('click', function() {
+        var otp = document.getElementById('otp-input').value.trim();
+        if (!otp || otp.length !== 6) return;
+
+        var btn = document.getElementById('btn-otp-verify');
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+
+        fetch(ISSUER_API + '/identify/validate-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session: sessionToken, email: emailForOtp, otp: otp })
+        })
+        .then(function(res) {
+            if (!res.ok) return res.json().then(function(err) { throw new Error(err.error_description || 'Invalid code'); });
+            return res.json();
+        })
+        .then(function(data) {
+            if (data.redirect) {
+                showPhase('success');
+                setTimeout(function() { window.location.href = data.redirect; }, 1500);
+            } else {
+                showError('No redirect received from the issuer.');
+            }
+        })
+        .catch(function(err) { showError('Verification failed: ' + err.message); })
+        .finally(function() {
+            btn.disabled = false;
+            btn.textContent = 'Verify';
+        });
+    });
+
+    document.getElementById('btn-email-cancel').addEventListener('click', function() { showPhase('identify'); });
+    document.getElementById('btn-otp-cancel').addEventListener('click', function() { showPhase('identify'); });
 
     // --- Certificate confirm ---
     document.getElementById('btn-confirm').addEventListener('click', function() {

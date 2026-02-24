@@ -4,6 +4,9 @@ import com.fikua.core.http.ProblemDetail;
 import com.fikua.core.oauth2.DPoPNonceRequiredException;
 import com.fikua.core.oauth2.OAuthErrorException;
 import com.fikua.issuer.IssuerService;
+import com.fikua.issuer.app.port.EmailService;
+import com.fikua.issuer.infra.NoOpEmailService;
+import com.fikua.issuer.infra.ResendEmailService;
 import com.fikua.lab.admin.AdminRoutes;
 import com.fikua.lab.config.LabConfig;
 import com.fikua.lab.db.DatabaseManager;
@@ -100,8 +103,19 @@ public class FikuaLab {
         // Start services based on roles
         IssuerService issuerService = null;
         if (roles.contains("issuer")) {
+            // Email service: use Resend if API key is configured, otherwise NoOp (logs only)
+            EmailService emailService;
+            if (config.resendApiKey() != null && !config.resendApiKey().isBlank()) {
+                emailService = new ResendEmailService(config.resendApiKey(), config.resendFromEmail());
+                log.info("Email service: Resend (from: {})", config.resendFromEmail());
+            } else {
+                emailService = new NoOpEmailService();
+                log.info("Email service: NoOp (set FIKUA_RESEND_API_KEY to enable real emails)");
+            }
+
             issuerService = new IssuerService();
-            issuerService.start(app, db.dataSource(), config.baseUrl(), config.certsDir(), config.identifyBaseUrl());
+            issuerService.start(app, db.dataSource(), config.baseUrl(), config.certsDir(),
+                    config.identifyBaseUrl(), emailService, config.walletBaseUrl());
             log.info("Issuer service started");
         }
 

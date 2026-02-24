@@ -3,6 +3,7 @@ package com.fikua.issuer;
 import com.fikua.core.crypto.SigningKey;
 import com.fikua.core.oauth2.DPoPValidator;
 import com.fikua.issuer.app.IssuanceService;
+import com.fikua.issuer.app.port.EmailService;
 import com.fikua.issuer.app.port.IssuanceStore;
 import com.fikua.issuer.app.port.ProfileStore;
 import com.fikua.issuer.app.port.SessionStore;
@@ -27,7 +28,7 @@ public class IssuerService {
 
     /** Start the issuer service, registering routes on the given Javalin app. */
     public void start(Javalin app, DataSource dataSource, String baseUrl, String certsDir,
-                      String identifyBaseUrl) {
+                      String identifyBaseUrl, EmailService emailService, String walletBaseUrl) {
         // Load signing key
         SigningKey key = PemKeyLoader.loadOrGenerate(certsDir);
 
@@ -51,7 +52,8 @@ public class IssuerService {
         });
 
         // Create application service
-        issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl, identifyBaseUrl);
+        issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl,
+                identifyBaseUrl, emailService, walletBaseUrl);
 
         // Register HTTP controller
         new IssuerController(issuanceService, baseUrl).register(app);

@@ -9,6 +9,7 @@ import com.fikua.core.oid4vci.*;
 import com.fikua.core.profile.ProfileConfig;
 import com.fikua.core.profile.enums.CredentialOfferVariant;
 import com.fikua.core.sdjwt.SdJwtBuilder;
+import com.fikua.issuer.app.port.EmailService;
 import com.fikua.issuer.app.port.IssuanceStore;
 import com.fikua.issuer.app.port.ProfileStore;
 import com.fikua.issuer.app.port.SessionStore;
@@ -37,8 +38,10 @@ public class IssuanceService {
     // Credential configuration IDs (OIDF conformance suite)
     private static final String PID_SD_JWT = "eu.europa.ec.eudi.pid.1";
     private static final String PID_MDOC = "eu.europa.ec.eudi.pid.mdoc.1";
+    private static final String STUDENT_ID_SD_JWT = "student-id.sd-jwt.1";
+    private static final String STUDENT_ID_VCT = "VerifiableStudentIDSDJWT";
     private static final String DEFAULT_CONFIG_ID = PID_SD_JWT;
-    private static final Set<String> ISSUABLE_CONFIGS = Set.of(PID_SD_JWT, PID_MDOC);
+    private static final Set<String> ISSUABLE_CONFIGS = Set.of(PID_SD_JWT, PID_MDOC, STUDENT_ID_SD_JWT);
 
     private final SigningKey issuerKey;
     private final SessionStore sessionStore;
@@ -48,11 +51,14 @@ public class IssuanceService {
     private final ClientAttestationValidator clientAttestationValidator;
     private final String baseUrl;
     private final String identifyBaseUrl;
+    private final EmailService emailService;
+    private final String walletBaseUrl;
 
     public IssuanceService(SigningKey issuerKey, SessionStore sessionStore,
                            IssuanceStore issuanceStore, ProfileStore profileStore,
                            DPoPValidator dpopValidator, String baseUrl,
-                           String identifyBaseUrl) {
+                           String identifyBaseUrl, EmailService emailService,
+                           String walletBaseUrl) {
         this.issuerKey = issuerKey;
         this.sessionStore = sessionStore;
         this.issuanceStore = issuanceStore;
@@ -61,6 +67,8 @@ public class IssuanceService {
         this.clientAttestationValidator = new ClientAttestationValidator();
         this.baseUrl = baseUrl;
         this.identifyBaseUrl = identifyBaseUrl;
+        this.emailService = emailService;
+        this.walletBaseUrl = walletBaseUrl;
     }
 
     public ProfileConfig getActiveConfig() {
@@ -583,6 +591,23 @@ public class IssuanceService {
             boolean txCodeRequired = bodyNode.has("tx_code_required")
                     && bodyNode.get("tx_code_required").asBoolean(false);
 
+            // Email-initiated flow: create draft and send invitation email
+            String recipientEmail = extractRecipientEmail(credentialData, credentialType);
+            if (recipientEmail != null) {
+                var draft = issuanceStore.createDraft(credentialType, credentialData, sourceType, sourceRef, recipientEmail);
+                log.info("Draft IssuanceRecord created: id={}, type={}, email={}", draft.id(), credentialType, recipientEmail);
+
+                String recipientName = extractRecipientName(credentialData, credentialType);
+                String invitationLink = walletBaseUrl;
+                emailService.sendCredentialInvitation(recipientEmail, recipientName, invitationLink);
+
+                var result = new LinkedHashMap<String, Object>();
+                result.put("issuance_id", draft.id());
+                result.put("status", "draft");
+                result.put("email_sent_to", recipientEmail);
+                return result;
+            }
+
             var record = issuanceStore.create(credentialType, credentialData, sourceType, sourceRef);
             log.info("IssuanceRecord created: id={}, type={}, source={}", record.id(), credentialType, sourceType);
 
@@ -656,16 +681,20 @@ public class IssuanceService {
             item.put("updated_at", r.updatedAt() != null ? r.updatedAt().toInstant().toString() : null);
 
             // Extract subject name from credentialData JSON
+            // PID uses given_name/family_name; Student ID uses firstName/familyName
             String subjectName = null;
             try {
                 var data = MAPPER.readTree(r.credentialData());
-                String given = data.has("given_name") ? data.get("given_name").asText() : null;
-                String family = data.has("family_name") ? data.get("family_name").asText() : null;
+                String given = data.has("given_name") ? data.get("given_name").asText()
+                        : data.has("firstName") ? data.get("firstName").asText() : null;
+                String family = data.has("family_name") ? data.get("family_name").asText()
+                        : data.has("familyName") ? data.get("familyName").asText() : null;
                 if (given != null && family != null) subjectName = given + " " + family;
                 else if (given != null) subjectName = given;
                 else if (family != null) subjectName = family;
             } catch (Exception ignored) {}
             item.put("subject_name", subjectName);
+            item.put("recipient_email", r.recipientEmail());
             item.put("credential_data", r.credentialData());
 
             items.add(item);
@@ -797,6 +826,12 @@ public class IssuanceService {
         configs.put("org.iso.18013.5.1.mDL.attestation",
                 buildMdocConfig("org.iso.18013.5.1.mDL.attestation", "org.iso.18013.5.1.mDL", mdlClaims, mdlDisplay));
 
+        // --- Student ID SD-JWT (EWC ds010) ---
+        var studentIdClaims = studentIdClaims();
+        var studentIdDisplay = studentIdDisplay();
+        configs.put(STUDENT_ID_SD_JWT,
+                buildSdJwtConfig(STUDENT_ID_SD_JWT, STUDENT_ID_VCT, studentIdClaims, studentIdDisplay));
+
         return configs;
     }
 
@@ -890,13 +925,43 @@ public class IssuanceService {
         ));
     }
 
+    private static List<Map<String, Object>> studentIdClaims() {
+        return List.of(
+                Map.of("path", List.of("identifier"), "display", List.of(Map.of("name", "Identifier", "locale", "en"))),
+                Map.of("path", List.of("familyName"), "display", List.of(Map.of("name", "Family Name", "locale", "en"))),
+                Map.of("path", List.of("firstName"), "display", List.of(Map.of("name", "First Name", "locale", "en"))),
+                Map.of("path", List.of("displayName"), "display", List.of(Map.of("name", "Display Name", "locale", "en"))),
+                Map.of("path", List.of("commonName"), "display", List.of(Map.of("name", "Common Name", "locale", "en"))),
+                Map.of("path", List.of("dateOfBirth"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
+                Map.of("path", List.of("mail"), "display", List.of(Map.of("name", "Email", "locale", "en"))),
+                Map.of("path", List.of("schacPersonalUniqueCode"), "display", List.of(Map.of("name", "SCHAC Unique Code", "locale", "en"))),
+                Map.of("path", List.of("schacPersonalUniqueID"), "display", List.of(Map.of("name", "SCHAC Unique ID", "locale", "en"))),
+                Map.of("path", List.of("schacHomeOrganization"), "display", List.of(Map.of("name", "Home Organization", "locale", "en"))),
+                Map.of("path", List.of("eduPersonPrincipalName"), "display", List.of(Map.of("name", "Principal Name", "locale", "en"))),
+                Map.of("path", List.of("eduPersonPrimaryAffiliation"), "display", List.of(Map.of("name", "Primary Affiliation", "locale", "en"))),
+                Map.of("path", List.of("eduPersonAffiliation"), "display", List.of(Map.of("name", "Affiliation", "locale", "en"))),
+                Map.of("path", List.of("eduPersonScopedAffiliation"), "display", List.of(Map.of("name", "Scoped Affiliation", "locale", "en"))),
+                Map.of("path", List.of("eduPersonAssurance"), "display", List.of(Map.of("name", "Assurance Level", "locale", "en")))
+        );
+    }
+
+    private static List<Map<String, Object>> studentIdDisplay() {
+        return List.of(Map.of(
+                "name", "Student ID",
+                "locale", "en",
+                "description", "Verifiable Student ID (EWC ds010)"
+        ));
+    }
+
     /** Build an SD-JWT VC credential from the issuance record data. */
     private String buildSdJwtCredential(ECKey walletKey, IssuanceStore.IssuanceRecord record) {
         try {
+            String vct = resolveVct(record.credentialType());
+            String subjectPrefix = resolveSubjectPrefix(record.credentialType());
             SdJwtBuilder builder = new SdJwtBuilder(issuerKey)
-                    .vct("eu.europa.ec.eudi.pid.1")
+                    .vct(vct)
                     .issuer(baseUrl)
-                    .subject("urn:fikua:pid:" + sessionStore.randomToken(8))
+                    .subject(subjectPrefix + sessionStore.randomToken(8))
                     .holderKey(walletKey)
                     .x5cChain(issuerKey.x5cChain());
 
@@ -939,6 +1004,100 @@ public class IssuanceService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to build mso_mdoc credential", e);
         }
+    }
+
+    /** Request an OTP for email-based identification. */
+    public Map<String, Object> requestEmailOtp(String sessionToken, String email) {
+        var pending = sessionStore.getPendingAuthorization(sessionToken);
+        if (pending == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid or expired identification session");
+        }
+        String otp = generateOtpCode();
+        sessionStore.storeOtp(email.toLowerCase().trim(), otp, sessionToken);
+        emailService.sendOtp(email, otp);
+        log.info("OTP sent to {} for session {}", email, sessionToken);
+        return Map.of("status", "otp_sent", "email", email);
+    }
+
+    /** Validate OTP and complete identification by finding draft IssuanceRecord. */
+    public AuthorizeResult validateEmailOtp(String sessionToken, String email, String otp) {
+        String normalizedEmail = email.toLowerCase().trim();
+        String validatedSession = sessionStore.consumeOtp(normalizedEmail, otp);
+        if (validatedSession == null || !validatedSession.equals(sessionToken)) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "Invalid or expired OTP");
+        }
+
+        var record = issuanceStore.findDraftByEmail(normalizedEmail);
+        if (record == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "No pending credential found for this email");
+        }
+
+        var pending = sessionStore.consumePendingAuthorization(sessionToken);
+        if (pending == null) {
+            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                    "Invalid or expired identification session");
+        }
+
+        issuanceStore.updateStatus(record.id(), "offer_created");
+
+        var metadata = new LinkedHashMap<String, Object>();
+        if (pending.containsKey("client_id")) metadata.put("client_id", pending.get("client_id"));
+        if (pending.containsKey("redirect_uri")) metadata.put("redirect_uri", pending.get("redirect_uri"));
+        if (pending.containsKey("code_challenge")) metadata.put("code_challenge", pending.get("code_challenge"));
+        metadata.put("issuanceRecordId", record.id());
+
+        SessionData session = new SessionData(
+                sessionStore.randomToken(16), null, null, Instant.now(), metadata);
+        String authCode = sessionStore.createAuthCode(session);
+
+        String redirectUri = (String) pending.get("redirect_uri");
+        String state = pending.containsKey("state") ? String.valueOf(pending.get("state")) : null;
+        return AuthorizeResult.withCode(authCode, redirectUri, state);
+    }
+
+    private String generateOtpCode() {
+        int code = new java.security.SecureRandom().nextInt(900000) + 100000;
+        return String.valueOf(code);
+    }
+
+    /** Extract recipient email from credential data for email-initiated flow. */
+    private String extractRecipientEmail(String credentialDataJson, String credentialType) {
+        if (!STUDENT_ID_SD_JWT.equals(credentialType)) return null;
+        try {
+            var data = MAPPER.readTree(credentialDataJson);
+            if (data.has("mail") && !data.get("mail").asText().isBlank()) {
+                return data.get("mail").asText().trim();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    /** Extract recipient display name from credential data. */
+    private String extractRecipientName(String credentialDataJson, String credentialType) {
+        try {
+            var data = MAPPER.readTree(credentialDataJson);
+            // Student ID uses firstName/familyName; PID uses given_name/family_name
+            String first = data.has("firstName") ? data.get("firstName").asText()
+                    : data.has("given_name") ? data.get("given_name").asText() : null;
+            String last = data.has("familyName") ? data.get("familyName").asText()
+                    : data.has("family_name") ? data.get("family_name").asText() : null;
+            if (first != null && last != null) return first + " " + last;
+            if (first != null) return first;
+            if (last != null) return last;
+        } catch (Exception ignored) {}
+        return "Student";
+    }
+
+    private String resolveVct(String credentialType) {
+        if (credentialType != null && credentialType.startsWith("student-id")) return STUDENT_ID_VCT;
+        return "eu.europa.ec.eudi.pid.1";
+    }
+
+    private String resolveSubjectPrefix(String credentialType) {
+        if (credentialType != null && credentialType.startsWith("student-id")) return "urn:fikua:student:";
+        return "urn:fikua:pid:";
     }
 
     /** Result of the authorize endpoint. */

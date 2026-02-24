@@ -9,6 +9,7 @@ import com.fikua.issuer.app.port.IssuanceStore.IssuanceRecord;
 import com.fikua.issuer.app.port.ProfileStore;
 import com.fikua.issuer.app.port.SessionStore.SessionData;
 import com.fikua.issuer.infra.InMemorySessionStore;
+import com.fikua.issuer.infra.NoOpEmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -63,7 +64,9 @@ class IssuanceServiceTest {
                 profileStore,
                 dpopValidator,
                 ISSUER_BASE_URL,
-                IDENTIFY_BASE_URL
+                IDENTIFY_BASE_URL,
+                new NoOpEmailService(),
+                "https://wallet.lab.fikua.com"
         );
     }
 
@@ -367,7 +370,20 @@ class IssuanceServiceTest {
             String id = UUID.randomUUID().toString();
             var record = new IssuanceRecord(
                     id, credentialType, credentialData, sourceType, sourceRef,
-                    "pending", null, null,
+                    "pending", null, null, null,
+                    Timestamp.from(Instant.now()), Timestamp.from(Instant.now())
+            );
+            records.put(id, record);
+            return record;
+        }
+
+        @Override
+        public IssuanceRecord createDraft(String credentialType, String credentialData,
+                                           String sourceType, String sourceRef, String recipientEmail) {
+            String id = UUID.randomUUID().toString();
+            var record = new IssuanceRecord(
+                    id, credentialType, credentialData, sourceType, sourceRef,
+                    "draft", null, null, recipientEmail,
                     Timestamp.from(Instant.now()), Timestamp.from(Instant.now())
             );
             records.put(id, record);
@@ -380,12 +396,21 @@ class IssuanceServiceTest {
         }
 
         @Override
+        public IssuanceRecord findDraftByEmail(String email) {
+            if (email == null) return null;
+            String normalized = email.toLowerCase().trim();
+            return records.values().stream()
+                    .filter(r -> "draft".equals(r.status()) && normalized.equals(r.recipientEmail()))
+                    .findFirst().orElse(null);
+        }
+
+        @Override
         public void updateStatus(String id, String status) {
             var r = records.get(id);
             if (r != null) {
                 records.put(id, new IssuanceRecord(r.id(), r.credentialType(), r.credentialData(),
                         r.sourceType(), r.sourceRef(), status, r.preAuthCode(), r.offerId(),
-                        r.createdAt(), Timestamp.from(Instant.now())));
+                        r.recipientEmail(), r.createdAt(), Timestamp.from(Instant.now())));
             }
         }
 

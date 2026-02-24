@@ -1,7 +1,7 @@
 # Credential Issuance Flow — Especificació tècnica
 
 **Created:** 2026-02-18
-**Updated:** 2026-02-21
+**Updated:** 2026-02-25
 **Status:** Draft
 **Normativa:** OID4VCI 1.0 Final, HAIP 1.0, ARF 2.8, SD-JWT VC draft-14, Token Status List draft-12
 
@@ -56,6 +56,54 @@ SD-JWT VC draft-13+ ha canviat el `typ` header de `vc+sd-jwt` a `dc+sd-jwt` per 
 | Issuance Mode | `immediate` | `immediate` |
 | Credential Format | `dc+sd-jwt` | `dc+sd-jwt` |
 | Test OIDF | Test #2 | Test #1 |
+
+### Tipus de credencials
+
+| Credential | Config ID | VCT | Format | Identificació |
+|------------|-----------|-----|--------|---------------|
+| EUDI PID | `eu.europa.ec.eudi.pid_jwt_vc_json.1` / `eu.europa.ec.eudi.pid_mdoc.1` | `urn:eu.europa.ec.eudi:pid:1` | `dc+sd-jwt` / `mso_mdoc` | Certificat X.509 / formulari manual |
+| Student ID (EWC ds010) | `student-id.sd-jwt.1` | `VerifiableStudentIDSDJWT` | `dc+sd-jwt` | Email OTP |
+
+### Flux issuer-initiated amb Email OTP (Student ID)
+
+Flux específic per credencials que utilitzen email com a mètode d'identificació. L'operador crea un draft i envia una invitació per email; el destinatari obté la credencial des del wallet.
+
+```text
+OPERADOR (issuer.lab)           SISTEMA                     DESTINATARI (wallet.lab)
+1. Selecciona Student ID
+2. Omple formulari + email
+3. Submit
+   ────────────────────────→
+                               4. Crea IssuanceRecord (draft)
+                               5. Envia email via Resend
+                                  ─────────────────────────→
+                                                            6. Rep email, clica link
+                                                            7. Obre wallet, registra passkey
+                                                            8. "Obtenir credencial" (wallet-initiated)
+                               ←───────────────────────────
+                               9. PAR → redirect a identify.lab
+                                  ─────────────────────────→
+                                                            10. Tria "Email" com a mètode
+                                                            11. Introdueix email
+                               ←───────────────────────────
+                               12. Envia OTP al email
+                                  ─────────────────────────→
+                                                            13. Introdueix OTP (6 dígits)
+                               ←───────────────────────────
+                               14. Valida OTP
+                               15. Busca IssuanceRecord draft per email
+                               16. Crea auth code → redirect al wallet
+                                  ─────────────────────────→
+                                                            17. Token exchange → credential issued
+```
+
+**Endpoints d'identificació per email:**
+- `POST /oid4vci/v1/identify/request-otp` — `{ session, email }` → envia OTP de 6 dígits
+- `POST /oid4vci/v1/identify/validate-otp` — `{ session, email, otp }` → `{ redirect }` al wallet
+
+**OTP storage:** In-memory via `SessionStore`, TTL de 5 minuts, single-use. El codi erroni permet reintents dins el TTL.
+
+**Email service:** Port `EmailService` amb adapter `ResendEmailService` (producció) o `NoOpEmailService` (dev/test, logs only).
 
 ---
 

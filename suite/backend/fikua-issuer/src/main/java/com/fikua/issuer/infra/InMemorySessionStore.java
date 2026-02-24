@@ -3,6 +3,7 @@ package com.fikua.issuer.infra;
 import com.fikua.issuer.app.port.SessionStore;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,10 @@ public class InMemorySessionStore implements SessionStore {
     private final Map<String, Map<String, String>> parRequests = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> issuerStates = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Object>> pendingAuthorizations = new ConcurrentHashMap<>();
+
+    private record OtpEntry(String otp, String sessionToken, Instant createdAt) {}
+    private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
+    private static final long OTP_TTL_SECONDS = 300; // 5 minutes
 
     @Override
     public String randomToken(int bytes) {
@@ -148,6 +153,25 @@ public class InMemorySessionStore implements SessionStore {
     }
 
     @Override
+    public void storeOtp(String email, String otp, String sessionToken) {
+        otpStore.put(email.toLowerCase().trim(), new OtpEntry(otp, sessionToken, Instant.now()));
+    }
+
+    @Override
+    public String consumeOtp(String email, String otp) {
+        String key = email.toLowerCase().trim();
+        OtpEntry entry = otpStore.remove(key);
+        if (entry == null) return null;
+        if (Instant.now().isAfter(entry.createdAt().plusSeconds(OTP_TTL_SECONDS))) return null;
+        if (!entry.otp().equals(otp)) {
+            // Wrong code — put it back so the user can retry (but TTL still counts)
+            otpStore.put(key, entry);
+            return null;
+        }
+        return entry.sessionToken();
+    }
+
+    @Override
     public void clear() {
         preAuthCodes.clear();
         accessTokens.clear();
@@ -157,5 +181,6 @@ public class InMemorySessionStore implements SessionStore {
         parRequests.clear();
         issuerStates.clear();
         pendingAuthorizations.clear();
+        otpStore.clear();
     }
 }

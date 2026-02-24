@@ -19,6 +19,10 @@ public class JdbcIssuanceStore implements IssuanceStore {
     private static final Logger log = LoggerFactory.getLogger(JdbcIssuanceStore.class);
     private final DataSource dataSource;
 
+    private static final String SELECT_COLUMNS =
+            "id, credential_type, credential_data, source_type, source_ref, " +
+            "status, pre_auth_code, offer_id, recipient_email, created_at, updated_at";
+
     public JdbcIssuanceStore(DataSource dataSource) {
         this.dataSource = dataSource;
     }
@@ -47,12 +51,33 @@ public class JdbcIssuanceStore implements IssuanceStore {
     }
 
     @Override
-    public IssuanceRecord findById(String id) {
+    public IssuanceRecord createDraft(String credentialType, String credentialData,
+                                       String sourceType, String sourceRef, String recipientEmail) {
+        String id = UUID.randomUUID().toString();
         String sql = """
-                SELECT id, credential_type, credential_data, source_type, source_ref,
-                       status, pre_auth_code, offer_id, created_at, updated_at
-                FROM issuance_records WHERE id = ?::uuid
+                INSERT INTO issuance_records (id, credential_type, credential_data, source_type, source_ref,
+                                              status, recipient_email)
+                VALUES (?::uuid, ?, ?::jsonb, ?, ?, 'draft', ?)
                 """;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, id);
+            ps.setString(2, credentialType);
+            ps.setString(3, credentialData != null ? credentialData : "{}");
+            ps.setString(4, sourceType);
+            ps.setString(5, sourceRef);
+            ps.setString(6, recipientEmail != null ? recipientEmail.toLowerCase().trim() : null);
+            ps.executeUpdate();
+            return findById(id);
+        } catch (Exception e) {
+            log.error("Failed to create draft issuance record", e);
+            throw new RuntimeException("Failed to create draft issuance record", e);
+        }
+    }
+
+    @Override
+    public IssuanceRecord findById(String id) {
+        String sql = "SELECT " + SELECT_COLUMNS + " FROM issuance_records WHERE id = ?::uuid";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, id);
@@ -65,6 +90,23 @@ public class JdbcIssuanceStore implements IssuanceStore {
         }
     }
 
+    @Override
+    public IssuanceRecord findDraftByEmail(String email) {
+        String sql = "SELECT " + SELECT_COLUMNS +
+                " FROM issuance_records WHERE recipient_email = ? AND status = 'draft'" +
+                " ORDER BY created_at DESC LIMIT 1";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, email != null ? email.toLowerCase().trim() : null);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapRow(rs) : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to find draft issuance record by email {}", email, e);
+            return null;
+        }
+    }
+
     private static final Set<String> ALLOWED_SORT_FIELDS =
             Set.of("created_at", "updated_at", "status", "credential_type");
     private static final Set<String> ALLOWED_SORT_ORDERS = Set.of("asc", "desc");
@@ -73,11 +115,8 @@ public class JdbcIssuanceStore implements IssuanceStore {
     public List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder) {
         String safeField = ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "created_at";
         String safeOrder = ALLOWED_SORT_ORDERS.contains(sortOrder) ? sortOrder : "desc";
-        String sql = """
-                SELECT id, credential_type, credential_data, source_type, source_ref,
-                       status, pre_auth_code, offer_id, created_at, updated_at
-                FROM issuance_records ORDER BY %s %s LIMIT ? OFFSET ?
-                """.formatted(safeField, safeOrder);
+        String sql = ("SELECT " + SELECT_COLUMNS +
+                " FROM issuance_records ORDER BY %s %s LIMIT ? OFFSET ?").formatted(safeField, safeOrder);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, limit);
@@ -157,6 +196,7 @@ public class JdbcIssuanceStore implements IssuanceStore {
                 rs.getString("status"),
                 rs.getString("pre_auth_code"),
                 rs.getString("offer_id"),
+                rs.getString("recipient_email"),
                 rs.getTimestamp("created_at"),
                 rs.getTimestamp("updated_at")
         );
