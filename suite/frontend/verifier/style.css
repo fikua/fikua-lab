@@ -289,6 +289,45 @@ main {
     background: var(--accent-subtle);
 }
 
+/* --- Claim Checkboxes --- */
+.claims-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.claim-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-muted);
+    background: var(--surface);
+    transition: all 0.15s;
+}
+
+.claim-check:hover {
+    border-color: var(--text-muted);
+    color: var(--text);
+}
+
+.claim-check:has(input:checked) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-subtle);
+}
+
+.claim-check input {
+    accent-color: var(--accent);
+    margin: 0;
+    width: 14px;
+    height: 14px;
+}
+
 /* --- Inputs --- */
 .input {
     width: 100%;

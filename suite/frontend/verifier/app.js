@@ -40,6 +40,44 @@
     setupRadioGroup('client-scheme');
     setupRadioGroup('response-mode');
 
+    // --- Claim definitions per credential type ---
+    const CLAIM_DEFS = {
+        pid: [
+            { id: 'given_name', label: 'Given Name' },
+            { id: 'family_name', label: 'Surname' },
+            { id: 'birth_date', label: 'Date of Birth' },
+            { id: 'issuing_authority', label: 'Issuing Authority' },
+            { id: 'issuing_country', label: 'Issuing Country' },
+        ],
+        lear: [
+            { id: 'role', label: 'Role' },
+            { id: 'organization', label: 'Organization' },
+            { id: 'employee_id', label: 'Employee ID' },
+        ]
+    };
+
+    function renderClaimCheckboxes(credType) {
+        const container = document.getElementById('claims-checkboxes');
+        const defs = CLAIM_DEFS[credType] || [];
+        container.innerHTML = defs.map(c =>
+            `<label class="claim-check">
+                <input type="checkbox" name="claim" value="${c.id}" checked>
+                <span>${esc(c.label)}</span>
+            </label>`
+        ).join('');
+    }
+
+    // Render on init and on credential type change
+    renderClaimCheckboxes('pid');
+    document.querySelectorAll('input[name="cred-type"]').forEach(input => {
+        input.addEventListener('change', () => renderClaimCheckboxes(input.value));
+    });
+
+    function getSelectedClaims() {
+        return Array.from(document.querySelectorAll('input[name="claim"]:checked'))
+            .map(el => el.value);
+    }
+
     // --- Get selected values ---
     function getConfig() {
         return {
@@ -138,9 +176,10 @@
                 ? 'eu.europa.ec.eudi.pid.1'
                 : 'eu.europa.ec.eudi.lear.1';
 
-            const claims = config.credType === 'pid'
-                ? ['given_name', 'family_name', 'birth_date']
-                : ['role', 'organization', 'employee_id'];
+            const claims = getSelectedClaims();
+            if (claims.length === 0) {
+                throw new Error('Select at least one claim to request');
+            }
 
             // Create session via backend
             const session = await api('POST', '/oid4vp/v1/session', {
@@ -205,19 +244,18 @@
             icon.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
             title.textContent = 'Presentation Verified';
 
-            // Show real claims from backend if available, otherwise show config info
+            // Show verified claims from VP Token
             const entries = resultClaims && typeof resultClaims === 'object'
                 ? Object.entries(resultClaims)
                 : [];
 
-            // Append protocol config info
-            entries.push(['query_mode', config.queryMode]);
-            entries.push(['client_id_scheme', config.clientScheme]);
-            entries.push(['response_mode', config.responseMode]);
-
-            claimsEl.innerHTML = entries.map(([k, v]) =>
-                `<div class="claim-row"><span class="claim-label">${esc(k)}</span><span class="claim-value">${esc(String(v))}</span></div>`
-            ).join('');
+            if (entries.length > 0) {
+                claimsEl.innerHTML = entries.map(([k, v]) =>
+                    `<div class="claim-row"><span class="claim-label">${esc(k)}</span><span class="claim-value">${esc(String(v))}</span></div>`
+                ).join('');
+            } else {
+                claimsEl.innerHTML = '<div class="claim-row"><span class="claim-label">No claims extracted</span></div>';
+            }
 
             logEvent('success', 'Presentation verified successfully');
         } else {

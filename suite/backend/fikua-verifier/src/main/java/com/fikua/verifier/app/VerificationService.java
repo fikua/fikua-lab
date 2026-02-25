@@ -12,8 +12,12 @@ import com.fikua.verifier.app.port.SessionStore.VerificationSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fikua.core.sdjwt.Disclosure;
+import com.fikua.core.sdjwt.SdJwt;
+
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -169,27 +173,28 @@ public class VerificationService {
 
         log.info("VP Token received for session: {}", session.sessionId());
 
-        // TODO P1: Implement full VP Token validation:
-        // 1. Parse SD-JWT presentation (split by ~)
-        // 2. Verify issuer signature
-        // 3. Verify disclosures against _sd hashes
-        // 4. Verify KB-JWT (aud, nonce, sd_hash)
-        // 5. Check credential status
-        // For now, return stub success with the VP token stored
-        Map<String, Object> stubClaims = Map.of(
-                "status", "received",
-                "vp_token_length", vpToken != null ? vpToken.length() : 0
-        );
-
-        String claimsJson;
         try {
-            claimsJson = MAPPER.writeValueAsString(stubClaims);
-        } catch (JsonProcessingException e) {
-            claimsJson = "{}";
-        }
+            // Parse SD-JWT presentation: issuer-jwt~disc1~disc2~...~kb-jwt
+            SdJwt sdJwt = SdJwt.parse(vpToken);
 
-        sessionStore.updateResult(session.sessionId(), "verified", vpToken, claimsJson, null);
-        return VerificationResult.success(stubClaims);
+            // Extract disclosed claims from disclosures
+            Map<String, Object> claims = new LinkedHashMap<>();
+            for (Disclosure d : sdJwt.disclosures()) {
+                claims.put(d.claimName(), d.claimValue());
+            }
+
+            log.info("Extracted {} claims from VP Token: {}", claims.size(), claims.keySet());
+
+            // TODO P1: Verify issuer signature, disclosure hashes, KB-JWT (aud, nonce, sd_hash)
+
+            String claimsJson = MAPPER.writeValueAsString(claims);
+            sessionStore.updateResult(session.sessionId(), "verified", vpToken, claimsJson, null);
+            return VerificationResult.success(claims);
+        } catch (Exception e) {
+            log.error("Failed to parse VP Token: {}", e.getMessage());
+            sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
+            return VerificationResult.error("invalid_presentation", "Failed to parse VP Token: " + e.getMessage());
+        }
     }
 
     /**
