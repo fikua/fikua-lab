@@ -40,7 +40,8 @@ public class DatabaseManager implements AutoCloseable {
     private static final String[] MIGRATIONS = {
             "V1__initial_schema.sql",
             "V2__seed_profiles.sql",
-            "V3__issuance_records.sql"
+            "V3__issuance_records.sql",
+            "V4__issuance_email_draft.sql"
     };
 
     /** Run database migrations from SQL files. */
