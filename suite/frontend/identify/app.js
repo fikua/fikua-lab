@@ -30,8 +30,6 @@
         identify: document.getElementById('phase-identify'),
         loading: document.getElementById('phase-loading'),
         form: document.getElementById('phase-form'),
-        email: document.getElementById('phase-email'),
-        otp: document.getElementById('phase-otp'),
         confirm: document.getElementById('phase-confirm'),
         submitting: document.getElementById('phase-submitting'),
         success: document.getElementById('phase-success'),

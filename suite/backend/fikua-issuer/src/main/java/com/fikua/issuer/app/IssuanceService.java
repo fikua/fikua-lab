@@ -846,11 +846,10 @@ public class IssuanceService {
         configs.put("eu.europa.ec.eudi.pid.1",
                 buildSdJwtConfig("eu.europa.ec.eudi.pid.1", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
 
-        // --- PID mdoc ---
-        var mdocPidClaims = mdocPidClaims();
+        // --- PID mdoc (same claims as sd-jwt) ---
         var mdocPidDisplay = pidDisplay();
         configs.put("eu.europa.ec.eudi.pid.mdoc.1",
-                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
+                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1", "eu.europa.ec.eudi.pid.1", pidClaims, mdocPidDisplay));
 
         // --- Student ID SD-JWT (EWC ds010) ---
         var studentIdClaims = studentIdClaims();
@@ -902,16 +901,6 @@ public class IssuanceService {
     }
 
     private static List<Map<String, Object>> pidClaims() {
-        return List.of(
-                Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
-                Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),
-                Map.of("path", List.of("birth_date"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
-                Map.of("path", List.of("issuing_authority"), "display", List.of(Map.of("name", "Issuing Authority", "locale", "en"))),
-                Map.of("path", List.of("issuing_country"), "display", List.of(Map.of("name", "Issuing Country", "locale", "en")))
-        );
-    }
-
-    private static List<Map<String, Object>> mdocPidClaims() {
         return List.of(
                 Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
                 Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),

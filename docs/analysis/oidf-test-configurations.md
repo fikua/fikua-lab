@@ -51,7 +51,7 @@ This document catalogs all 12 OIDF conformance test plans relevant to Fikua Lab,
 | Grant Type                     | `authorization_code`, `pre_authorization_code` |
 | Credential Response Encryption | `plain`, `encrypted`                           |
 
-**Fikua preset:** Plain Pre-Auth Issuer (pre_authorization_code + sd_jwt_vc + simple + unsigned + plain)
+**Fikua preset:** Plain Issuer (pre_authorization_code / authorization_code + sd_jwt_vc + simple + unsigned + plain)
 
 **Important constraints:**
 - When grant_type = `pre_authorization_code`: sender constraining and client authentication do not apply
