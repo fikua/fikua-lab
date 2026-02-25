@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     environment:
       FIKUA_BASE_URL: https://issuer.lab.fikua.com
+      FIKUA_VERIFIER_BASE_URL: https://verifier.lab.fikua.com
+      FIKUA_ROLES: issuer,verifier
       FIKUA_PORT: "8080"
       FIKUA_DB_URL: jdbc:postgresql://fikua-lab-db:5432/fikua
       FIKUA_DB_USER: ${FIKUA_POSTGRES_USER:-fikua}

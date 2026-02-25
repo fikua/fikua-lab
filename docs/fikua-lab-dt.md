@@ -572,7 +572,7 @@ OIDF endpoints don't have fixed paths per spec — the suite reads URLs from `.w
 |------|-------------|---------|
 | Issuer | `/oid4vci/v1/` | `https://issuer.lab.fikua.com/oid4vci/v1/token` |
 | Wallet | `/oid4vp/v1/` | `https://wallet.lab.fikua.com/oid4vp/v1/...` (future) |
-| Verifier | `/oid4vp/v1/` | `https://verifier.lab.fikua.com/oid4vp/v1/...` (future) |
+| Verifier | `/oid4vp/v1/` | `https://verifier.lab.fikua.com/oid4vp/v1/session` |
 
 `.well-known` endpoints always stay at the root path (per RFC 8615 spec).
 
@@ -602,7 +602,7 @@ The backend uses a dual error format:
 
 ### Test coverage
 
-248 unit tests across `fikua-core`, `fikua-issuer`, and `@fikua/wallet` covering security validators, protocol records, error handling, mdoc building, infrastructure, and wallet client-side logic:
+258 unit tests across `fikua-core`, `fikua-issuer`, and `@fikua/wallet` covering security validators, protocol records, error handling, mdoc building, OID4VP domain types, infrastructure, and wallet client-side logic:
 
 | Test class | Module | Tests | Coverage |
 | ---------- | ------ | ----- | -------- |
@@ -624,6 +624,8 @@ The backend uses a dual error format:
 | `DisclosureTest` | core | 12 | Create/digest/parse round-trip |
 | `SdJwtVerifierTest` | core | 5 | Signature verification, expiry, claim resolution |
 | `SdJwtBuilderTest` | core | 3 | SD-JWT building |
+| `DcqlQueryTest` | core | 5 | OID4VP DCQL query serialization, NON_NULL, round-trip, format constants |
+| `AuthorizationRequestTest` | core | 5 | OID4VP AuthorizationRequest JSON contract, constants, VerificationResult |
 | `IssuanceServiceTest` | issuer | 10 | Wallet-initiated, issuer-initiated, identification, mdoc scope/claims, COSE alg integers |
 | `PemKeyLoaderTest` | issuer | 5 | HAIP 6.1.1 x5c chain, CA-signed cert, PEM loading, SD-JWT header |
 | `utils.test.ts` | wallet | 15 | base64url encode/decode round-trip, JSON round-trip, XSS escaping, date formatting, random string |
@@ -949,6 +951,7 @@ Run `make help` to see all available commands. Full reference:
 | `FIKUA_CERTS_DIR` | `compose.yaml` | X.509 certificates directory inside container |
 | `FIKUA_IDENTIFY_BASE_URL` | `compose.yaml` | Identification portal URL (`https://identify.lab.fikua.com`) |
 | `FIKUA_WALLET_BASE_URL` | `compose.yaml` | Wallet URL for credential invitation links (`https://wallet.lab.fikua.com`) |
+| `FIKUA_VERIFIER_BASE_URL` | `compose.yaml` | Verifier base URL for OID4VP client_id and response_uri (`https://verifier.lab.fikua.com`) |
 | `FIKUA_RESEND_API_KEY` | `.env` | Resend API key for sending emails (empty = NoOp logger) |
 | `FIKUA_RESEND_FROM_EMAIL` | `.env` | Sender address for emails (`Fikua Lab <noreply@lab.fikua.com>`) |
 | `FIKUA_VERSION` | `.env` / shell | Docker image tag (`latest` or `vX.Y.Z`) |
@@ -1169,7 +1172,7 @@ Generated with OpenSSL, valid for 365 days. Stored in the Docker volume `lab-cer
   - [x] Create fikua-issuer module (IssuanceService + ports + infra adapters from fikua-server)
   - [x] Create fikua-lab orchestrator (FIKUA_ROLES-based startup)
   - [ ] Create fikua-wallet module (HTTP client for OID4VCI)
-  - [ ] Create fikua-verifier module (OID4VP endpoints)
+  - [x] Create fikua-verifier module (OID4VP endpoints) — v0.8.0, 2026-02-25
   - [x] Retire fikua-server (replaced by fikua-issuer + fikua-lab)
 - [ ] Deploy to OVH VPS (Docker Compose)
 - [x] Configure DNS lab.fikua.com + issuer.lab.fikua.com + wallet.lab.fikua.com + verifier.lab.fikua.com

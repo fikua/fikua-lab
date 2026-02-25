@@ -119,8 +119,15 @@ public class FikuaLab {
             log.info("Issuer service started");
         }
 
+        // Verifier service
+        com.fikua.verifier.VerifierService verifierService = null;
+        if (roles.contains("verifier")) {
+            verifierService = new com.fikua.verifier.VerifierService();
+            verifierService.start(app, db.dataSource(), config.verifierBaseUrl(), config.certsDir());
+            log.info("Verifier service started");
+        }
+
         // future: if (roles.contains("wallet")) { ... }
-        // future: if (roles.contains("verifier")) { ... }
 
         // Health check
         app.get("/health", ctx -> ctx.json(Map.of("status", "up", "roles", roles)));
@@ -128,8 +135,10 @@ public class FikuaLab {
         // State reset (dev/test only)
         if (!"production".equalsIgnoreCase(System.getenv("FIKUA_ENV"))) {
             final IssuerService issuer = issuerService;
+            final com.fikua.verifier.VerifierService verifier = verifierService;
             app.post("/reset", ctx -> {
                 if (issuer != null) issuer.issuanceService().resetState();
+                if (verifier != null) verifier.verificationService().resetState();
                 ctx.json(Map.of("status", "reset"));
             });
         }

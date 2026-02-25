@@ -10,6 +10,7 @@ application {
 dependencies {
     implementation(project(":fikua-core"))
     implementation(project(":fikua-issuer"))
+    implementation(project(":fikua-verifier"))
 
     // HTTP server
     implementation("io.javalin:javalin:${property("javalinVersion")}")

@@ -21,7 +21,8 @@ public record LabConfig(
         String identifyBaseUrl,
         String resendApiKey,
         String resendFromEmail,
-        String walletBaseUrl
+        String walletBaseUrl,
+        String verifierBaseUrl
 ) {
 
     /** Load configuration with env vars taking precedence over YAML defaults. */
@@ -39,7 +40,8 @@ public record LabConfig(
                 env("FIKUA_IDENTIFY_BASE_URL", yamlStr(yaml, "identify-base-url", "https://identify.lab.fikua.com")),
                 env("FIKUA_RESEND_API_KEY", yamlStr(yaml, "resend-api-key", "")),
                 env("FIKUA_RESEND_FROM_EMAIL", yamlStr(yaml, "resend-from-email", "Fikua Lab <noreply@lab.fikua.com>")),
-                env("FIKUA_WALLET_BASE_URL", yamlStr(yaml, "wallet-base-url", "https://wallet.lab.fikua.com"))
+                env("FIKUA_WALLET_BASE_URL", yamlStr(yaml, "wallet-base-url", "https://wallet.lab.fikua.com")),
+                env("FIKUA_VERIFIER_BASE_URL", yamlStr(yaml, "verifier-base-url", "https://verifier.lab.fikua.com"))
         );
     }
 
