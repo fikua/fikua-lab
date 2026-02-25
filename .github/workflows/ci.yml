@@ -163,6 +163,8 @@ jobs:
             ubuntu@51.38.179.236:/opt/vps/lab/compose.yaml
 
       - name: Deploy to VPS
+        env:
+          FIKUA_RESEND_API_KEY: ${{ secrets.FIKUA_RESEND_API_KEY }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -p 49222 ubuntu@51.38.179.236 "
             cd /opt/vps/lab
@@ -180,6 +182,10 @@ jobs:
 
             # Update version in .env
             sed -i 's/^FIKUA_VERSION=.*/FIKUA_VERSION=${{ steps.version.outputs.VERSION }}/' .env
+
+            # Update Resend API key (value injected from GitHub Actions env)
+            grep -q '^FIKUA_RESEND_API_KEY=' .env && sed -i '/^FIKUA_RESEND_API_KEY=/d' .env
+            echo 'FIKUA_RESEND_API_KEY=${FIKUA_RESEND_API_KEY}' >> .env
 
             # Pull new image and restart
             sudo docker pull oriolcanades/fikua-lab:${{ steps.version.outputs.VERSION }}
