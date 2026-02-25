@@ -30,6 +30,8 @@ services:
       FIKUA_DB_PASSWORD: ${DB_PASSWORD:-fikua_secret}
       FIKUA_CERTS_DIR: /app/certs
       FIKUA_MIGRATIONS_DIR: /app/migrations
+      FIKUA_RESEND_API_KEY: ${FIKUA_RESEND_API_KEY:-}
+      FIKUA_RESEND_FROM_EMAIL: ${FIKUA_RESEND_FROM_EMAIL:-onboarding@resend.dev}
     ports:
       - "8080:8080"
     depends_on:
