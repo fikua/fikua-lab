@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-02-25
+
+Delivery method selector and email-based transaction code delivery.
+
+### Added
+
+- **Delivery method selector:** Issuer UI now shows a Screen/Email toggle when the credential has a `mail` claim (e.g. Student ID). Operators explicitly choose how to deliver the credential offer instead of automatic email detection.
+- **Transaction code via email:** When delivery is set to Email and a transaction code is required, the tx_code is sent in a separate email when the wallet retrieves the credential offer (`GET /credential-offer/{id}`). This ensures the code arrives just-in-time.
+- **Email-only result screen:** When Email delivery is selected, the issuer result screen shows only the "Invitation Sent" confirmation — no QR code or deep link is displayed.
+- **Database:** V5 migration adds `tx_code` column to `issuance_records` for persistence.
+- **IssuanceStore:** `findByOfferId()`, `updateRecipientEmail()`, `updateTxCode()` methods.
+- **EmailService:** `sendTxCode()` method with styled verification code email template.
+
 ## [0.9.6] - 2026-02-25
 
 Unified email issuance flow — email invitations now use issuer-initiated credential offers with deep links instead of a separate draft/OTP flow.

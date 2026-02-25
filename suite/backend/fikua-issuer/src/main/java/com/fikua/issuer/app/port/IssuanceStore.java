@@ -20,6 +20,7 @@ public interface IssuanceStore {
             String preAuthCode,
             String offerId,
             String recipientEmail,
+            String txCode,
             Timestamp createdAt,
             Timestamp updatedAt
     ) {}
@@ -31,4 +32,7 @@ public interface IssuanceStore {
     void updateStatus(String id, String status);
     void updatePreAuthCode(String id, String preAuthCode);
     void updateOfferId(String id, String offerId);
+    void updateRecipientEmail(String id, String recipientEmail);
+    void updateTxCode(String id, String txCode);
+    IssuanceRecord findByOfferId(String offerId);
 }

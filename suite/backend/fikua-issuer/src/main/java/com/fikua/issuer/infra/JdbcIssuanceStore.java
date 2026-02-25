@@ -21,7 +21,7 @@ public class JdbcIssuanceStore implements IssuanceStore {
 
     private static final String SELECT_COLUMNS =
             "id, credential_type, credential_data, source_type, source_ref, " +
-            "status, pre_auth_code, offer_id, recipient_email, created_at, updated_at";
+            "status, pre_auth_code, offer_id, recipient_email, tx_code, created_at, updated_at";
 
     public JdbcIssuanceStore(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -144,6 +144,47 @@ public class JdbcIssuanceStore implements IssuanceStore {
         }
     }
 
+    @Override
+    public void updateRecipientEmail(String id, String recipientEmail) {
+        String sql = "UPDATE issuance_records SET recipient_email = ?, updated_at = now() WHERE id = ?::uuid";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, recipientEmail);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("Failed to update recipient_email for issuance record {}", id, e);
+        }
+    }
+
+    @Override
+    public void updateTxCode(String id, String txCode) {
+        String sql = "UPDATE issuance_records SET tx_code = ?, updated_at = now() WHERE id = ?::uuid";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, txCode);
+            ps.setString(2, id);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            log.error("Failed to update tx_code for issuance record {}", id, e);
+        }
+    }
+
+    @Override
+    public IssuanceRecord findByOfferId(String offerId) {
+        String sql = "SELECT " + SELECT_COLUMNS + " FROM issuance_records WHERE offer_id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, offerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapRow(rs) : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to find issuance record by offer_id {}", offerId, e);
+            return null;
+        }
+    }
+
     private IssuanceRecord mapRow(ResultSet rs) throws SQLException {
         return new IssuanceRecord(
                 rs.getString("id"),
@@ -155,6 +196,7 @@ public class JdbcIssuanceStore implements IssuanceStore {
                 rs.getString("pre_auth_code"),
                 rs.getString("offer_id"),
                 rs.getString("recipient_email"),
+                rs.getString("tx_code"),
                 rs.getTimestamp("created_at"),
                 rs.getTimestamp("updated_at")
         );

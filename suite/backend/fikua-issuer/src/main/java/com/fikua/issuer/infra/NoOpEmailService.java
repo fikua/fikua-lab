@@ -16,4 +16,9 @@ public class NoOpEmailService implements EmailService {
     public void sendCredentialInvitation(String recipientEmail, String recipientName, String invitationLink) {
         log.info("[NoOp Email] Credential invitation to {} ({}): {}", recipientEmail, recipientName, invitationLink);
     }
+
+    @Override
+    public void sendTxCode(String recipientEmail, String recipientName, String txCode) {
+        log.info("[NoOp Email] TX code to {} ({}): {}", recipientEmail, recipientName, txCode);
+    }
 }

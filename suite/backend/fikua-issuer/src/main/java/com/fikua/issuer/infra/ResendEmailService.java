@@ -47,7 +47,24 @@ public class ResendEmailService implements EmailService {
         sendEmail(recipientEmail, subject, html);
     }
 
-
+    @Override
+    public void sendTxCode(String recipientEmail, String recipientName, String txCode) {
+        String subject = "Your verification code";
+        String html = """
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+                  <h2 style="color: #12107c; margin-bottom: 8px;">Fikua Lab</h2>
+                  <p>Hello <strong>%s</strong>,</p>
+                  <p>Enter this code in your wallet to complete the credential claim:</p>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <span style="font-family: monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #12107c;">%s</span>
+                  </div>
+                  <p style="color: #666; font-size: 13px;">This code is single-use. Do not share it with anyone.</p>
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+                  <p style="color: #999; font-size: 12px;">Fikua Lab — EUDI Wallet Testing Platform</p>
+                </div>
+                """.formatted(escapeHtml(recipientName), escapeHtml(txCode));
+        sendEmail(recipientEmail, subject, html);
+    }
 
     private void sendEmail(String to, String subject, String html) {
         String jsonBody = """

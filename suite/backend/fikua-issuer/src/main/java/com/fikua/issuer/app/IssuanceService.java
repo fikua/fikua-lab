@@ -114,7 +114,29 @@ public class IssuanceService {
     }
 
     public String getCredentialOffer(String offerId) {
-        return sessionStore.getCredentialOffer(offerId);
+        String offerJson = sessionStore.getCredentialOffer(offerId);
+        if (offerJson != null) {
+            sendTxCodeIfNeeded(offerId);
+        }
+        return offerJson;
+    }
+
+    /**
+     * When the wallet retrieves a credential offer by-reference, send the tx_code
+     * via email if the issuance was configured for email delivery and has a tx_code.
+     */
+    private void sendTxCodeIfNeeded(String offerId) {
+        try {
+            var record = issuanceStore.findByOfferId(offerId);
+            if (record == null || record.recipientEmail() == null || record.txCode() == null) {
+                return;
+            }
+            String recipientName = extractRecipientName(record.credentialData(), record.credentialType());
+            emailService.sendTxCode(record.recipientEmail(), recipientName, record.txCode());
+            log.info("TX code email sent to {} for offer {}", record.recipientEmail(), offerId);
+        } catch (Exception e) {
+            log.error("Failed to send tx_code email for offer {}", offerId, e);
+        }
     }
 
     /** Handle pre-authorized code token request. */
@@ -591,7 +613,13 @@ public class IssuanceService {
             boolean txCodeRequired = bodyNode.has("tx_code_required")
                     && bodyNode.get("tx_code_required").asBoolean(false);
 
-            String recipientEmail = extractRecipientEmail(credentialData, credentialType);
+            String deliveryMethod = bodyNode.has("delivery_method")
+                    ? bodyNode.get("delivery_method").asText("screen")
+                    : "screen";
+
+            String recipientEmail = "email".equals(deliveryMethod)
+                    ? extractRecipientEmail(credentialData, credentialType)
+                    : null;
 
             var record = issuanceStore.create(credentialType, credentialData, sourceType, sourceRef);
             log.info("IssuanceRecord created: id={}, type={}, source={}", record.id(), credentialType, sourceType);
@@ -637,6 +665,12 @@ public class IssuanceService {
             result.put("issuance_id", record.id());
             if (txCodeValue != null) {
                 result.put("tx_code", txCodeValue);
+                issuanceStore.updateTxCode(record.id(), txCodeValue);
+            }
+
+            // Persist recipient email for later tx_code delivery
+            if (recipientEmail != null) {
+                issuanceStore.updateRecipientEmail(record.id(), recipientEmail);
             }
 
             // Send email invitation with credential offer deep link

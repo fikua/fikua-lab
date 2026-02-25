@@ -804,8 +804,8 @@ GET  /admin/health                Health check for endpoints
 | GET | `/.well-known/openid-credential-issuer` | Credential Issuer Metadata |
 | GET | `/.well-known/oauth-authorization-server` | Authorization Server Metadata |
 | GET | `/oid4vci/v1/issuance` | List issuance records (paginated: `page`, `size`, `sort`, `order`) |
-| POST | `/oid4vci/v1/issuance` | Trigger issuance (creates offer + links credential_data) |
-| GET | `/oid4vci/v1/credential-offer/{id}` | Credential Offer by reference |
+| POST | `/oid4vci/v1/issuance` | Trigger issuance (creates offer + links credential_data). Accepts `delivery_method` (`screen`/`email`) and `tx_code_required` |
+| GET | `/oid4vci/v1/credential-offer/{id}` | Credential Offer by reference. Sends tx_code email if email delivery + tx_code configured |
 | POST | `/oid4vci/v1/token` | Pre-auth code or auth code → access_token |
 | POST | `/oid4vci/v1/credential` | Credential issuance (SD-JWT VC or mso_mdoc by config format) |
 | POST | `/oid4vci/v1/nonce` | Fresh c_nonce |
@@ -833,7 +833,7 @@ X.509 certificate chain with OpenSSL, structure aligned with eIDAS:
 PostgreSQL with the main tables:
 
 - **profiles** — Profile configuration (JSONB), with `is_active` flag
-- **issuance_records** — Credential issuance tracking with `recipient_email`, `credential_data` (JSONB), status (`pending`, `offer_created`, `issued`, `failed`)
+- **issuance_records** — Credential issuance tracking with `recipient_email`, `tx_code`, `credential_data` (JSONB), status (`pending`, `offer_created`, `issued`, `failed`)
 - **credential_offers** — By-reference offers with pre-authorized codes
 - **access_tokens** — Issued tokens with c_nonce and DPoP thumbprint
 - **verification_sessions** — OID4VP sessions with state/nonce

@@ -370,7 +370,7 @@ class IssuanceServiceTest {
             String id = UUID.randomUUID().toString();
             var record = new IssuanceRecord(
                     id, credentialType, credentialData, sourceType, sourceRef,
-                    "pending", null, null, null,
+                    "pending", null, null, null, null,
                     Timestamp.from(Instant.now()), Timestamp.from(Instant.now())
             );
             records.put(id, record);
@@ -388,7 +388,7 @@ class IssuanceServiceTest {
             if (r != null) {
                 records.put(id, new IssuanceRecord(r.id(), r.credentialType(), r.credentialData(),
                         r.sourceType(), r.sourceRef(), status, r.preAuthCode(), r.offerId(),
-                        r.recipientEmail(), r.createdAt(), Timestamp.from(Instant.now())));
+                        r.recipientEmail(), r.txCode(), r.createdAt(), Timestamp.from(Instant.now())));
             }
         }
 
@@ -406,5 +406,14 @@ class IssuanceServiceTest {
 
         @Override
         public void updateOfferId(String id, String offerId) {}
+
+        @Override
+        public void updateRecipientEmail(String id, String recipientEmail) {}
+
+        @Override
+        public void updateTxCode(String id, String txCode) {}
+
+        @Override
+        public IssuanceRecord findByOfferId(String offerId) { return null; }
     }
 }
