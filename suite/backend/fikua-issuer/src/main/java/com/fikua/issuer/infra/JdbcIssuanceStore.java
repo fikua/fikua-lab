@@ -171,6 +171,33 @@ public class JdbcIssuanceStore implements IssuanceStore {
     }
 
     @Override
+    public String consumeTxCode(String offerId) {
+        String sql = """
+                WITH consumed AS (
+                    SELECT id, tx_code
+                    FROM issuance_records
+                    WHERE offer_id = ? AND tx_code IS NOT NULL AND recipient_email IS NOT NULL
+                    FOR UPDATE
+                )
+                UPDATE issuance_records r
+                SET tx_code = NULL, updated_at = now()
+                FROM consumed c
+                WHERE r.id = c.id
+                RETURNING c.tx_code
+                """;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, offerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString("tx_code") : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to consume tx_code for offer {}", offerId, e);
+            return null;
+        }
+    }
+
+    @Override
     public IssuanceRecord findByOfferId(String offerId) {
         String sql = "SELECT " + SELECT_COLUMNS + " FROM issuance_records WHERE offer_id = ?";
         try (Connection conn = dataSource.getConnection();

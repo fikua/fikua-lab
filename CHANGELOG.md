@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-02-25
+
+Fix duplicate OTP email on credential offer retrieval.
+
+### Fixed
+
+- **Idempotent tx_code delivery:** OTP verification email was sent every time the wallet fetched the credential offer (e.g. browser prefetch, retry, multiple tabs). Added atomic `consumeTxCode()` using a PostgreSQL CTE with `FOR UPDATE` that nullifies the tx_code on first read, guaranteeing at-most-once email delivery.
+
 ## [0.9.9] - 2026-02-25
 
 Issuer UI polish: unified pill selectors for all issuance options.

@@ -34,5 +34,7 @@ public interface IssuanceStore {
     void updateOfferId(String id, String offerId);
     void updateRecipientEmail(String id, String recipientEmail);
     void updateTxCode(String id, String txCode);
+    /** Atomically consume the tx_code: returns it and sets it to null. Returns null if already consumed. */
+    String consumeTxCode(String offerId);
     IssuanceRecord findByOfferId(String offerId);
 }

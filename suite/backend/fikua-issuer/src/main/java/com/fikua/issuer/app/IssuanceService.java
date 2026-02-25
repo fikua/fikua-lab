@@ -125,15 +125,20 @@ public class IssuanceService {
     /**
      * When the wallet retrieves a credential offer by-reference, send the tx_code
      * via email if the issuance was configured for email delivery and has a tx_code.
+     * Uses atomic consume to guarantee the email is sent at most once.
      */
     private void sendTxCodeIfNeeded(String offerId) {
         try {
+            String txCode = issuanceStore.consumeTxCode(offerId);
+            if (txCode == null) {
+                return;
+            }
             var record = issuanceStore.findByOfferId(offerId);
-            if (record == null || record.recipientEmail() == null || record.txCode() == null) {
+            if (record == null || record.recipientEmail() == null) {
                 return;
             }
             String recipientName = extractRecipientName(record.credentialData(), record.credentialType());
-            emailService.sendTxCode(record.recipientEmail(), recipientName, record.txCode());
+            emailService.sendTxCode(record.recipientEmail(), recipientName, txCode);
             log.info("TX code email sent to {} for offer {}", record.recipientEmail(), offerId);
         } catch (Exception e) {
             log.error("Failed to send tx_code email for offer {}", offerId, e);

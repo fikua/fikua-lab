@@ -414,6 +414,9 @@ class IssuanceServiceTest {
         public void updateTxCode(String id, String txCode) {}
 
         @Override
+        public String consumeTxCode(String offerId) { return null; }
+
+        @Override
         public IssuanceRecord findByOfferId(String offerId) { return null; }
     }
 }
