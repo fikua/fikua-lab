@@ -4,8 +4,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum CredentialFormat {
     SD_JWT_VC("sd_jwt_vc", "dc+sd-jwt"),
-    MDOC("mdoc", "mso_mdoc"),
-    ISO_MDL("iso_mdl", "mso_mdoc");
+    MDOC("mdoc", "mso_mdoc");
 
     private final String value;
     private final String oid4vciFormat;

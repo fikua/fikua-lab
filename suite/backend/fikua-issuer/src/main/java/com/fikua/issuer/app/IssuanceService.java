@@ -787,44 +787,17 @@ public class IssuanceService {
     private Map<String, Object> buildCredentialConfigurations() {
         var configs = new LinkedHashMap<String, Object>();
 
-        // --- SD-JWT PID configurations (6) ---
+        // --- PID SD-JWT ---
         var pidClaims = pidClaims();
         var pidDisplay = pidDisplay();
-
         configs.put("eu.europa.ec.eudi.pid.1",
                 buildSdJwtConfig("eu.europa.ec.eudi.pid.1", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.1.attestation",
-                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.attestation", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.1.jwt.keyattest",
-                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.jwt.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.1.attestation.keyattest",
-                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.attestation.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.1.jwt_and_attestation.keyattest",
-                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.jwt_and_attestation.keyattest", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.1.nobinding",
-                buildSdJwtConfig("eu.europa.ec.eudi.pid.1.nobinding", "eu.europa.ec.eudi.pid.1", pidClaims, pidDisplay));
 
-        // --- mdoc PID configurations (4) ---
+        // --- PID mdoc ---
         var mdocPidClaims = mdocPidClaims();
         var mdocPidDisplay = pidDisplay();
-
         configs.put("eu.europa.ec.eudi.pid.mdoc.1",
                 buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.mdoc.1.attestation",
-                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.attestation", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.mdoc.1.jwt.keyattest",
-                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.jwt.keyattest", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
-        configs.put("eu.europa.ec.eudi.pid.mdoc.1.attestation.keyattest",
-                buildMdocConfig("eu.europa.ec.eudi.pid.mdoc.1.attestation.keyattest", "eu.europa.ec.eudi.pid.1", mdocPidClaims, mdocPidDisplay));
-
-        // --- mDL configurations (2) ---
-        var mdlClaims = mdlClaims();
-        var mdlDisplay = mdlDisplay();
-
-        configs.put("org.iso.18013.5.1.mDL",
-                buildMdocConfig("org.iso.18013.5.1.mDL", "org.iso.18013.5.1.mDL", mdlClaims, mdlDisplay));
-        configs.put("org.iso.18013.5.1.mDL.attestation",
-                buildMdocConfig("org.iso.18013.5.1.mDL.attestation", "org.iso.18013.5.1.mDL", mdlClaims, mdlDisplay));
 
         // --- Student ID SD-JWT (EWC ds010) ---
         var studentIdClaims = studentIdClaims();
@@ -900,28 +873,6 @@ public class IssuanceService {
                 "name", "EUDI PID",
                 "locale", "en",
                 "description", "EU Digital Identity Personal Identification Data"
-        ));
-    }
-
-    private static List<Map<String, Object>> mdlClaims() {
-        return List.of(
-                Map.of("path", List.of("family_name"), "display", List.of(Map.of("name", "Surname", "locale", "en"))),
-                Map.of("path", List.of("given_name"), "display", List.of(Map.of("name", "Given Name", "locale", "en"))),
-                Map.of("path", List.of("birth_date"), "display", List.of(Map.of("name", "Date of Birth", "locale", "en"))),
-                Map.of("path", List.of("issue_date"), "display", List.of(Map.of("name", "Date of Issue", "locale", "en"))),
-                Map.of("path", List.of("expiry_date"), "display", List.of(Map.of("name", "Date of Expiry", "locale", "en"))),
-                Map.of("path", List.of("issuing_country"), "display", List.of(Map.of("name", "Issuing Country", "locale", "en"))),
-                Map.of("path", List.of("issuing_authority"), "display", List.of(Map.of("name", "Issuing Authority", "locale", "en"))),
-                Map.of("path", List.of("document_number"), "display", List.of(Map.of("name", "Licence Number", "locale", "en"))),
-                Map.of("path", List.of("driving_privileges"), "display", List.of(Map.of("name", "Categories", "locale", "en")))
-        );
-    }
-
-    private static List<Map<String, Object>> mdlDisplay() {
-        return List.of(Map.of(
-                "name", "Mobile Driving Licence",
-                "locale", "en",
-                "description", "ISO 18013-5 Mobile Driving Licence"
         ));
     }
 

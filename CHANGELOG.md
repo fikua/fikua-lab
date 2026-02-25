@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-02-25
+
+Credential configuration cleanup — reduced to 3 supported credential types.
+
+### Removed
+
+- **10 extra PID config variants** (sd-jwt 2-4, mdoc 2-4, jwt 1-3): only `eu.europa.ec.eudi.pid.1` (sd-jwt) and `eu.europa.ec.eudi.pid.mdoc.1` (mdoc) remain.
+- **All mDL configurations** and associated `mdlClaims()`/`mdlDisplay()` builder methods from `IssuanceService`.
+- **`ISO_MDL` enum value** from `CredentialFormat` (unused after config removal).
+- **mDL default test data** and `formatConfigId` reference in issuer frontend.
+
 ## [0.9.4] - 2026-02-25
 
 Wallet credential display fixes and scope propagation for wallet-initiated flows.
