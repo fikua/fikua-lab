@@ -51,31 +51,6 @@ public class JdbcIssuanceStore implements IssuanceStore {
     }
 
     @Override
-    public IssuanceRecord createDraft(String credentialType, String credentialData,
-                                       String sourceType, String sourceRef, String recipientEmail) {
-        String id = UUID.randomUUID().toString();
-        String sql = """
-                INSERT INTO issuance_records (id, credential_type, credential_data, source_type, source_ref,
-                                              status, recipient_email)
-                VALUES (?::uuid, ?, ?::jsonb, ?, ?, 'draft', ?)
-                """;
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id);
-            ps.setString(2, credentialType);
-            ps.setString(3, credentialData != null ? credentialData : "{}");
-            ps.setString(4, sourceType);
-            ps.setString(5, sourceRef);
-            ps.setString(6, recipientEmail != null ? recipientEmail.toLowerCase().trim() : null);
-            ps.executeUpdate();
-            return findById(id);
-        } catch (Exception e) {
-            log.error("Failed to create draft issuance record", e);
-            throw new RuntimeException("Failed to create draft issuance record", e);
-        }
-    }
-
-    @Override
     public IssuanceRecord findById(String id) {
         String sql = "SELECT " + SELECT_COLUMNS + " FROM issuance_records WHERE id = ?::uuid";
         try (Connection conn = dataSource.getConnection();
@@ -86,23 +61,6 @@ public class JdbcIssuanceStore implements IssuanceStore {
             }
         } catch (Exception e) {
             log.error("Failed to find issuance record {}", id, e);
-            return null;
-        }
-    }
-
-    @Override
-    public IssuanceRecord findDraftByEmail(String email) {
-        String sql = "SELECT " + SELECT_COLUMNS +
-                " FROM issuance_records WHERE recipient_email = ? AND status = 'draft'" +
-                " ORDER BY created_at DESC LIMIT 1";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, email != null ? email.toLowerCase().trim() : null);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? mapRow(rs) : null;
-            }
-        } catch (Exception e) {
-            log.error("Failed to find draft issuance record by email {}", email, e);
             return null;
         }
     }

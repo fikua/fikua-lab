@@ -378,30 +378,8 @@ class IssuanceServiceTest {
         }
 
         @Override
-        public IssuanceRecord createDraft(String credentialType, String credentialData,
-                                           String sourceType, String sourceRef, String recipientEmail) {
-            String id = UUID.randomUUID().toString();
-            var record = new IssuanceRecord(
-                    id, credentialType, credentialData, sourceType, sourceRef,
-                    "draft", null, null, recipientEmail,
-                    Timestamp.from(Instant.now()), Timestamp.from(Instant.now())
-            );
-            records.put(id, record);
-            return record;
-        }
-
-        @Override
         public IssuanceRecord findById(String id) {
             return records.get(id);
-        }
-
-        @Override
-        public IssuanceRecord findDraftByEmail(String email) {
-            if (email == null) return null;
-            String normalized = email.toLowerCase().trim();
-            return records.values().stream()
-                    .filter(r -> "draft".equals(r.status()) && normalized.equals(r.recipientEmail()))
-                    .findFirst().orElse(null);
         }
 
         @Override

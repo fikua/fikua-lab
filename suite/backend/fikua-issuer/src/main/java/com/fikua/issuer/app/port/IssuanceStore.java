@@ -25,10 +25,7 @@ public interface IssuanceStore {
     ) {}
 
     IssuanceRecord create(String credentialType, String credentialData, String sourceType, String sourceRef);
-    IssuanceRecord createDraft(String credentialType, String credentialData,
-                               String sourceType, String sourceRef, String recipientEmail);
     IssuanceRecord findById(String id);
-    IssuanceRecord findDraftByEmail(String email);
     List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder);
     int count();
     void updateStatus(String id, String status);

@@ -48,17 +48,6 @@
                         <svg class="method-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
 
-                    <button id="method-email" class="method-option">
-                        <div class="method-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        </div>
-                        <div class="method-info">
-                            <span class="method-name">Email Verification</span>
-                            <span class="method-desc">Verify your identity with an email code</span>
-                        </div>
-                        <svg class="method-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </button>
-
                     <button id="method-form" class="method-option">
                         <div class="method-icon">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -93,44 +82,6 @@
                 <div class="id-actions">
                     <button type="button" id="btn-form-cancel" class="btn">Cancel</button>
                     <button type="button" id="btn-form-submit" class="btn btn-accent">Submit</button>
-                </div>
-            </div>
-
-            <!-- Phase: Enter email for OTP -->
-            <div id="phase-email" class="phase hidden">
-                <div class="id-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                </div>
-                <h1>Email Verification</h1>
-                <p class="id-sub">Enter your email address to receive a verification code.</p>
-                <div class="form-card">
-                    <div class="form-group">
-                        <label for="email-input">Email Address</label>
-                        <input type="email" id="email-input" placeholder="your@email.com" required>
-                    </div>
-                </div>
-                <div class="id-actions">
-                    <button type="button" id="btn-email-cancel" class="btn">Cancel</button>
-                    <button type="button" id="btn-email-send" class="btn btn-accent">Send Code</button>
-                </div>
-            </div>
-
-            <!-- Phase: Enter OTP code -->
-            <div id="phase-otp" class="phase hidden">
-                <div class="id-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/><path d="M17 12h.01"/><path d="M7 12h.01"/></svg>
-                </div>
-                <h1>Enter Verification Code</h1>
-                <p class="id-sub">A 6-digit code has been sent to <strong id="otp-email-display"></strong></p>
-                <div class="form-card">
-                    <div class="form-group">
-                        <label for="otp-input">Verification Code</label>
-                        <input type="text" id="otp-input" class="otp-input" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="000000" autocomplete="one-time-code" required>
-                    </div>
-                </div>
-                <div class="id-actions">
-                    <button type="button" id="btn-otp-cancel" class="btn">Cancel</button>
-                    <button type="button" id="btn-otp-verify" class="btn btn-accent">Verify</button>
                 </div>
             </div>
 

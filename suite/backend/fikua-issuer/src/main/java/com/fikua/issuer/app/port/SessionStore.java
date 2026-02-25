@@ -63,12 +63,6 @@ public interface SessionStore {
     String createAuthCode(SessionData session);
     SessionData consumeAuthCode(String code);
 
-    // --- OTP (email-based identification) ---
-    /** Store a 6-digit OTP for an email, linked to a pending authorization session. */
-    void storeOtp(String email, String otp, String sessionToken);
-    /** Consume and validate an OTP. Returns the sessionToken if valid, null if invalid/expired. */
-    String consumeOtp(String email, String otp);
-
     /** Clear all state (useful between test runs). */
     void clear();
 }

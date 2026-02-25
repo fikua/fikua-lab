@@ -591,22 +591,7 @@ public class IssuanceService {
             boolean txCodeRequired = bodyNode.has("tx_code_required")
                     && bodyNode.get("tx_code_required").asBoolean(false);
 
-            // Email-initiated flow: create draft and send invitation email
             String recipientEmail = extractRecipientEmail(credentialData, credentialType);
-            if (recipientEmail != null) {
-                var draft = issuanceStore.createDraft(credentialType, credentialData, sourceType, sourceRef, recipientEmail);
-                log.info("Draft IssuanceRecord created: id={}, type={}, email={}", draft.id(), credentialType, recipientEmail);
-
-                String recipientName = extractRecipientName(credentialData, credentialType);
-                String invitationLink = walletBaseUrl;
-                emailService.sendCredentialInvitation(recipientEmail, recipientName, invitationLink);
-
-                var result = new LinkedHashMap<String, Object>();
-                result.put("issuance_id", draft.id());
-                result.put("status", "draft");
-                result.put("email_sent_to", recipientEmail);
-                return result;
-            }
 
             var record = issuanceStore.create(credentialType, credentialData, sourceType, sourceRef);
             log.info("IssuanceRecord created: id={}, type={}, source={}", record.id(), credentialType, sourceType);
@@ -653,6 +638,24 @@ public class IssuanceService {
             if (txCodeValue != null) {
                 result.put("tx_code", txCodeValue);
             }
+
+            // Send email invitation with credential offer deep link
+            if (recipientEmail != null) {
+                String offerUri = (String) result.get("credential_offer_uri");
+                if (offerUri == null) {
+                    // By-value config: store by-reference as well for the email deep link
+                    String offerId = sessionStore.storeCredentialOffer(offerJson);
+                    issuanceStore.updateOfferId(record.id(), offerId);
+                    offerUri = baseUrl + API_PREFIX + "/credential-offer/" + offerId;
+                }
+                String recipientName = extractRecipientName(credentialData, credentialType);
+                String deepLink = walletBaseUrl + "?credential_offer_uri="
+                        + java.net.URLEncoder.encode(offerUri, java.nio.charset.StandardCharsets.UTF_8);
+                emailService.sendCredentialInvitation(recipientEmail, recipientName, deepLink);
+                result.put("email_sent_to", recipientEmail);
+                log.info("Credential invitation email sent to {}", recipientEmail);
+            }
+
             return result;
 
         } catch (Exception e) {
@@ -955,62 +958,6 @@ public class IssuanceService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to build mso_mdoc credential", e);
         }
-    }
-
-    /** Request an OTP for email-based identification. */
-    public Map<String, Object> requestEmailOtp(String sessionToken, String email) {
-        var pending = sessionStore.getPendingAuthorization(sessionToken);
-        if (pending == null) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                    "Invalid or expired identification session");
-        }
-        String otp = generateOtpCode();
-        sessionStore.storeOtp(email.toLowerCase().trim(), otp, sessionToken);
-        emailService.sendOtp(email, otp);
-        log.info("OTP sent to {} for session {}", email, sessionToken);
-        return Map.of("status", "otp_sent", "email", email);
-    }
-
-    /** Validate OTP and complete identification by finding draft IssuanceRecord. */
-    public AuthorizeResult validateEmailOtp(String sessionToken, String email, String otp) {
-        String normalizedEmail = email.toLowerCase().trim();
-        String validatedSession = sessionStore.consumeOtp(normalizedEmail, otp);
-        if (validatedSession == null || !validatedSession.equals(sessionToken)) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST, "Invalid or expired OTP");
-        }
-
-        var record = issuanceStore.findDraftByEmail(normalizedEmail);
-        if (record == null) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                    "No pending credential found for this email");
-        }
-
-        var pending = sessionStore.consumePendingAuthorization(sessionToken);
-        if (pending == null) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                    "Invalid or expired identification session");
-        }
-
-        issuanceStore.updateStatus(record.id(), "offer_created");
-
-        var metadata = new LinkedHashMap<String, Object>();
-        if (pending.containsKey("client_id")) metadata.put("client_id", pending.get("client_id"));
-        if (pending.containsKey("redirect_uri")) metadata.put("redirect_uri", pending.get("redirect_uri"));
-        if (pending.containsKey("code_challenge")) metadata.put("code_challenge", pending.get("code_challenge"));
-        metadata.put("issuanceRecordId", record.id());
-
-        SessionData session = new SessionData(
-                sessionStore.randomToken(16), null, null, Instant.now(), metadata);
-        String authCode = sessionStore.createAuthCode(session);
-
-        String redirectUri = (String) pending.get("redirect_uri");
-        String state = pending.containsKey("state") ? String.valueOf(pending.get("state")) : null;
-        return AuthorizeResult.withCode(authCode, redirectUri, state);
-    }
-
-    private String generateOtpCode() {
-        int code = new java.security.SecureRandom().nextInt(900000) + 100000;
-        return String.valueOf(code);
     }
 
     /** Extract recipient email from credential data for email-initiated flow. */

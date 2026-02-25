@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-02-25
+
+Unified email issuance flow — email invitations now use issuer-initiated credential offers with deep links instead of a separate draft/OTP flow.
+
+### Changed
+
+- **Email invitation deep link:** When issuing a credential with an email (Student ID), the email now contains a `credential_offer_uri` deep link that the wallet processes directly via the standard issuer-initiated flow. Previously, the email linked to a bare wallet URL requiring manual credential selection and OTP identification.
+- **Issuer frontend result screen:** When an email invitation is sent, the issuer UI now shows the "Invitation Sent" banner alongside the QR code and deep link (same-device + cross-device), instead of showing only the email confirmation.
+
+### Removed
+
+- **Draft issuance flow:** `createDraft()`, `findDraftByEmail()` from `IssuanceStore` and implementations. The separate draft status and claiming mechanism is no longer needed.
+- **Email OTP identification:** `requestEmailOtp()`, `validateEmailOtp()`, `generateOtpCode()` from `IssuanceService`; `storeOtp()`, `consumeOtp()` from `SessionStore` and implementations; `/identify/request-otp` and `/identify/validate-otp` endpoints; `sendOtp()` from `EmailService` and implementations.
+- **Identify portal email option:** The "Email Verification" method button and associated email/OTP form phases removed from the identification portal frontend.
+
 ## [0.9.5] - 2026-02-25
 
 Credential configuration cleanup — reduced to 3 supported credential types.

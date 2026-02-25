@@ -81,7 +81,7 @@ Fikua Lab shares a visual system with oriolcanades.com. The Fikua ID Suite brand
 | Reverse Proxy | nginx | alpine | TLS termination, frontend serving |
 | Hosting | OVH VPS (EU) | - | European data residency |
 | CI/CD | GitHub Actions | - | Build, test + Docker push on main (`.github/workflows/ci.yml`) |
-| Email | Resend | HTTP API | Credential invitations and OTP codes |
+| Email | Resend | HTTP API | Credential invitation emails |
 | Certs | OpenSSL | - | Self-signed X.509 (eIDAS-aligned) |
 
 ## Architecture
@@ -541,14 +541,14 @@ When the wallet starts issuance without a Credential Offer (wallet-initiated, no
 2. Wallet redirects to GET /authorize?request_uri=...
 3. Issuer detects wallet-initiated (no issuer_state in PAR)
 4. Issuer creates pending authorization, returns redirect to identify.lab.fikua.com?session=<token>
-5. User identifies at the portal (digital certificate via cert.lab, manual form, or email OTP)
+5. User identifies at the portal (digital certificate via cert.lab or manual form)
 6. Portal calls POST /oid4vci/v1/identify/complete with credential data
 7. Issuer creates IssuanceRecord, generates auth code, returns wallet callback URL
 8. Portal redirects browser to wallet callback with auth code
 9. Wallet continues normal flow: token → nonce → credential
 ```
 
-**Identification portal frontend:** Mini-app with method selection (digital certificate via cert.lab, manual form, or email OTP). Calls `GET /oid4vci/v1/identify/claims` to discover expected claims for the credential type, then `POST /oid4vci/v1/identify/complete` to finalize. The email OTP method calls `POST /oid4vci/v1/identify/request-otp` to send a 6-digit code, then `POST /oid4vci/v1/identify/validate-otp` to verify it and complete identification.
+**Identification portal frontend:** Mini-app with method selection (digital certificate via cert.lab or manual form). Calls `GET /oid4vci/v1/identify/claims` to discover expected claims for the credential type, then `POST /oid4vci/v1/identify/complete` to finalize.
 
 **Pending authorization pattern:** `SessionStore.storePendingAuthorization()` / `consumePendingAuthorization()` preserve the PAR data (client_id, redirect_uri, code_challenge, state, scope) while the user identifies at the portal. The session token links the identification completion back to the original authorization request.
 
@@ -814,8 +814,6 @@ GET  /admin/health                Health check for endpoints
 | POST | `/oid4vci/v1/par` | Pushed Authorization Request (HAIP) |
 | GET | `/oid4vci/v1/identify/claims` | Get expected claims for pending identification session |
 | POST | `/oid4vci/v1/identify/complete` | Complete identification and issue auth code |
-| POST | `/oid4vci/v1/identify/request-otp` | Send 6-digit OTP to email for identification |
-| POST | `/oid4vci/v1/identify/validate-otp` | Validate OTP and complete email identification |
 
 > **Note:** `GET /oid4vci/v1/credential-offer` returns 400 — use `POST /issuance` with `credential_data` to trigger issuance.
 
@@ -835,7 +833,7 @@ X.509 certificate chain with OpenSSL, structure aligned with eIDAS:
 PostgreSQL with the main tables:
 
 - **profiles** — Profile configuration (JSONB), with `is_active` flag
-- **issuance_records** — Credential issuance tracking with `recipient_email`, `credential_data` (JSONB), status (`draft`, `offer_created`, `issued`, `failed`)
+- **issuance_records** — Credential issuance tracking with `recipient_email`, `credential_data` (JSONB), status (`pending`, `offer_created`, `issued`, `failed`)
 - **credential_offers** — By-reference offers with pre-authorized codes
 - **access_tokens** — Issued tokens with c_nonce and DPoP thumbprint
 - **verification_sessions** — OID4VP sessions with state/nonce

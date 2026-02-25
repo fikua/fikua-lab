@@ -47,23 +47,7 @@ public class ResendEmailService implements EmailService {
         sendEmail(recipientEmail, subject, html);
     }
 
-    @Override
-    public void sendOtp(String recipientEmail, String otp) {
-        String subject = "Your verification code: " + otp;
-        String html = """
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-                  <h2 style="color: #12107c; margin-bottom: 8px;">Fikua Lab</h2>
-                  <p>Your verification code is:</p>
-                  <div style="text-align: center; margin: 24px 0;">
-                    <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #12107c; font-family: monospace;">%s</span>
-                  </div>
-                  <p style="color: #666; font-size: 13px;">This code expires in 5 minutes. Do not share it with anyone.</p>
-                  <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
-                  <p style="color: #999; font-size: 12px;">Fikua Lab — EUDI Wallet Testing Platform</p>
-                </div>
-                """.formatted(otp);
-        sendEmail(recipientEmail, subject, html);
-    }
+
 
     private void sendEmail(String to, String subject, String html) {
         String jsonBody = """

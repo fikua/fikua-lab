@@ -62,11 +62,11 @@ SD-JWT VC draft-13+ ha canviat el `typ` header de `vc+sd-jwt` a `dc+sd-jwt` per 
 | Credential | Config ID | VCT | Format | Identificació |
 |------------|-----------|-----|--------|---------------|
 | EUDI PID | `eu.europa.ec.eudi.pid_jwt_vc_json.1` / `eu.europa.ec.eudi.pid_mdoc.1` | `urn:eu.europa.ec.eudi:pid:1` | `dc+sd-jwt` / `mso_mdoc` | Certificat X.509 / formulari manual |
-| Student ID (EWC ds010) | `student-id.sd-jwt.1` | `VerifiableStudentIDSDJWT` | `dc+sd-jwt` | Email OTP |
+| Student ID (EWC ds010) | `student-id.sd-jwt.1` | `VerifiableStudentIDSDJWT` | `dc+sd-jwt` | Issuer-initiated (email deep link) |
 
-### Flux issuer-initiated amb Email OTP (Student ID)
+### Flux issuer-initiated amb email (Student ID)
 
-Flux específic per credencials que utilitzen email com a mètode d'identificació. L'operador crea un draft i envia una invitació per email; el destinatari obté la credencial des del wallet.
+Quan la credencial conté un camp `mail` (Student ID), el flux és issuer-initiated estàndard amb distribució addicional per email. L'operador crea la credencial, el sistema genera l'offer amb pre-auth code, i la distribueix per dos canals: QR/deep link al frontend issuer i deep link per email.
 
 ```text
 OPERADOR (issuer.lab)           SISTEMA                     DESTINATARI (wallet.lab)
@@ -74,36 +74,20 @@ OPERADOR (issuer.lab)           SISTEMA                     DESTINATARI (wallet.
 2. Omple formulari + email
 3. Submit
    ────────────────────────→
-                               4. Crea IssuanceRecord (draft)
-                               5. Envia email via Resend
+                               4. Crea IssuanceRecord
+                               5. Genera CredentialOffer (pre-auth code)
+                               6. Guarda offer by-reference
+                               7. Envia email amb deep link
+                                  (credential_offer_uri) via Resend
+                               8. Retorna QR + deep link al frontend
+   ←────────────────────────
                                   ─────────────────────────→
-                                                            6. Rep email, clica link
-                                                            7. Obre wallet, registra passkey
-                                                            8. "Obtenir credencial" (wallet-initiated)
-                               ←───────────────────────────
-                               9. PAR → redirect a identify.lab
-                                  ─────────────────────────→
-                                                            10. Tria "Email" com a mètode
-                                                            11. Introdueix email
-                               ←───────────────────────────
-                               12. Envia OTP al email
-                                  ─────────────────────────→
-                                                            13. Introdueix OTP (6 dígits)
-                               ←───────────────────────────
-                               14. Valida OTP
-                               15. Busca IssuanceRecord draft per email
-                               16. Crea auth code → redirect al wallet
-                                  ─────────────────────────→
-                                                            17. Token exchange → credential issued
+                                                            9. Rep email, clica deep link
+                                                            10. Wallet detecta credential_offer_uri
+                                                            11. Fetch offer → token exchange → credential issued
 ```
 
-**Endpoints d'identificació per email:**
-- `POST /oid4vci/v1/identify/request-otp` — `{ session, email }` → envia OTP de 6 dígits
-- `POST /oid4vci/v1/identify/validate-otp` — `{ session, email, otp }` → `{ redirect }` al wallet
-
-**OTP storage:** In-memory via `SessionStore`, TTL de 5 minuts, single-use. El codi erroni permet reintents dins el TTL.
-
-**Email service:** Port `EmailService` amb adapter `ResendEmailService` (producció) o `NoOpEmailService` (dev/test, logs only).
+**Email service:** Port `EmailService` amb adapter `ResendEmailService` (producció) o `NoOpEmailService` (dev/test, logs only). El deep link enviat per email és `walletBaseUrl + ?credential_offer_uri=<encoded_uri>`.
 
 ---
 
