@@ -58,6 +58,8 @@ public class FikuaLab {
                 log.warn("Frontend directory not found: {}, static files disabled", config.frontendDir());
             }
             javalinConfig.http.defaultContentType = "application/json";
+            // Allow cross-origin requests (wallet ↔ verifier are different subdomains)
+            javalinConfig.bundledPlugins.enableCors(cors -> cors.addRule(rule -> rule.anyHost()));
         });
 
         // Global error handling
