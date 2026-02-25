@@ -102,9 +102,10 @@ public class IssuanceService {
                     baseUrl + API_PREFIX + "/jwks"
             );
         }
-        return AuthServerMetadata.forPreAuthProfile(
+        return AuthServerMetadata.forPlainProfile(
                 baseUrl,
                 baseUrl + API_PREFIX + "/token",
+                baseUrl + API_PREFIX + "/authorize",
                 baseUrl + API_PREFIX + "/jwks"
         );
     }
@@ -432,16 +433,11 @@ public class IssuanceService {
         }
     }
 
-    /** Handle authorization request (HAIP). */
+    /** Handle authorization request (HAIP or plain with authorization_code). */
     public AuthorizeResult handleAuthorize(String requestUri, String clientId, String redirectUri,
                                             String state, String codeChallenge, String issuerState,
                                             ProfileConfig config) {
-        if (!config.isHaip()) {
-            throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
-                    "Authorization endpoint not available for this profile");
-        }
-
-        // Resolve PAR if request_uri provided
+        // Resolve PAR if request_uri provided (HAIP only)
         String scope = null;
         if (requestUri != null) {
             Map<String, String> parParams = sessionStore.consumeParRequest(requestUri);
@@ -617,6 +613,22 @@ public class IssuanceService {
                     ? bodyNode.get("delivery_method").asText("screen")
                     : "screen";
 
+            // Per-issuance grant type: request overrides profile default
+            String requestGrantType = bodyNode.has("grant_type")
+                    ? bodyNode.get("grant_type").asText()
+                    : null;
+            boolean useAuthorizationCode;
+            if (requestGrantType != null) {
+                useAuthorizationCode = "authorization_code".equals(requestGrantType);
+                // HAIP profiles only allow authorization_code
+                if (config.isHaip() && !useAuthorizationCode) {
+                    throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
+                            "HAIP profile only supports authorization_code grant type");
+                }
+            } else {
+                useAuthorizationCode = config.isHaip();
+            }
+
             String recipientEmail = "email".equals(deliveryMethod)
                     ? extractRecipientEmail(credentialData, credentialType)
                     : null;
@@ -626,8 +638,8 @@ public class IssuanceService {
 
             CredentialOffer offer;
             String txCodeValue = null;
-            if (config.isHaip()) {
-                log.info("Credential offer: grant_type=authorization_code (HAIP), issuanceId={}", record.id());
+            if (useAuthorizationCode) {
+                log.info("Credential offer: grant_type=authorization_code, issuanceId={}", record.id());
                 String issuerState = sessionStore.randomToken(16);
                 sessionStore.storeIssuerState(issuerState, Map.of("issuanceRecordId", record.id()));
                 String offerConfigId = resolveOfferConfigId(credentialType);

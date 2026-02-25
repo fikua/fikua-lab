@@ -113,7 +113,7 @@ public class AdminRoutes {
 
     private void listPresets(Context ctx) {
         ctx.json(List.of(
-                Map.of("name", "Plain Pre-Auth Issuer", "role", "issuer", "config", ProfilePresets.plainPreAuthIssuer()),
+                Map.of("name", "Plain Issuer", "role", "issuer", "config", ProfilePresets.plainIssuer()),
                 Map.of("name", "HAIP Issuer", "role", "issuer", "config", ProfilePresets.haipIssuer()),
                 Map.of("name", "Plain Verifier", "role", "verifier", "config", ProfilePresets.plainVerifier()),
                 Map.of("name", "HAIP Verifier", "role", "verifier", "config", ProfilePresets.haipVerifier())

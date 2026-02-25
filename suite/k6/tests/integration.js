@@ -45,8 +45,8 @@ export default function () {
       "GET /admin/presets → 200": (r) => r.status === 200,
       "returns array": () => Array.isArray(body),
       "has at least 1 preset": () => body.length >= 1,
-      "contains Plain Pre-Auth Issuer": () =>
-        body.some((p) => p.name === "Plain Pre-Auth Issuer"),
+      "contains Plain Issuer": () =>
+        body.some((p) => p.name === "Plain Issuer"),
       "contains HAIP Issuer": () =>
         body.some((p) => p.name === "HAIP Issuer"),
       "contains Plain Verifier": () =>

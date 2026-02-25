@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-02-25
+
+Per-issuance grant type selection and Plain Issuer profile unification.
+
+### Added
+
+- **Grant type selector:** Issuer UI now shows Pre-authorized / Authorization code pills, allowing operators to choose the grant type per issuance instead of being locked to the profile's default.
+- **AuthServerMetadata.forPlainProfile():** New metadata factory that advertises both `authorization_code` and `pre-authorized_code` grant types with an authorization endpoint (no DPoP/PAR/PKCE).
+
+### Changed
+
+- **Plain Issuer profile:** Renamed from "Plain Pre-Auth Issuer" to "Plain Issuer". The profile no longer has a fixed grant type — it supports both pre-authorized_code and authorization_code, with the choice made per issuance.
+- **triggerIssuance():** Now reads `grant_type` from the request body to override the profile default. HAIP profiles reject pre-authorized_code; Plain profiles accept both.
+- **handleAuthorize():** Removed HAIP-only restriction — Plain profiles can now use authorization_code for issuer-initiated flows.
+- **Transaction code checkbox:** Automatically hidden when authorization_code is selected (tx_code is pre-auth only per OID4VCI spec).
+- **Database:** V6 migration renames "Plain Pre-Auth Issuer" profile and removes the fixed grantType from its config JSON.
+
 ## [0.9.7] - 2026-02-25
 
 Delivery method selector and email-based transaction code delivery.

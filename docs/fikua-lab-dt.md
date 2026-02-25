@@ -722,15 +722,15 @@ Configuration profiles stored in PostgreSQL (JSONB). Each profile is a set of pa
 
 ### Presets
 
-**Plain Pre-Auth Issuer** — The simplest test to start with
+**Plain Issuer** — Supports both grant types, selected per issuance
 
 | Parameter | Value |
 |-----------|-------|
-| Grant Type | `pre_authorization_code` |
+| Grant Type | Per issuance (`pre_authorization_code` or `authorization_code`) |
 | Credential Format | `sd_jwt_vc` |
 | Credential Offer | `by_reference` |
 | Issuance Mode | `immediate` |
-| DPoP / Client Auth | None (not required with pre-auth) |
+| DPoP / Client Auth | None |
 
 **HAIP Authorization Code Issuer** — What EUDI/ARF requires
 
@@ -771,7 +771,7 @@ GET  /admin/presets               List available presets
 GET  /admin/health                Health check for endpoints
 ```
 
-## Happy path — Plain Pre-Auth Issuer (OID4VCI)
+## Happy path — Plain Issuer (OID4VCI)
 
 ```text
 1. Issuer generates credential_offer with pre-authorized_code

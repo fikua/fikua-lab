@@ -11,14 +11,15 @@ public final class ProfilePresets {
     private ProfilePresets() {}
 
     /**
-     * Simplest issuer profile: pre-authorized code, SD-JWT VC, no DPoP, no client auth.
-     * Maps to OIDF test #2 with pre_authorization_code.
+     * Plain issuer profile: supports both pre-authorized_code and authorization_code.
+     * No DPoP, no PAR, no PKCE, no client attestation.
+     * Grant type is selected per-issuance via the UI.
      */
-    public static ProfileConfig plainPreAuthIssuer() {
+    public static ProfileConfig plainIssuer() {
         return new ProfileConfig(
-                GrantType.PRE_AUTHORIZATION_CODE,
-                null,  // No sender constraining for pre-auth
-                null,  // No client auth for pre-auth
+                null,  // Grant type decided per-issuance
+                null,  // No sender constraining
+                null,  // No client auth
                 CredentialFormat.SD_JWT_VC,
                 VciProfile.PLAIN,
                 CredentialOfferVariant.BY_REFERENCE,

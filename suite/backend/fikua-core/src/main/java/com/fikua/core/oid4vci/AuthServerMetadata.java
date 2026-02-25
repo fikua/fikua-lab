@@ -30,7 +30,7 @@ public record AuthServerMetadata(
         @JsonProperty("subject_types_supported") List<String> subjectTypesSupported
 ) {
 
-    /** Build metadata for pre-authorized code profile. */
+    /** Build metadata for pre-authorized code only profile (legacy, kept for tests). */
     public static AuthServerMetadata forPreAuthProfile(String issuer, String tokenEndpoint, String jwksUri) {
         return new AuthServerMetadata(
                 issuer,
@@ -49,6 +49,30 @@ public record AuthServerMetadata(
                 null, // no signing alg
                 true,
                 null, // no iss parameter for pre-auth
+                List.of("public")
+        );
+    }
+
+    /** Build metadata for plain profile: supports both pre-authorized and authorization_code grants. */
+    public static AuthServerMetadata forPlainProfile(String issuer, String tokenEndpoint,
+                                                      String authorizationEndpoint, String jwksUri) {
+        return new AuthServerMetadata(
+                issuer,
+                tokenEndpoint,
+                authorizationEndpoint,
+                null, // no PAR for plain
+                jwksUri,
+                List.of("code"),
+                List.of("authorization_code", "urn:ietf:params:oauth:grant-type:pre-authorized_code"),
+                null, // no PKCE for plain
+                List.of("none"),
+                null, // no DPoP
+                null, // no client attestation
+                null,
+                null, // no require_par
+                null, // no signing alg
+                true,
+                null,
                 List.of("public")
         );
     }
