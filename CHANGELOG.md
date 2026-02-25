@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-02-25
+
+Wallet credential display fixes and scope propagation for wallet-initiated flows.
+
+### Fixed
+
+- **Credential display name:** `getCredentialDisplayName` now correctly maps `student-id`, `mDL`, `pid.mdoc`, and `pid` config IDs to human-readable names instead of showing raw format strings like "SD-JWT".
+- **Wallet-initiated scope:** PAR requests now send the `credential_configuration_id` as scope instead of hardcoded `openid`. This ensures the identification portal renders the correct dynamic form (e.g. Student ID claims instead of PID claims).
+- **Add Credential modal scroll:** Added `max-height: 60vh` and `overflow-y: auto` to the credential list so all credentials are accessible when the list exceeds the viewport.
+
 ## [0.9.2] - 2026-02-24
 
 Wallet QR scanner performance — hybrid BarcodeDetector + Web Worker architecture.
