@@ -164,6 +164,7 @@ public class IssuerController {
                 ctx.queryParam("state"),
                 ctx.queryParam("code_challenge"),
                 ctx.queryParam("issuer_state"),
+                ctx.queryParam("scope"),
                 config
         );
 

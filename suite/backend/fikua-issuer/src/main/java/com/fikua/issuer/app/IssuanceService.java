@@ -441,9 +441,8 @@ public class IssuanceService {
     /** Handle authorization request (HAIP or plain with authorization_code). */
     public AuthorizeResult handleAuthorize(String requestUri, String clientId, String redirectUri,
                                             String state, String codeChallenge, String issuerState,
-                                            ProfileConfig config) {
+                                            String scope, ProfileConfig config) {
         // Resolve PAR if request_uri provided (HAIP only)
-        String scope = null;
         if (requestUri != null) {
             Map<String, String> parParams = sessionStore.consumeParRequest(requestUri);
             if (parParams == null) {

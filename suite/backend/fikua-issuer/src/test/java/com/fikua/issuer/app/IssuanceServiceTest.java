@@ -87,7 +87,7 @@ class IssuanceServiceTest {
 
         // When: authorize without issuer_state (wallet-initiated)
         var result = service.handleAuthorize(
-                requestUri, null, null, null, null, null, HAIP_CONFIG
+                requestUri, null, null, null, null, null, null, HAIP_CONFIG
         );
 
         // Then: redirects to identification portal (no code yet)
@@ -124,7 +124,7 @@ class IssuanceServiceTest {
 
         // When: authorize with issuer_state (issuer-initiated)
         var result = service.handleAuthorize(
-                requestUri, null, null, null, null, null, HAIP_CONFIG
+                requestUri, null, null, null, null, null, null, HAIP_CONFIG
         );
 
         // Then: code issued immediately (no identification redirect)
@@ -153,7 +153,7 @@ class IssuanceServiceTest {
         sessionStore.storeParRequest(requestUri, parParams);
 
         var authorizeResult = service.handleAuthorize(
-                requestUri, null, null, null, null, null, HAIP_CONFIG
+                requestUri, null, null, null, null, null, null, HAIP_CONFIG
         );
         // Extract session token from identify redirect URL
         String sessionToken = authorizeResult.identifyRedirect()
@@ -207,7 +207,7 @@ class IssuanceServiceTest {
         String requestUri = "urn:ietf:params:oauth:request_uri:scope-test";
         sessionStore.storeParRequest(requestUri, parParams);
 
-        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, null, HAIP_CONFIG);
         String sessionToken = authorizeResult.identifyRedirect()
                 .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
 
@@ -238,7 +238,7 @@ class IssuanceServiceTest {
         String requestUri = "urn:ietf:params:oauth:request_uri:claims-test";
         sessionStore.storeParRequest(requestUri, parParams);
 
-        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, null, HAIP_CONFIG);
         String sessionToken = authorizeResult.identifyRedirect()
                 .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
 
@@ -282,7 +282,7 @@ class IssuanceServiceTest {
         String requestUri = "urn:ietf:params:oauth:request_uri:mdoc-test";
         sessionStore.storeParRequest(requestUri, parParams);
 
-        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, null, HAIP_CONFIG);
         String sessionToken = authorizeResult.identifyRedirect()
                 .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
 
@@ -312,7 +312,7 @@ class IssuanceServiceTest {
         String requestUri = "urn:ietf:params:oauth:request_uri:mdoc-claims-test";
         sessionStore.storeParRequest(requestUri, parParams);
 
-        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, HAIP_CONFIG);
+        var authorizeResult = service.handleAuthorize(requestUri, null, null, null, null, null, null, HAIP_CONFIG);
         String sessionToken = authorizeResult.identifyRedirect()
                 .substring(authorizeResult.identifyRedirect().indexOf("session=") + "session=".length());
 

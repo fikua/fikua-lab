@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.11] - 2026-02-25
+
+Fix identify form showing wrong credential fields for non-PAR authorization flows.
+
+### Fixed
+
+- **Scope propagation without PAR:** When using Plain profile with authorization_code (no PAR), the wallet was not sending the `scope` parameter in the authorize URL. The backend defaulted to PID fields instead of the correct credential type (e.g. Student ID). Fixed by adding `scope=configId` to the direct authorize URL in the wallet and accepting `scope` as a query parameter in `handleAuthorize()`.
+
 ## [0.9.10] - 2026-02-25
 
 Fix duplicate OTP email on credential offer retrieval.
