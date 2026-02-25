@@ -135,8 +135,8 @@
         try {
             // Map credential type from radio value to VCT
             const credentialType = config.credType === 'pid'
-                ? 'urn:eu.europa.ec.eudi:pid:1'
-                : 'urn:eu.europa.ec.eudi:lear:1';
+                ? 'eu.europa.ec.eudi.pid.1'
+                : 'eu.europa.ec.eudi.lear.1';
 
             const claims = config.credType === 'pid'
                 ? ['given_name', 'family_name', 'birth_date']

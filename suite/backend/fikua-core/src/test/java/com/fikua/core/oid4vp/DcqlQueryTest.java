@@ -18,7 +18,7 @@ class DcqlQueryTest {
                 new CredentialQuery(
                         "identity_credential",
                         DcqlQuery.FORMAT_DC_SD_JWT,
-                        new CredentialQuery.CredentialMeta(List.of("urn:eu.europa.ec.eudi:pid:1")),
+                        new CredentialQuery.CredentialMeta(List.of("eu.europa.ec.eudi.pid.1")),
                         List.of(
                                 new ClaimQuery(List.of("given_name"), null, true),
                                 new ClaimQuery(List.of("family_name"), null, true),
@@ -31,7 +31,7 @@ class DcqlQueryTest {
         JsonNode cred = json.get("credentials").get(0);
         assertEquals("identity_credential", cred.get("id").asText());
         assertEquals("dc+sd-jwt", cred.get("format").asText());
-        assertEquals("urn:eu.europa.ec.eudi:pid:1", cred.get("meta").get("vct_values").get(0).asText());
+        assertEquals("eu.europa.ec.eudi.pid.1", cred.get("meta").get("vct_values").get(0).asText());
 
         JsonNode claims = cred.get("claims");
         assertEquals(3, claims.size());
@@ -69,7 +69,7 @@ class DcqlQueryTest {
                 new CredentialQuery(
                         "pid",
                         "dc+sd-jwt",
-                        new CredentialQuery.CredentialMeta(List.of("urn:eu.europa.ec.eudi:pid:1")),
+                        new CredentialQuery.CredentialMeta(List.of("eu.europa.ec.eudi.pid.1")),
                         List.of(new ClaimQuery(List.of("given_name"), null, null))
                 )
         ));
@@ -80,7 +80,7 @@ class DcqlQueryTest {
         assertEquals(1, deserialized.credentials().size());
         assertEquals("pid", deserialized.credentials().getFirst().id());
         assertEquals("dc+sd-jwt", deserialized.credentials().getFirst().format());
-        assertEquals("urn:eu.europa.ec.eudi:pid:1",
+        assertEquals("eu.europa.ec.eudi.pid.1",
                 deserialized.credentials().getFirst().meta().vctValues().getFirst());
         assertEquals("given_name",
                 deserialized.credentials().getFirst().claims().getFirst().path().getFirst());

@@ -54,7 +54,7 @@ public class VerifierController {
         log.info("POST /oid4vp/v1/session");
 
         // Parse request body
-        String credentialType = "urn:eu.europa.ec.eudi:pid:1"; // default
+        String credentialType = "eu.europa.ec.eudi.pid.1"; // default
         List<String> requestedClaims = List.of("given_name", "family_name", "birth_date"); // default
 
         String body = ctx.body();

@@ -55,7 +55,7 @@ public class VerificationService {
     /**
      * Create a new verification session with an Authorization Request.
      *
-     * @param credentialType the credential type to request (e.g. "urn:eu.europa.ec.eudi:pid:1")
+     * @param credentialType the credential type to request (e.g. "eu.europa.ec.eudi.pid.1")
      * @param requestedClaims the claims to request (e.g. ["given_name", "family_name"])
      * @return the created session with request_uri
      */
