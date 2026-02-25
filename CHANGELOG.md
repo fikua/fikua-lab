@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-02-25
+
+Issuer UI polish: unified pill selectors for all issuance options.
+
+### Changed
+
+- **Transaction code selector:** Replaced checkbox with pill-style radio toggle (Off / Required) matching the Grant type and Delivery selectors for visual consistency.
+- **Label wording:** Changed "Transaction code" to "Verification code (OTP)" for clarity to non-technical operators.
+- **Removed unused CSS:** Cleaned up `.checkbox-label` styles no longer referenced.
+
 ## [0.9.8] - 2026-02-25
 
 Per-issuance grant type selection and Plain Issuer profile unification.
