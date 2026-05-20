@@ -72,8 +72,7 @@ suite/
     verifier/         Verifier UI
 deployment/
   docker/             Dockerfile (multi-stage Java 25)
-  envs/               Environment configs (local, dev/VPS)
-  nginx/              Reverse proxy + TLS termination
+  envs/               Environment configs (local + VPS compose used by CI)
 docs/
   fikua-lab-dt.md     Technical document (source of truth)
   specs/              Protocol specs and flow docs

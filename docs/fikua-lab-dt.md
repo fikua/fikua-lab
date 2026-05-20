@@ -277,19 +277,14 @@ fikua-lab/
 │       │   ├── compose.yaml                       # Local dev: backend (build) + postgres
 │       │   └── deploy-frontend.sh                 # Serve frontend locally (python HTTP)
 │       └── dev/
-│           ├── ssh/                               # SSH key Ed25519 (gitignored)
-│           ├── .env.example                       # VPS environment variables (shared by scripts)
-│           ├── docker/
-│           │   └── compose.yaml                   # VPS: backend (pull DockerHub) + postgres
-│           ├── nginx/
-│           │   └── nginx-lab.conf                 # VPS nginx routing (subdomains)
-│           ├── release-docker.sh                  # Build + push Docker image to DockerHub
-│           ├── deploy-nginx.sh                    # Deploy nginx config + SSL to VPS
-│           ├── deploy-backend.sh                  # Deploy backend to VPS (SSH)
-│           └── deploy-frontend.sh                 # Deploy frontend to VPS (SCP)
+│           ├── .env.example                       # VPS env vars template (used by CI)
+│           └── docker/
+│               └── compose.yaml                   # VPS: backend (pull DockerHub) + postgres
 │
-├── Makefile                                       # make help, build, deploy, pull, push, etc.
+├── Makefile                                       # make help, build, local-*, pull, push (VPS commands in vps-ops)
 └── README.md
+
+# VPS deploy scripts, SSH key, nginx config and release script live in the vps-ops repo.
 ```
 
 ## Domains and DNS
@@ -350,7 +345,7 @@ Nginx is a system service (not a Docker container). Installed via `apt` and mana
 
 **Deploy precautions:**
 
-- `make deploy-nginx` uploads `lab-fikua.conf` and requests SSL certificates if they don't exist
+- `make lab-deploy-nginx` (run from `vps-ops`) uploads `nginx-lab.conf` and requests SSL certificates if they don't exist
 - On first deploy (without certificates), the script fails because the config references certificates that don't exist yet
 - For the first SSL deploy, do it manually on the VPS: temporarily disable the config, request the cert with `--standalone`, and re-enable (see "Troubleshooting nginx" section)
 
@@ -437,7 +432,7 @@ limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
 
 ### Nginx routing
 
-Nginx decides whether to serve static files (frontends) or proxy to the backend. Configuration is at `deployment/envs/dev/nginx/nginx-lab.conf`.
+Nginx decides whether to serve static files (frontends) or proxy to the backend. Configuration is at `vps-ops/fikua-lab/nginx/nginx-lab.conf`.
 
 | Subdomain | Path | Destination | Type |
 |-----------|------|-------------|------|
@@ -844,47 +839,48 @@ Migrations managed by Flyway at `src/main/resources/db/migration/`.
 
 ## Deployment
 
-### Prerequisites
+VPS deployment lives in the [`vps-ops`](https://github.com/oriolcanades/vps-ops) repository. CI/CD (`.github/workflows/ci.yml`) builds the Docker image, pushes it to DockerHub, and deploys it to the VPS automatically on every push to `main`. Manual operations (frontend upload, nginx config, status, backups) are run from `vps-ops` via `make lab-*`.
 
-- SSH key at `deployment/envs/dev/ssh/id_ed25519`
-- Docker Desktop installed locally
-- DockerHub PAT configured in `deployment/envs/dev/.env` (copy from `.env.example`)
-- SSH access to VPS (port `49222`)
+### Prerequisites (manual deployment from `vps-ops`)
+
+- Clone of the [`vps-ops`](https://github.com/oriolcanades/vps-ops) repo
+- SSH key at `vps-ops/ssh/id_ed25519` (already configured there)
+- DockerHub PAT configured in `vps-ops/fikua-lab/.env` (copy from `.env.example`)
+- SSH access to the VPS (port `49222`)
 
 ### Environments
 
 | Environment | Directory | Backend | Frontends |
 |-------------|-----------|---------|-----------|
 | Local | `deployment/envs/local/` | Docker build from source | `python3 -m http.server` (landing:3000, portal:3001) |
-| Dev (VPS) | `deployment/envs/dev/` | Docker pull from DockerHub | SCP to VPS, served by nginx |
+| Dev (VPS) | `vps-ops/fikua-lab/` | Docker pull from DockerHub (CI/CD) | SCP to VPS, served by nginx |
+
+The `deployment/envs/dev/docker/compose.yaml` and `.env.example` stay in this repo because CI uses them to deploy to the VPS.
 
 ### Deployment flow (VPS)
 
-**First time (clean VPS):**
+**Automated (preferred):** push to `main` triggers `.github/workflows/ci.yml` which builds the image, pushes to DockerHub, and deploys to the VPS.
+
+**Manual (from `vps-ops`):**
 
 ```bash
-make full-deploy      # cleanup + nginx/SSL + backend
-make deploy-frontend  # upload all frontends
-```
+# First time (clean VPS)
+make lab-full-deploy      # cleanup + nginx/SSL + backend
+make lab-deploy-frontend  # upload all frontends
 
-**Redeployment (update version):**
+# Redeployment (update version)
+make lab-release          # build Docker image + push to DockerHub
+make lab-deploy           # pull image on VPS + restart containers
 
-```bash
-make docker-push      # build Docker image + push to DockerHub
-make deploy           # pull image on VPS + restart containers
-```
-
-**Frontend only:**
-
-```bash
-make deploy-frontend  # upload all frontend files to VPS
+# Frontend only
+make lab-deploy-frontend  # upload all frontend files to VPS
 ```
 
 ### Available commands
 
-Run `make help` to see all available commands. Full reference:
+Local development still lives in this repo's Makefile (run `make help`). VPS commands moved to `vps-ops`:
 
-**Development:**
+**Development (here):**
 
 | `make` target | Description |
 |---------------|-------------|
@@ -896,7 +892,7 @@ Run `make help` to see all available commands. Full reference:
 | `clean` | Clean build artifacts |
 | `reset` | Reset local state (`POST /reset`) |
 
-**Local environment:**
+**Local environment (here):**
 
 | `make` target | Description |
 |---------------|-------------|
@@ -905,33 +901,28 @@ Run `make help` to see all available commands. Full reference:
 | `local-logs` | Tail backend logs (local) |
 | `local-frontend` | Serve frontend locally (ports 3000-3005) |
 
-**Docker:**
+**VPS — Deploy (in `vps-ops`):**
 
 | `make` target | Description |
 |---------------|-------------|
-| `docker-push` | Build + push to DockerHub (version tag from `gradle.properties` + `latest`) |
+| `lab-release` | Build + push to DockerHub (version tag from `gradle.properties` + `latest`) |
+| `lab-deploy` | Pull image on VPS + restart containers |
+| `lab-deploy-frontend` | Upload frontend to VPS (SCP) |
+| `lab-deploy-nginx` | Deploy nginx config + SSL certificates to VPS |
+| `lab-full-deploy` | Cleanup + nginx + deploy |
+| `lab-cleanup` | Remove old Docker resources on VPS |
 
-**VPS — Deploy:**
-
-| `make` target | Description |
-|---------------|-------------|
-| `deploy` | Pull image on VPS + restart containers |
-| `deploy-frontend` | Upload frontend to VPS (SCP) |
-| `deploy-nginx` | Deploy nginx config + SSL certificates to VPS |
-| `full-deploy` | Cleanup + nginx + deploy |
-| `cleanup` | Remove old Docker resources on VPS |
-
-**VPS — Operations:**
+**VPS — Operations (in `vps-ops`):**
 
 | `make` target | Description |
 |---------------|-------------|
-| `ssh` | SSH into VPS |
-| `logs` | Tail backend logs in real time |
-| `status` | Health check |
-| `backup` | Backup PostgreSQL to local |
-| `vps-reset` | Reset database (dangerous!) |
+| `lab-ssh` | SSH into VPS |
+| `lab-logs` | Tail backend logs in real time |
+| `lab-status` | Health check |
+| `lab-backup` | Backup PostgreSQL to local |
+| `lab-reset` | Reset database (dangerous!) |
 
-**Git sync:**
+**Git sync (here):**
 
 | `make` target | Description |
 |---------------|-------------|
@@ -965,16 +956,18 @@ The version is read automatically from `suite/backend/gradle.properties` (`versi
 - **`<version>`** — Tag with the project version (e.g., `0.1.0-SNAPSHOT`)
 - **`latest`** — Always points to the latest build
 
+All commands below are run from the `vps-ops` repo.
+
 ```bash
-make docker-push      # Build + push with gradle.properties tag + latest
-make deploy           # Pull image on VPS + restart
+make lab-release      # Build + push with gradle.properties tag + latest
+make lab-deploy       # Pull image on VPS + restart
 ```
 
 To force a different tag:
 
 ```bash
-FIKUA_VERSION=v1.0.0 make docker-push
-FIKUA_VERSION=v1.0.0 make deploy
+FIKUA_VERSION=v1.0.0 make lab-release
+FIKUA_VERSION=v1.0.0 make lab-deploy
 ```
 
 ## Rollback and recovery
@@ -989,27 +982,27 @@ cd /opt/vps/lab
 sudo docker compose --env-file .env -f compose.yaml up -d --force-recreate
 ```
 
-Or from local:
+Or from `vps-ops`:
 
 ```bash
-FIKUA_VERSION=<previous-version> make deploy
+FIKUA_VERSION=<previous-version> make lab-deploy
 ```
 
 ### Database reset
 
 ```bash
-make vps-reset    # Warning: deletes ALL data
+make lab-reset    # Warning: deletes ALL data (run from vps-ops)
 ```
 
 ### Nginx recovery
 
 ```bash
-make setup-nginx    # Re-upload and reactivate config
+make lab-deploy-nginx    # Re-upload and reactivate config (run from vps-ops)
 ```
 
 ### If VPS is unresponsive
 
-1. `make ssh` — Verify SSH access
+1. `make lab-ssh` (from `vps-ops`) — Verify SSH access
 2. `sudo systemctl status docker` — Docker running?
 3. `sudo docker compose -f /opt/vps/lab/compose.yaml ps` — Container status
 4. `sudo docker compose -f /opt/vps/lab/compose.yaml logs --tail=50` — Recent logs
@@ -1026,13 +1019,13 @@ Low data volume — weekly backup is sufficient.
 **Manual backup:**
 
 ```bash
-make backup    # Download SQL dump to backups/
+make lab-backup    # Download SQL dump to backups/ (run from vps-ops)
 ```
 
 **Direct backup on VPS:**
 
 ```bash
-make ssh
+make lab-ssh    # from vps-ops
 sudo docker exec fikua-lab-db pg_dump -U fikua fikua > /tmp/backup.sql
 ```
 
@@ -1043,7 +1036,7 @@ sudo docker exec fikua-lab-db pg_dump -U fikua fikua > /tmp/backup.sql
 scp -P 49222 backups/fikua-lab-backup-XXXXXXXX.sql ubuntu@51.38.179.236:/tmp/
 
 # Restore (overwrites existing data)
-make ssh
+make lab-ssh    # from vps-ops
 sudo docker exec -i fikua-lab-db psql -U fikua fikua < /tmp/fikua-lab-backup-XXXXXXXX.sql
 ```
 
@@ -1057,7 +1050,7 @@ sudo docker exec -i fikua-lab-db psql -U fikua fikua < /tmp/fikua-lab-backup-XXX
 ### What the backup does NOT include
 
 - X.509 certificates (regenerable)
-- Nginx configuration (versioned at `deployment/envs/dev/nginx-lab.conf`)
+- Nginx configuration (versioned at `vps-ops/fikua-lab/nginx/nginx-lab.conf`)
 - Docker images (available on DockerHub)
 
 ## Monitoring

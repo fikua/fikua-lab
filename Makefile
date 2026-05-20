@@ -3,9 +3,7 @@
 .PHONY: help build run test clean compile local-up local-down local-logs local-frontend \
         wallet-dev wallet-build wallet-test \
         integration-test load-test \
-        docker-push deploy deploy-frontend deploy-nginx full-deploy \
-        cleanup ssh logs status backup vps-reset reset \
-        local-db-reset vps-db-reset \
+        reset local-db-reset \
         pull push
 
 .DEFAULT_GOAL := help
@@ -44,26 +42,10 @@ help: ## Show available commands
 	@echo "  make wallet-test      Run wallet unit tests (Vitest)"
 	@echo "  make local-db-reset   Drop all tables and restart (local)"
 	@echo ""
-	@echo "  Docker"
-	@echo "  ------"
-	@echo "  make docker-push      Build + push image to DockerHub"
-	@echo ""
-	@echo "  VPS deploy"
-	@echo "  ----------"
-	@echo "  make deploy           Deploy backend to VPS (pull + restart)"
-	@echo "  make deploy-frontend  Upload frontend to VPS (SCP)"
-	@echo "  make deploy-nginx     Deploy nginx config + SSL to VPS"
-	@echo "  make full-deploy      Cleanup + nginx + backend deploy"
-	@echo "  make cleanup          Remove old Docker resources on VPS"
-	@echo ""
-	@echo "  VPS operations"
+	@echo "  VPS deployment"
 	@echo "  --------------"
-	@echo "  make ssh              SSH into VPS"
-	@echo "  make logs             Tail backend logs on VPS"
-	@echo "  make status           Check VPS health"
-	@echo "  make backup           Backup PostgreSQL from VPS"
-	@echo "  make vps-db-reset     Drop all tables on VPS and restart backend"
-	@echo "  make vps-reset        Reset VPS deployment (dangerous!)"
+	@echo "  VPS deployment lives in the vps-ops repo (make lab-* over there)."
+	@echo "  CI/CD deploys automatically on push to main."
 	@echo ""
 	@echo "  Git sync"
 	@echo "  --------"
@@ -169,75 +151,10 @@ local-db-reset:
 	@echo "Local DB reset complete. Profiles re-seeded."
 
 # =============================================================================
-# VPS — Docker (build + push)
+# VPS deployment lives in the vps-ops repository
+# (https://github.com/oriolcanades/vps-ops). Use `make lab-*` over there.
+# CI/CD still deploys automatically on push to main via .github/workflows/ci.yml.
 # =============================================================================
-
-# Build + push to DockerHub (version tag from gradle.properties + latest)
-docker-push:
-	chmod +x deployment/envs/dev/release-docker.sh && ./deployment/envs/dev/release-docker.sh
-
-# =============================================================================
-# VPS — Deploy
-# =============================================================================
-
-# Deploy backend to VPS (pull image + restart)
-deploy:
-	./deployment/envs/dev/deploy-backend.sh deploy
-
-# Deploy frontend to VPS (upload static files)
-deploy-frontend:
-	chmod +x deployment/envs/dev/deploy-frontend.sh && ./deployment/envs/dev/deploy-frontend.sh
-
-# Deploy nginx config + SSL to VPS
-deploy-nginx:
-	chmod +x deployment/envs/dev/deploy-nginx.sh && ./deployment/envs/dev/deploy-nginx.sh
-
-# Full deploy: cleanup + nginx + backend
-full-deploy:
-	./deployment/envs/dev/deploy-backend.sh full-deploy
-
-# Cleanup old Docker resources on VPS
-cleanup:
-	./deployment/envs/dev/deploy-backend.sh cleanup
-
-# =============================================================================
-# VPS — Operations
-# =============================================================================
-
-# SSH into VPS
-ssh:
-	./deployment/envs/dev/deploy-backend.sh ssh
-
-# View backend logs on VPS
-logs:
-	./deployment/envs/dev/deploy-backend.sh logs
-
-# Check VPS status
-status:
-	./deployment/envs/dev/deploy-backend.sh status
-
-# Backup PostgreSQL from VPS
-backup:
-	./deployment/envs/dev/deploy-backend.sh backup
-
-# Drop all tables on VPS and restart backend — profiles re-seeded on restart
-vps-db-reset:
-	@echo "Dropping all tables on VPS database..."
-	@ssh -i deployment/envs/dev/ssh/id_ed25519 -o StrictHostKeyChecking=no -p 49222 \
-		ubuntu@51.38.179.236 "sudo docker exec fikua-lab-db psql -U fikua -d fikua \
-		-c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && \
-		sudo docker restart fikua-lab"
-	@echo "VPS DB reset complete. Waiting for backend..."
-	@READY=0; for i in $$(seq 1 20); do \
-		if curl -sf https://issuer.lab.fikua.com/health > /dev/null 2>&1; then READY=1; break; fi; \
-		sleep 3; \
-	done; \
-	if [ "$$READY" -eq 1 ]; then echo "Backend is UP. Profiles re-seeded."; \
-	else echo "WARNING: Backend did not come back within 60s"; fi
-
-# Reset VPS deployment (dangerous!)
-vps-reset:
-	./deployment/envs/dev/deploy-backend.sh reset
 
 # =============================================================================
 # Git Sync
