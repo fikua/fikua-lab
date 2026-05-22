@@ -20,14 +20,15 @@ suite/backend/fikua-lab/build/
 .DS_Store
 Thumbs.db
 
-# SSH keys (private only — .pub is safe to commit)
-deployment/envs/dev/ssh/id_ed25519
-deployment/envs/dev/ssh/id_rsa
+# Private keys (any *.key, *-key.pem, *.p12)
+*.key
+*-key.pem
+*.p12
+*.pfx
 
 # Environment variables
 .env
 *.env.local
-deployment/envs/dev/.env
 
 # Docker
 *.tar

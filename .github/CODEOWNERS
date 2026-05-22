@@ -1,0 +1,8 @@
+# Code owners for fikua-lab
+#
+# Every file in this repository is owned by @oriolcanades.
+# GitHub will automatically request review from him on any pull request.
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+* @oriolcanades

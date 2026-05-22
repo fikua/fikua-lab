@@ -42,10 +42,10 @@ help: ## Show available commands
 	@echo "  make wallet-test      Run wallet unit tests (Vitest)"
 	@echo "  make local-db-reset   Drop all tables and restart (local)"
 	@echo ""
-	@echo "  VPS deployment"
-	@echo "  --------------"
-	@echo "  VPS deployment lives in the vps-ops repo (make lab-* over there)."
-	@echo "  CI/CD deploys automatically on push to main."
+	@echo "  Deployment"
+	@echo "  ----------"
+	@echo "  Production deployment lives in fikua-platform-iac."
+	@echo "  Push to main publishes a new Docker image; the platform repo consumes it."
 	@echo ""
 	@echo "  Git sync"
 	@echo "  --------"
@@ -85,9 +85,11 @@ reset:
 # Integration & load tests
 # =============================================================================
 
+COMPOSE_LOCAL := suite/backend/compose.local.yaml
+
 # Full cycle: compose up → k6 integration tests → compose down
 integration-test:
-	@docker compose -f deployment/envs/local/compose.yaml up --build -d
+	@docker compose -f $(COMPOSE_LOCAL) up --build -d
 	@echo "Waiting for backend..."
 	@READY=0; for i in $$(seq 1 30); do \
 		if curl -sf http://localhost:8080/health > /dev/null 2>&1; then READY=1; break; fi; \
@@ -95,13 +97,13 @@ integration-test:
 	done; \
 	if [ "$$READY" -ne 1 ]; then \
 		echo "Backend did not start within 60s"; \
-		docker compose -f deployment/envs/local/compose.yaml logs --tail=30 fikua-lab; \
-		docker compose -f deployment/envs/local/compose.yaml down; \
+		docker compose -f $(COMPOSE_LOCAL) logs --tail=30 fikua-lab; \
+		docker compose -f $(COMPOSE_LOCAL) down; \
 		exit 1; \
 	fi
 	k6 run suite/k6/tests/integration.js; \
 	EXIT_CODE=$$?; \
-	docker compose -f deployment/envs/local/compose.yaml down; \
+	docker compose -f $(COMPOSE_LOCAL) down; \
 	exit $$EXIT_CODE
 
 # Load/performance tests (requires backend running at localhost:8080)
@@ -114,20 +116,20 @@ load-test:
 
 # Start backend + postgres locally (Docker)
 local-up:
-	cd deployment/envs/local && docker compose up --build -d
+	docker compose -f $(COMPOSE_LOCAL) up --build -d
 
 # Stop local environment
 local-down:
-	cd deployment/envs/local && docker compose down
+	docker compose -f $(COMPOSE_LOCAL) down
 
 # Backend logs (local)
 local-logs:
-	cd deployment/envs/local && docker compose logs -f fikua-lab
+	docker compose -f $(COMPOSE_LOCAL) logs -f fikua-lab
 
 # Serve frontend locally (landing:3000, portal:3001, issuer:3002, cert:3003, verifier:3005, identify:3006)
 # Note: Wallet uses Vite — run 'make wallet-dev' separately
 local-frontend:
-	chmod +x deployment/envs/local/deploy-frontend.sh && ./deployment/envs/local/deploy-frontend.sh
+	chmod +x suite/frontend/serve-local.sh && ./suite/frontend/serve-local.sh
 
 # Wallet Vite dev server (http://localhost:5173)
 wallet-dev:
@@ -144,17 +146,11 @@ wallet-test:
 # Drop all tables and restart backend (local) — profiles re-seeded on restart
 local-db-reset:
 	@echo "Dropping all tables in local database..."
-	@docker compose -f deployment/envs/local/compose.yaml exec postgres \
+	@docker compose -f $(COMPOSE_LOCAL) exec postgres \
 		psql -U fikua -d fikua -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 	@echo "Restarting backend to re-run migrations..."
-	@docker compose -f deployment/envs/local/compose.yaml restart fikua-lab
+	@docker compose -f $(COMPOSE_LOCAL) restart fikua-lab
 	@echo "Local DB reset complete. Profiles re-seeded."
-
-# =============================================================================
-# VPS deployment lives in the vps-ops repository
-# (https://github.com/oriolcanades/vps-ops). Use `make lab-*` over there.
-# CI/CD still deploys automatically on push to main via .github/workflows/ci.yml.
-# =============================================================================
 
 # =============================================================================
 # Git Sync

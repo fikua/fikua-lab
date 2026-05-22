@@ -1,8 +1,9 @@
 # Multi-stage build for Fikua Lab
+# Build context: suite/backend/
 FROM eclipse-temurin:25-jdk AS builder
 
 WORKDIR /build
-COPY suite/backend/ .
+COPY . .
 RUN chmod +x gradlew \
     && ./gradlew :fikua-lab:fatJar --no-daemon
 

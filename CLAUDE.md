@@ -8,12 +8,35 @@ Fikua Lab és una plataforma d'aprenentatge i testing de conformitat per protoco
 
 | Document | Path | Propòsit |
 |----------|------|----------|
-| Technical Document | `docs/fikua-lab-dt.md` | Arquitectura, decisions, endpoints, deployment |
+| Technical Document | `docs/fikua-lab-dt.md` | Arquitectura, decisions, endpoints |
 | Credential Issuance Flow | `docs/specs/credential-issuance-flow.md` | Spec tècnica del flux d'emissió (15 passos, gaps, prioritats) |
 | OIDF Test Configurations | `docs/analysis/oidf-test-configurations.md` | 12 tests OIDF amb paràmetres configurables |
 | References | `docs/specs/references.md` | Index de specs, RFCs i recursos externs |
 
 **Llegeix sempre `docs/fikua-lab-dt.md` abans de qualsevol canvi.** Actualitza'l quan facis canvis significatius a l'arquitectura o endpoints.
+
+## Estructura del repo
+
+```text
+fikua-lab/
+├── suite/
+│   ├── backend/             Java multi-module (fikua-core, fikua-issuer, fikua-lab)
+│   │   ├── Dockerfile       Imatge de producció publicada a Docker Hub
+│   │   └── compose.local.yaml  Backend + Postgres per dev/test local
+│   ├── frontend/            7 frontends + shared/ (HTML/CSS/JS, holder amb Vite)
+│   └── k6/                  Tests de càrrega i integració
+├── dev-tools/               Eines locals (cert builders, etc.)
+├── docs/                    Documentació tècnica i specs
+└── .github/workflows/ci.yml CI: build + test + Docker push + GitHub release
+```
+
+## Deployment
+
+**Aquest repo NO desplega a producció.** Construeix i publica artefactes; la infraestructura els consumeix.
+
+- **Backend:** push a `main` → CI publica `oriolcanades/fikua-lab:<version>` a Docker Hub. La VPS la consumeix via [`fikua-platform-iac`](https://github.com/fikua/fikua-platform-iac) (`projects/fikua-lab/backend/compose.yaml`).
+- **Frontends:** cada subdirectori de `suite/frontend/` és un projecte Cloudflare Pages independent. `shared/` es copia al pre-build de cada projecte.
+- **`compose.local.yaml`** és només per a desenvolupament i CI integration tests; no per a producció.
 
 ## Idioma
 
@@ -24,13 +47,13 @@ Fikua Lab és una plataforma d'aprenentatge i testing de conformitat per protoco
 
 ## Stack tècnic
 
-| Decisió | Elecció |
-|---------|---------|
-| Backend | Java 25, Javalin 6.6.0, nimbus-jose-jwt 10.2 |
-| Frontend | Vanilla HTML/CSS/JS (no build step, no frameworks) |
-| Base de dades | PostgreSQL 17, Flyway migrations |
-| Tests | JUnit 5 |
-| Build | Gradle (multi-module: fikua-core, fikua-issuer, fikua-lab) |
+| Decisió       | Elecció                                                                       |
+| ------------- | ----------------------------------------------------------------------------- |
+| Backend       | Java 25, Javalin 6.6.0, nimbus-jose-jwt 10.2                                  |
+| Frontend      | Vanilla HTML/CSS/JS (no build step, no frameworks). Holder: TypeScript + Vite |
+| Base de dades | PostgreSQL 17, Flyway migrations                                              |
+| Tests         | JUnit 5, k6 (integració + càrrega)                                            |
+| Build         | Gradle (multi-module: fikua-core, fikua-issuer, fikua-lab)                    |
 
 ## Constitució — regles immutables
 
@@ -67,29 +90,13 @@ Aquestes regles NO es poden violar. Si un gap o spec entra en conflicte amb una 
 - Endpoints: prefix `/oid4vci/v1/` per issuer, `.well-known/` per metadata
 - Frontend: IIFE pattern `(() => { ... })()`, no modules
 
-## Agents
-
-Quan treballis en tasques d'implementació del flux OID4VCI, llegeix l'agent corresponent:
-
-| Agent | Fitxer | Quan s'activa |
-|-------|--------|---------------|
-| Developer | `.claude/agents/DEVELOPER.md` | Implementar codi (gaps P0-P5 del spec) |
-| Reviewer | `.claude/agents/REVIEWER.md` | Revisar canvis, validar conformitat amb specs |
-
-### Triggers
-
-| Frase de l'usuari | Agent |
-|--------------------|-------|
-| `Implementa P0` / `Fes el gap P0.1` / `Implementa...` | Developer |
-| `Revisa...` / `Code review` / `Valida conformitat` | Reviewer |
-
 ## Metodologia
 
-**Spec Driven Development:** Els specs defineixen el "què" i el "com tècnicament". Els agents defineixen el "com operativament".
+**Spec Driven Development:** Els specs defineixen el "què" i el "com tècnicament".
 
 1. L'usuari defineix/valida l'spec (`docs/specs/`)
-2. El Developer implementa seguint l'spec
-3. El Reviewer valida que la implementació compleix l'spec
+2. S'implementa seguint l'spec
+3. Es revisa que la implementació compleix l'spec
 4. L'usuari valida amb tests OIDF
 
 ## Regles generals

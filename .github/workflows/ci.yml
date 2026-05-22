@@ -39,7 +39,7 @@ jobs:
 
       - name: Start services
         run: |
-          docker compose -f deployment/envs/local/compose.yaml up -d --build
+          docker compose -f suite/backend/compose.local.yaml up -d --build
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
@@ -48,7 +48,7 @@ jobs:
             fi
             if [ "$i" -eq 30 ]; then
               echo "ERROR: Backend did not start within 60s"
-              docker compose -f deployment/envs/local/compose.yaml logs --tail=50
+              docker compose -f suite/backend/compose.local.yaml logs --tail=50
               exit 1
             fi
             sleep 2
@@ -104,11 +104,11 @@ jobs:
 
       - name: Collect logs on failure
         if: failure()
-        run: docker compose -f deployment/envs/local/compose.yaml logs --tail=100
+        run: docker compose -f suite/backend/compose.local.yaml logs --tail=100
 
       - name: Stop services
         if: always()
-        run: docker compose -f deployment/envs/local/compose.yaml down -v
+        run: docker compose -f suite/backend/compose.local.yaml down -v
 
   docker:
     needs: [build, integration-test]
@@ -124,87 +124,18 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
-          username: oriolcanades
-          password: ${{ secrets.DOCKER_PAT }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: deployment/docker/Dockerfile
+          context: suite/backend
+          file: suite/backend/Dockerfile
           push: true
           tags: |
-            oriolcanades/fikua-lab:${{ steps.version.outputs.VERSION }}
-            oriolcanades/fikua-lab:latest
-
-  deploy:
-    needs: docker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Read version from build.gradle.kts
-        id: version
-        run: echo "VERSION=$(grep '^    version = ' suite/backend/build.gradle.kts | sed 's/.*\"\(.*\)\"/\1/')" >> "$GITHUB_OUTPUT"
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p 49222 51.38.179.236 >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Upload compose.yaml to VPS
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -p 49222 ubuntu@51.38.179.236 "sudo mkdir -p /opt/vps/lab && sudo chown ubuntu:ubuntu /opt/vps/lab"
-          scp -i ~/.ssh/id_ed25519 -P 49222 \
-            deployment/envs/dev/docker/compose.yaml \
-            ubuntu@51.38.179.236:/opt/vps/lab/compose.yaml
-
-      - name: Deploy to VPS
-        env:
-          FIKUA_RESEND_API_KEY: ${{ secrets.FIKUA_RESEND_API_KEY }}
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -p 49222 ubuntu@51.38.179.236 "
-            cd /opt/vps/lab
-
-            # Ensure .env exists
-            if [ ! -f '.env' ]; then
-              cat > .env << ENVEOF
-          DOCKER_REGISTRY=oriolcanades
-          FIKUA_VERSION=${{ steps.version.outputs.VERSION }}
-          FIKUA_POSTGRES_USER=fikua
-          FIKUA_POSTGRES_PASSWORD=fikua_lab_\$(openssl rand -hex 8)
-          ENVEOF
-              echo '.env created'
-            fi
-
-            # Update version in .env
-            sed -i 's/^FIKUA_VERSION=.*/FIKUA_VERSION=${{ steps.version.outputs.VERSION }}/' .env
-
-            # Update Resend API key (value injected from GitHub Actions env)
-            grep -q '^FIKUA_RESEND_API_KEY=' .env && sed -i '/^FIKUA_RESEND_API_KEY=/d' .env
-            echo 'FIKUA_RESEND_API_KEY=${FIKUA_RESEND_API_KEY}' >> .env
-
-            # Pull new image and restart
-            sudo docker pull oriolcanades/fikua-lab:${{ steps.version.outputs.VERSION }}
-            sudo docker compose --env-file .env -f compose.yaml up -d --force-recreate
-
-            # Wait for health check
-            echo 'Waiting for backend to start...'
-            for i in {1..30}; do
-              if curl -sf http://localhost:8090/health > /dev/null 2>&1; then
-                echo 'Backend is UP'
-                exit 0
-              fi
-              sleep 2
-            done
-            echo 'WARNING: Backend did not pass health check within 60s'
-            sudo docker compose --env-file .env -f compose.yaml logs --tail=50 fikua-lab
-            exit 1
-          "
-
+            ${{ secrets.DOCKER_USERNAME }}/fikua-lab:${{ steps.version.outputs.VERSION }}
+            ${{ secrets.DOCKER_USERNAME }}/fikua-lab:latest
 
   release:
     needs: docker

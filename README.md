@@ -2,15 +2,17 @@
 
 A hands-on learning lab for OpenID Foundation digital identity protocols. Implements the full Issuer-Wallet-Verifier triangle, profiled by HAIP 1.0 and aligned with eIDAS 2.0 / EUDI ARF 2.8.
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 ## What it does
 
 Fikua Lab is a conformance testing platform built to pass the 12 OIDF conformance tests for credential issuance, presentation, and wallet flows. Every implementation detail is driven by the specs — not a framework.
 
-| Role | Tests | Standards |
-|------|-------|-----------|
-| **Issuer** | 4 | OID4VCI 1.0, SD-JWT VC, DPoP, PAR, PKCE |
-| **Wallet** | 4 | Holder binding, selective disclosure, HAIP 1.0 |
-| **Verifier** | 4 | OID4VP 1.0, DCQL, x509_san_dns, x509_hash |
+| Role        | Tests | Standards                                          |
+| ----------- | ----- | -------------------------------------------------- |
+| **Issuer**  | 4     | OID4VCI 1.0, SD-JWT VC, DPoP, PAR, PKCE            |
+| **Wallet**  | 4     | Holder binding, selective disclosure, HAIP 1.0     |
+| **Verifier**| 4     | OID4VP 1.0, DCQL, x509_san_dns, x509_hash          |
 
 ## Architecture
 
@@ -30,15 +32,15 @@ Profiles are stored in PostgreSQL and switchable at runtime via an admin UI — 
 
 ## Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | Java 25 (LTS) |
-| HTTP | Javalin |
-| Database | PostgreSQL 17 |
-| JWT/Crypto | nimbus-jose-jwt, Bouncy Castle |
-| Deployment | Docker Compose + nginx on OVH VPS (EU) |
-| Certificates | X.509 self-signed (EC P-256), no DIDs |
-| Frontend | HTML, CSS, JS (vanilla) |
+| Component    | Technology                                |
+| ------------ | ----------------------------------------- |
+| Language     | Java 25 (LTS)                             |
+| HTTP         | Javalin                                   |
+| Database     | PostgreSQL 17                             |
+| JWT/Crypto   | nimbus-jose-jwt, Bouncy Castle            |
+| Certificates | X.509 self-signed (EC P-256), no DIDs     |
+| Frontend     | HTML, CSS, JS (vanilla). Holder: Vite     |
+| Tests        | JUnit 5 (unit), k6 (integration + load)   |
 
 ## Quick start
 
@@ -52,8 +54,8 @@ make run
 # Docker Compose (full stack)
 make local-up
 
-# Preview landing page
-make landing
+# Serve frontends locally
+make local-frontend
 ```
 
 ## Project structure
@@ -61,23 +63,35 @@ make landing
 ```text
 suite/
   backend/
-    fikua-core/       Protocol library (crypto, OAuth2, OID4VCI, SD-JWT)
-    fikua-issuer/     Issuer service (use cases, ports, adapters, controller)
-    fikua-lab/        Orchestrator (config, DB, admin API, role-based startup)
+    Dockerfile            Multi-stage build (Java 25 → JRE)
+    compose.local.yaml    Backend + Postgres for dev & CI integration tests
+    fikua-core/           Protocol library (crypto, OAuth2, OID4VCI, SD-JWT)
+    fikua-issuer/         Issuer service (use cases, ports, adapters, controller)
+    fikua-lab/            Orchestrator (config, DB, admin API, role-based startup)
   frontend/
-    landing/          Public landing page
-    admin/            Profile management UI
-    issuer/           Issuer UI
-    holder/           Wallet UI
-    verifier/         Verifier UI
-deployment/
-  docker/             Dockerfile (multi-stage Java 25)
-  envs/               Environment configs (local + VPS compose used by CI)
+    landing/              Public landing page
+    portal/               Profile management UI
+    issuer/               Issuer UI
+    holder/               Wallet UI (TypeScript + Vite)
+    verifier/             Verifier UI
+    cert/                 Certificate management UI
+    identify/             Identification UI
+    shared/               Shared CSS/JS (consent banner, favicon)
+  k6/                     Integration + load tests
 docs/
-  fikua-lab-dt.md     Technical document (source of truth)
-  specs/              Protocol specs and flow docs
-  analysis/           OIDF test configurations
+  fikua-lab-dt.md         Technical document (source of truth)
+  specs/                  Protocol specs and flow docs
+  analysis/               OIDF test configurations
 ```
+
+## Deployment
+
+This repo builds and publishes artefacts; it does **not** deploy to production.
+
+- **Backend:** push to `main` builds + tests + publishes `oriolcanades/fikua-lab:<version>` to Docker Hub. Production infrastructure consumes the image from [`fikua-platform-iac`](https://github.com/fikua/fikua-platform-iac).
+- **Frontends:** each subdirectory under `suite/frontend/` is published to Cloudflare Pages independently.
+
+See [`fikua-platform-iac`](https://github.com/fikua/fikua-platform-iac) for the production setup.
 
 ## Documentation
 
@@ -88,14 +102,18 @@ docs/
 
 Fikua Lab shares a visual identity system with [oriolcanades.com](https://oriolcanades.com):
 
-| Role | Light | Dark |
-|------|-------|------|
-| Accent (teal) | `#2A9D8F` | `#2dd4bf` |
-| Highlight (berry) | `#c2185b` | `#f06292` |
-| Heading | `#1B263B` | `#e2e8f0` |
-| Background | `#ffffff` | `#0f172a` |
+| Role              | Light       | Dark        |
+| ----------------- | ----------- | ----------- |
+| Accent (teal)     | `#2A9D8F`   | `#2dd4bf`   |
+| Highlight (berry) | `#c2185b`   | `#f06292`   |
+| Heading           | `#1B263B`   | `#e2e8f0`   |
+| Background        | `#ffffff`   | `#0f172a`   |
 
 Shared neutrals create brand cohesion. Berry adds the energy of a startup lab.
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE).
 
 ## Author
 
