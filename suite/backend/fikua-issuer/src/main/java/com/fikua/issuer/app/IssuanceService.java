@@ -43,6 +43,14 @@ public class IssuanceService {
     private static final String DEFAULT_CONFIG_ID = PID_SD_JWT;
     private static final Set<String> ISSUABLE_CONFIGS = Set.of(PID_SD_JWT, PID_MDOC, STUDENT_ID_SD_JWT);
 
+    // Idempotency window for /identify/complete replays (handles duplicate form submits).
+    private static final long IDENTIFICATION_REPLAY_WINDOW_SECONDS = 120;
+
+    private record CompletedIdentification(AuthorizeResult result, Instant expiresAt) {}
+
+    private final java.util.concurrent.ConcurrentHashMap<String, CompletedIdentification> completedIdentifications =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     private final SigningKey issuerKey;
     private final SessionStore sessionStore;
     private final IssuanceStore issuanceStore;
@@ -502,6 +510,19 @@ public class IssuanceService {
      */
     public AuthorizeResult completeIdentification(String sessionToken, String credentialDataJson,
                                                    String sourceType, String sourceRef) {
+        // Idempotency: if a previous call for this session already produced a result,
+        // return the same result instead of failing. Protects against duplicate submits.
+        synchronized (completedIdentifications) {
+            CompletedIdentification prior = completedIdentifications.get(sessionToken);
+            if (prior != null) {
+                if (Instant.now().isBefore(prior.expiresAt)) {
+                    log.info("Identification replay detected — returning cached result: session={}", sessionToken);
+                    return prior.result;
+                }
+                completedIdentifications.remove(sessionToken);
+            }
+        }
+
         Map<String, Object> pending = sessionStore.consumePendingAuthorization(sessionToken);
         if (pending == null) {
             throw OAuthErrorException.badRequest(OAuthError.INVALID_REQUEST,
@@ -532,7 +553,10 @@ public class IssuanceService {
         log.info("Authorization code issued after identification: client_id={}, issuanceId={}",
                 pending.get("client_id"), record.id());
 
-        return AuthorizeResult.withCode(authCode, redirectUri, state);
+        AuthorizeResult result = AuthorizeResult.withCode(authCode, redirectUri, state);
+        completedIdentifications.put(sessionToken,
+                new CompletedIdentification(result, Instant.now().plusSeconds(IDENTIFICATION_REPLAY_WINDOW_SECONDS)));
+        return result;
     }
 
     /**
