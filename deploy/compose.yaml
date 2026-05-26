@@ -10,7 +10,7 @@
 
 services:
   fikua-lab:
-    image: ${DOCKER_REGISTRY:-oriolcanades}/fikua-lab:${FIKUA_VERSION:-latest}
+    image: ${DOCKER_REGISTRY:-fikua}/fikua-lab:${FIKUA_VERSION:-latest}
     container_name: fikua-lab
     restart: unless-stopped
     environment:
