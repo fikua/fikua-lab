@@ -1,0 +1,96 @@
+# Fikua Lab — backend deployment
+#
+# Image: docker.io/oriolcanades/fikua-lab (published by the
+# oriolcanades/fikua-lab repo on every push to main / tag).
+#
+# Source of truth for this file:
+#   fikua-platform-iac/projects/fikua-lab/backend/compose.yaml
+#
+# Host path on the VPS: /opt/vps/projects/fikua-lab/backend/
+
+services:
+  fikua-lab:
+    image: ${DOCKER_REGISTRY:-oriolcanades}/fikua-lab:${FIKUA_VERSION:-latest}
+    container_name: fikua-lab
+    restart: unless-stopped
+    environment:
+      # All public URLs the backend hands out (in .well-known/, in
+      # credential offers, in OAuth metadata, …) start with these prefixes.
+      # After ADR 0008r1 every role lives under lab.fikua.com/<role>/.
+      FIKUA_BASE_URL: https://lab.fikua.com/issuer
+      FIKUA_VERIFIER_BASE_URL: https://lab.fikua.com/verifier
+      # Identify lives under the issuer prefix (see ADR 0008r1 v3).
+      FIKUA_IDENTIFY_BASE_URL: https://lab.fikua.com/issuer/identify
+      FIKUA_ROLES: issuer,verifier
+      FIKUA_PORT: "8080"
+      FIKUA_DB_URL: jdbc:postgresql://fikua-lab-db:5432/fikua
+      FIKUA_DB_USER: ${FIKUA_POSTGRES_USER:-fikua}
+      FIKUA_DB_PASSWORD: ${FIKUA_POSTGRES_PASSWORD}
+      FIKUA_CERTS_DIR: /app/certs
+      FIKUA_MIGRATIONS_DIR: /app/migrations
+      FIKUA_RESEND_API_KEY: ${FIKUA_RESEND_API_KEY:-}
+      FIKUA_RESEND_FROM_EMAIL: ${FIKUA_RESEND_FROM_EMAIL:-onboarding@resend.dev}
+    volumes:
+      - lab-certs:/app/certs:ro
+    # 127.0.0.1:8090 stays bound so cloudflared (host process) can reach
+    # the backend via http://127.0.0.1:8090 — the Tunnel ingress for
+    # lab-backend.fikua.com points here. Also handy for debugging from
+    # the VPS shell.
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      fikua-lab-db:
+        condition: service_healthy
+    # No Traefik labels: the backend is no longer reachable through a
+    # public hostname on Traefik. Cloudflare reaches it through the
+    # fikua-vps Tunnel (Access Service Auth protected).
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  fikua-lab-db:
+    image: postgres:17-alpine
+    container_name: fikua-lab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fikua
+      POSTGRES_USER: ${FIKUA_POSTGRES_USER:-fikua}
+      POSTGRES_PASSWORD: ${FIKUA_POSTGRES_PASSWORD}
+    volumes:
+      - lab-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FIKUA_POSTGRES_USER:-fikua}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "25m"
+        max-file: "3"
+
+volumes:
+  # External volumes with fixed names so the deployment is decoupled from
+  # the compose project name (i.e. the host directory). Pre-create them with:
+  #   docker volume create fikua-lab-pgdata
+  #   docker volume create fikua-lab-certs
+  # When migrating from a previous layout, rename the old volumes with:
+  #   docker run --rm -v <old>:/from -v fikua-lab-pgdata:/to alpine cp -a /from/. /to/
+  # (or `docker volume create --name ... --opt device=...` referencing the
+  # existing path on disk).
+  lab-pgdata:
+    name: fikua-lab-pgdata
+    external: true
+  lab-certs:
+    name: fikua-lab-certs
+    external: true

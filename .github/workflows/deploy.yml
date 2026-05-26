@@ -1,0 +1,129 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (defaults to "latest")'
+        required: false
+        default: 'latest'
+        type: string
+  release:
+    types: [published]
+
+# Don't run two deploys at once against the same VPS.
+concurrency:
+  group: deploy-prd
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.image_tag || github.event.release.tag_name || 'latest' }} to prd
+    runs-on: ubuntu-latest
+    # The 'prd' environment is configured with required reviewers in
+    # Settings → Environments → prd. Until somebody approves the run, the
+    # job stays paused, so an autotrigger from a release publish does not
+    # ship to production unsupervised.
+    environment:
+      name: prd
+      url: https://lab.fikua.com/issuer/health
+
+    steps:
+      - name: Checkout (for the compose file)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Install cloudflared
+        run: |
+          # --proto =https --tlsv1.2 refuses to follow redirects that drop
+          # to http, satisfies SonarCloud githubactions:S6506.
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+            -o /usr/local/bin/cloudflared
+          chmod +x /usr/local/bin/cloudflared
+          cloudflared --version
+
+      - name: Configure SSH client (tunnel + key + known_hosts)
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # SSH key for the VPS user (ubuntu). GitHub secret storage strips
+          # any trailing newline, but OpenSSH refuses to parse the key
+          # without it ("error in libcrypto"). printf %s\n adds it back.
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/vps_id
+          chmod 600 ~/.ssh/vps_id
+
+          # Sanity-check the key locally so the next step fails fast if the
+          # secret contents are wrong, instead of a confusing scp 255 later.
+          ssh-keygen -y -f ~/.ssh/vps_id >/dev/null
+
+          # SSH config that routes vps.fikua.com through the Cloudflare
+          # Access tunnel. cloudflared picks up the service token from the
+          # CF-Access-Client-{Id,Secret} env vars automatically.
+          cat <<'EOF' > ~/.ssh/config
+          Host vps.fikua.com
+              User ubuntu
+              IdentityFile ~/.ssh/vps_id
+              IdentitiesOnly yes
+              StrictHostKeyChecking accept-new
+              ProxyCommand cloudflared access ssh --hostname %h
+              ServerAliveInterval 30
+              ServerAliveCountMax 4
+          EOF
+          chmod 600 ~/.ssh/config
+
+          # Persist the service-token envs so subsequent steps inherit them
+          # (this is how cloudflared finds them at ProxyCommand time).
+          echo "CF_ACCESS_CLIENT_ID=$CF_ACCESS_CLIENT_ID" >> "$GITHUB_ENV"
+          echo "CF_ACCESS_CLIENT_SECRET=$CF_ACCESS_CLIENT_SECRET" >> "$GITHUB_ENV"
+
+      - name: Copy compose.yaml from platform-iac source of truth
+        # The compose file lives in the platform-iac repo, but to keep this
+        # workflow self-contained we ship the same file alongside the app
+        # under deploy/compose.yaml; if it isn't present yet we fall back to
+        # whatever is already on the VPS.
+        run: |
+          if [ -f deploy/compose.yaml ]; then
+            scp deploy/compose.yaml vps.fikua.com:/tmp/fikua-lab-compose.yaml
+            ssh vps.fikua.com 'sudo cp /tmp/fikua-lab-compose.yaml /opt/vps/projects/fikua-lab/backend/compose.yaml && sudo chown ubuntu:ubuntu /opt/vps/projects/fikua-lab/backend/compose.yaml'
+          else
+            echo "::notice::deploy/compose.yaml not present in the app repo — keeping the on-host compose file as is."
+          fi
+
+      - name: Pull and restart on the VPS
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag || github.event.release.tag_name || 'latest' }}
+        run: |
+          # The release tag is "v0.8.0" but the image tag is "0.8.0".
+          NORMALISED_TAG="${IMAGE_TAG#v}"
+          echo "Deploying fikua/fikua-lab:$NORMALISED_TAG"
+          ssh vps.fikua.com "
+            set -e
+            cd /opt/vps/projects/fikua-lab/backend
+            FIKUA_VERSION='$NORMALISED_TAG' sudo --preserve-env=FIKUA_VERSION docker compose pull
+            FIKUA_VERSION='$NORMALISED_TAG' sudo --preserve-env=FIKUA_VERSION docker compose up -d
+          "
+
+      - name: Wait for /health to report UP
+        run: |
+          for i in $(seq 1 30); do
+            body=$(ssh vps.fikua.com 'sudo docker exec fikua-lab wget -qO- http://127.0.0.1:8080/health' || true)
+            echo "attempt $i: $body" | head -c 400
+            echo
+            if echo "$body" | grep -qiE '"status":"up"'; then
+              echo "✅ /health is UP"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "❌ /health did not reach UP within 150s"
+          exit 1
+
+      - name: Smoke-test through Traefik (Host header)
+        run: |
+          ssh vps.fikua.com \
+            'curl -sIk -H "Host: lab.fikua.com" https://127.0.0.1/issuer/health | head -5'
