@@ -3,6 +3,7 @@
 A hands-on learning lab for OpenID Foundation digital identity protocols. Implements the full Issuer-Wallet-Verifier triangle, profiled by HAIP 1.0 and aligned with eIDAS 2.0 / EUDI ARF 2.8.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=fikua_fikua-lab&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=fikua_fikua-lab)
 
 ## What it does
 

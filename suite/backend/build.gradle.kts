@@ -1,5 +1,14 @@
 plugins {
     java
+    id("org.sonarqube") version "7.3.0.8198"
+}
+
+sonar {
+    properties {
+        property("sonar.projectKey", "fikua_fikua-lab")
+        property("sonar.organization", "fikua")
+        property("sonar.host.url", "https://sonarcloud.io")
+    }
 }
 
 allprojects {
