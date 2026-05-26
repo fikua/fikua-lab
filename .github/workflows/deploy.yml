@@ -111,7 +111,7 @@ jobs:
       - name: Wait for /health to report UP
         run: |
           for i in $(seq 1 30); do
-            body=$(ssh vps.fikua.com 'sudo docker exec fikua-lab wget -qO- http://127.0.0.1:8080/health' || true)
+            body=$(ssh vps.fikua.com 'sudo docker exec fikua-lab curl -fsS http://127.0.0.1:8080/health' || true)
             echo "attempt $i: $body" | head -c 400
             echo
             if echo "$body" | grep -qiE '"status":"up"'; then
