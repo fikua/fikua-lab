@@ -1,0 +1,44 @@
+# Dependabot config — keep pinned dependencies fresh.
+#
+# Actions are pinned by commit SHA in workflows for supply-chain safety,
+# which means new releases (including security fixes) need explicit
+# updates. Dependabot opens a PR whenever any of these advance their tag.
+
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: gradle
+    directory: "/suite/backend"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: "/suite/frontend/holder"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/suite/backend"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    open-pull-requests-limit: 5
