@@ -70,6 +70,7 @@ public class JdbcIssuanceStore implements IssuanceStore {
     private static final Set<String> ALLOWED_SORT_ORDERS = Set.of("asc", "desc");
 
     @Override
+    @SuppressWarnings("java:S2077") // ORDER BY values come from immutable allowlists above; impossible to inject.
     public List<IssuanceRecord> findAll(int offset, int limit, String sortField, String sortOrder) {
         String safeField = ALLOWED_SORT_FIELDS.contains(sortField) ? sortField : "created_at";
         String safeOrder = ALLOWED_SORT_ORDERS.contains(sortOrder) ? sortOrder : "desc";
