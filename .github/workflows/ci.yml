@@ -43,7 +43,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cd suite/backend && ./gradlew sonar --info
+        # `sonar` requires compiled .class files (sonar.java.binaries) to
+        # resolve types — running `compileJava` in the same invocation makes
+        # them available without re-running the full test suite (already done
+        # by the `build` job upstream).
+        run: cd suite/backend && ./gradlew compileJava sonar --info
 
   integration-test:
     needs: build
