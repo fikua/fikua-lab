@@ -8,6 +8,8 @@ suite/backend/fikua-core/build/
 suite/backend/fikua-issuer/build/
 suite/backend/fikua-lab/build/
 
+
+
 # IDE
 .idea/
 *.iml
@@ -20,11 +22,15 @@ suite/backend/fikua-lab/build/
 .DS_Store
 Thumbs.db
 
-# Private keys (any *.key, *-key.pem, *.p12)
+# Certificates and private keys (regenerate locally; see dev-tools/issuer-cert/README.md)
+*.pem
 *.key
-*-key.pem
+*.crt
+*.cer
 *.p12
 *.pfx
+*.jks
+*.keystore
 
 # Environment variables
 .env
