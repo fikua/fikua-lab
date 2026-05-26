@@ -1,0 +1,39 @@
+# Build artefacts (regenerated inside the builder stage)
+.gradle/
+build/
+**/build/
+**/.gradle/
+**/out/
+bin/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# Tests and reports we never want shipped
+*.log
+*.hprof
+hs_err_pid*
+
+# Secrets and certs (defence in depth; .gitignore should already exclude them)
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+.env
+*.env.local
+
+# Markdown / docs not needed at runtime
+*.md

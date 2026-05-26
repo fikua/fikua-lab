@@ -1,7 +1,9 @@
 export function base64urlEncode(data: Uint8Array): string {
     let str = '';
     for (let i = 0; i < data.length; i++) str += String.fromCharCode(data[i]);
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    let b64 = btoa(str).replace(/\+/g, '-').replace(/\//g, '_');
+    while (b64.endsWith('=')) b64 = b64.slice(0, -1);
+    return b64;
 }
 
 export function base64urlDecode(str: string): Uint8Array {
