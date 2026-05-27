@@ -113,7 +113,15 @@
     }
 
     // Submit identification data to issuer
+    var submitInFlight = false;
     function submitIdentification(credentialData, sourceType, sourceRef) {
+        if (submitInFlight) return;
+        submitInFlight = true;
+        var submitBtn = document.getElementById('btn-form-submit');
+        var confirmBtn = document.getElementById('btn-confirm');
+        if (submitBtn) submitBtn.disabled = true;
+        if (confirmBtn) confirmBtn.disabled = true;
+
         showPhase('submitting');
         var body = {
             session: sessionToken,
@@ -133,13 +141,18 @@
         })
         .then(function(data) {
             if (data.redirect) {
-                showPhase('success');
-                setTimeout(function() { window.location.href = data.redirect; }, 1500);
+                window.location.replace(data.redirect);
             } else {
+                submitInFlight = false;
+                if (submitBtn) submitBtn.disabled = false;
+                if (confirmBtn) confirmBtn.disabled = false;
                 showError('No redirect URL received from the issuer.');
             }
         })
         .catch(function(err) {
+            submitInFlight = false;
+            if (submitBtn) submitBtn.disabled = false;
+            if (confirmBtn) confirmBtn.disabled = false;
             showError('Identification failed: ' + err.message);
         });
     }

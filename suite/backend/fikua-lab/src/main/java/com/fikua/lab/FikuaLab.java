@@ -58,10 +58,10 @@ public class FikuaLab {
                 log.warn("Frontend directory not found: {}, static files disabled", config.frontendDir());
             }
             javalinConfig.http.defaultContentType = "application/json";
-            // CORS: allow cross-origin requests between subdomains.
-            // Handled here (not nginx) to ensure consistent preflight + response headers.
+            // CORS: after ADR 0008r1 every role lives under lab.fikua.com/<role>/,
+            // so all browser-originating requests share a single origin.
             javalinConfig.bundledPlugins.enableCors(cors -> cors.addRule(rule ->
-                rule.allowHost("https://wallet.lab.fikua.com", "https://identify.lab.fikua.com", "https://issuer.lab.fikua.com")
+                rule.allowHost("https://lab.fikua.com")
             ));
         });
 
