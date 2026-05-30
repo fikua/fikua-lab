@@ -31,7 +31,15 @@ services:
       FIKUA_RESEND_API_KEY: ${FIKUA_RESEND_API_KEY:-}
       FIKUA_RESEND_FROM_EMAIL: ${FIKUA_RESEND_FROM_EMAIL:-onboarding@resend.dev}
     volumes:
-      - lab-certs:/app/certs:ro
+      # Host bind-mount (same pattern as the DSS sibling). The signing
+      # cert + key live on the host at ./certs/ and are mounted read-only.
+      # PemKeyLoader reads issuer-cert.pem + issuer-key.pem (issuer role) and
+      # verifier-cert.pem + verifier-key.pem (verifier role) from here; when
+      # present it signs with them instead of an ephemeral key. The active
+      # certs are eIDAS e-Seal chains (CA-signed leaf, root excluded from
+      # x5c) so the issuer signs credentials and the verifier signs its JAR
+      # request object with a HAIP-conformant cert.
+      - ./certs:/app/certs:ro
     # 127.0.0.1:8090 stays bound so cloudflared (host process) can reach
     # the backend via http://127.0.0.1:8090 — the Tunnel ingress for
     # lab-backend.fikua.com points here. Also handy for debugging from
@@ -80,17 +88,15 @@ services:
         max-file: "3"
 
 volumes:
-  # External volumes with fixed names so the deployment is decoupled from
-  # the compose project name (i.e. the host directory). Pre-create them with:
+  # External volume with a fixed name so the deployment is decoupled from
+  # the compose project name (i.e. the host directory). Pre-create it with:
   #   docker volume create fikua-lab-pgdata
-  #   docker volume create fikua-lab-certs
-  # When migrating from a previous layout, rename the old volumes with:
-  #   docker run --rm -v <old>:/from -v fikua-lab-pgdata:/to alpine cp -a /from/. /to/
-  # (or `docker volume create --name ... --opt device=...` referencing the
-  # existing path on disk).
+  #
+  # Certs are NOT a named volume anymore: they are a host bind-mount (./certs)
+  # so the signing certs/keys are visible and swappable on disk, like the DSS.
+  # When migrating from the old fikua-lab-certs volume, copy its contents out:
+  #   docker run --rm -v fikua-lab-certs:/from -v "$PWD/certs":/to \
+  #     alpine cp -a /from/. /to/
   lab-pgdata:
     name: fikua-lab-pgdata
-    external: true
-  lab-certs:
-    name: fikua-lab-certs
     external: true

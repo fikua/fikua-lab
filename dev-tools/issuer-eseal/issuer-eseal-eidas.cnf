@@ -1,0 +1,102 @@
+# =============================================================================
+# Fikua Lab — Issuer e-Seal Certificate (simulado eIDAS)
+# Basado en: ETSI EN 319 412-3 (Qualified Certificate for Legal Person / e-Seal)
+# Normas: ETSI EN 319 412-1/3/5, eIDAS (Reg. UE 910/2014) art. 35-40
+#
+# Propósito: Sello electrónico (e-Seal) de PERSONA JURÍDICA usado por la
+#            Digital Signature Service (DSS) para sellar/firmar datos en
+#            nombre de la organización "Fikua Lab".
+#            NO es un certificado de representante (persona física): un e-Seal
+#            lo emite y usa la entidad jurídica, sin nombre/apellidos de una
+#            persona ni CN "(REPRESENTANTE)".
+#
+# Consumido por: fikua-digital-signature-service
+#   CERT_PATH = file:/certs/issuer-eseal.crt
+#   KEY_PATH  = file:/certs/issuer-eseal.key
+#   (ver fikua-platform-iac/projects/fikua-lab/dss/compose.yaml)
+#
+# Clave: EC P-256 (ES256) — coherente con el perfil HAIP del Issuer.
+#        El SigningService de DSS soporta EC y RSA; usamos EC para alinear
+#        con el resto del laboratorio.
+#
+# USO: Solo para pruebas/prototipos. NO es un sello cualificado real.
+# =============================================================================
+
+# ---- OIDs personalizados ----
+[ oid_section ]
+organizationIdentifier  = 2.5.4.97
+description             = 2.5.4.13
+
+# ---- Solicitud y certificado X.509 autofirmado ----
+[ req ]
+default_bits            = 256
+default_md              = sha256
+prompt                  = no
+distinguished_name      = dn
+x509_extensions         = v3_eseal
+utf8                    = yes
+string_mask             = utf8only
+oid_section             = oid_section
+
+# =============================================================================
+# Subject DN — e-Seal de Persona Jurídica (ETSI EN 319 412-3)
+#
+# A diferencia del certificado de representante, el sujeto es la PROPIA
+# entidad jurídica. Campos clave:
+#   C  = ES
+#   O  = <Razón social>
+#   organizationIdentifier = VATES-<CIF>   (formato ETSI EN 319 412-1)
+#   CN = <Nombre del sello / razón social>
+#   description = referencia interna del sello
+#
+# NO se incluyen givenName / surname / serialNumber de persona física.
+# =============================================================================
+[ dn ]
+C                       = ES
+O                       = Fikua Lab
+organizationIdentifier  = VATES-B00000001
+CN                      = Fikua Lab e-Seal (test)
+description             = Fikua Lab - Issuer e-Seal (test only)
+
+# =============================================================================
+# Extensiones X.509v3 — e-Seal Persona Jurídica
+# =============================================================================
+[ v3_eseal ]
+basicConstraints        = critical, CA:FALSE
+
+# keyUsage para sello electrónico: firma + no repudio (contentCommitment).
+# Un e-Seal NO usa keyEncipherment ni clientAuth (no es autenticación mTLS).
+keyUsage                = critical, digitalSignature, nonRepudiation
+
+# Política de certificación (simulada). OID de ejemplo bajo el arco privado
+# de Fikua Lab; en un QC real sería el OID de la política QCP-l del TSP.
+certificatePolicies     = @polsect
+
+# Identificadores de clave
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+
+# Authority Info Access (simulado)
+authorityInfoAccess     = @aia
+
+# subjectAltName: DNS de la DSS que opera el sello
+subjectAltName          = DNS:dss.fikua.com
+
+# -----------------------------------------------------------------------------
+# qcStatements (ETSI EN 319 412-5) — referencia, NO codificado por openssl.cnf
+# Para un e-Seal cualificado real el certificado llevaría:
+#   0.4.0.1862.1.1  id-etsi-qcs-QcCompliance      (es un QC)
+#   0.4.0.1862.1.6  id-etsi-qcs-QcType = eseal    (0.4.0.1862.1.6.2)
+#   0.4.0.1862.1.4  id-etsi-qcs-QcSSCD            (clave en QSCD)
+# openssl req no codifica qcStatements de forma sencilla; se documentan aquí
+# como referencia. Para un prototipo basta la política de @polsect.
+# -----------------------------------------------------------------------------
+
+[ polsect ]
+# OID de política simulado bajo el arco privado de Fikua Lab.
+policyIdentifier        = 1.3.6.1.4.1.5734.3.11.3
+CPS.1                   = https://lab.fikua.com/cps/
+
+[ aia ]
+OCSP;URI.0              = http://ocsp.lab.fikua.com/
+caIssuers;URI.0         = http://lab.fikua.com/ca/eseal.cer
