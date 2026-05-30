@@ -1,0 +1,60 @@
+# =============================================================================
+# Fikua Lab — Root CA for the e-Seal chain (simulado eIDAS)
+# Normas: ETSI EN 319 411, eIDAS (Reg. UE 910/2014)
+#
+# Propósito: CA raíz autofirmada que firma el certificado e-Seal (leaf).
+#            Es el TRUST ANCHOR que se pega en el campo "Request Object Trust
+#            Anchor" / "Credential Issuer Signing JWK" de la suite OIDF.
+#
+#            HAIP 6.1.1: el certificado de firma (leaf) NO debe ser
+#            autofirmado, y la raíz (este cert) NO va en el header x5c.
+#
+# USO: Solo para pruebas/prototipos. NO es una CA cualificada real.
+# =============================================================================
+
+[ oid_section ]
+organizationIdentifier  = 2.5.4.97
+
+[ req ]
+default_bits            = 256
+default_md              = sha256
+prompt                  = no
+distinguished_name      = dn
+x509_extensions         = v3_ca
+utf8                    = yes
+string_mask             = utf8only
+oid_section             = oid_section
+
+[ dn ]
+C                       = ES
+O                       = Fikua Lab
+organizationIdentifier  = VATES-B00000001
+CN                      = Fikua Lab Root CA (test)
+
+[ v3_ca ]
+basicConstraints        = critical, CA:TRUE, pathlen:0
+keyUsage                = critical, keyCertSign, cRLSign
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+
+# -----------------------------------------------------------------------------
+# Extensions applied to the LEAF when the CA signs it (referenced by -extfile
+# in generate-chain.sh). Mirrors the e-Seal profile but with an
+# authorityKeyIdentifier pointing back at this CA.
+# -----------------------------------------------------------------------------
+[ v3_eseal_leaf ]
+basicConstraints        = critical, CA:FALSE
+keyUsage                = critical, digitalSignature, nonRepudiation
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always, issuer:always
+subjectAltName          = DNS:dss.fikua.com
+certificatePolicies     = @polsect
+authorityInfoAccess     = @aia
+
+[ polsect ]
+policyIdentifier        = 1.3.6.1.4.1.5734.3.11.3
+CPS.1                   = https://lab.fikua.com/cps/
+
+[ aia ]
+OCSP;URI.0              = http://ocsp.lab.fikua.com/
+caIssuers;URI.0         = http://lab.fikua.com/ca/eseal.cer

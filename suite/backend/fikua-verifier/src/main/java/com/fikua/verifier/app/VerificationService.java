@@ -119,14 +119,10 @@ public class VerificationService {
                 now + 300
         );
 
-        // TODO P1: Sign the Authorization Request as JAR (JWT with x5c)
-        // For now, serialize as unsigned JSON (stub)
-        String requestJwt;
-        try {
-            requestJwt = MAPPER.writeValueAsString(authRequest);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize Authorization Request", e);
-        }
+        // Sign the Authorization Request as a JAR (RFC 9101): a JWS whose
+        // payload is the request parameters, with typ=oauth-authz-req+jwt and
+        // the signing cert chain in x5c. HAIP requires a signed request_uri.
+        String requestJwt = signRequestObject(authRequest);
 
         VerificationSession session = new VerificationSession(
                 sessionId, state, nonce, dcqlQueryJson, responseMode,
@@ -153,6 +149,39 @@ public class VerificationService {
         }
         sessionStore.updateStatus(sessionId, "request_sent");
         return session.requestJwt();
+    }
+
+    /**
+     * Sign an Authorization Request as a JAR (JWT-Secured Authorization
+     * Request, RFC 9101). The request parameters become the JWT payload; the
+     * JWS header carries typ=oauth-authz-req+jwt, the kid, and — when the
+     * signing key was loaded from a cert — the x5c chain (HAIP 6.1.1). The
+     * trust anchor (root CA) is excluded from x5c per HAIP: only the leaf
+     * (plus any intermediates) ships in the header.
+     */
+    private String signRequestObject(AuthorizationRequest authRequest) {
+        // Convert the request record to claims, preserving the snake_case
+        // @JsonProperty names and dropping null fields.
+        @SuppressWarnings("unchecked")
+        Map<String, Object> claims = MAPPER.convertValue(authRequest, Map.class);
+
+        var claimsBuilder = new com.nimbusds.jwt.JWTClaimsSet.Builder();
+        claims.forEach((k, v) -> {
+            if (v != null) {
+                claimsBuilder.claim(k, v);
+            }
+        });
+
+        var headerBuilder = new com.nimbusds.jose.JWSHeader.Builder(com.nimbusds.jose.JWSAlgorithm.ES256)
+                .type(new com.nimbusds.jose.JOSEObjectType(AuthorizationRequest.JAR_TYPE))
+                .keyID(signingKey.kid());
+
+        var x5c = signingKey.x5cChain();
+        if (x5c != null && !x5c.isEmpty()) {
+            headerBuilder.x509CertChain(x5c);
+        }
+
+        return signingKey.signJwt(headerBuilder.build(), claimsBuilder.build());
     }
 
     /**
