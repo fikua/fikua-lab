@@ -20,4 +20,7 @@ dependencies {
     // Logging
     implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
     implementation("ch.qos.logback:logback-classic:${property("logbackVersion")}")
+
+    // Test-only: build mso_mdoc DeviceResponse CBOR fixtures for verification tests.
+    testImplementation("com.upokecenter:cbor:${property("cborVersion")}")
 }

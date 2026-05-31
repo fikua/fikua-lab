@@ -37,8 +37,11 @@ public class VerifierController {
         // Session management
         app.post(API_PREFIX + "/session", this::createSession);
 
-        // Request Object endpoint (wallet fetches signed Authorization Request)
+        // Request Object endpoint (wallet fetches signed Authorization Request).
+        // POST supports request_uri_method=post (OID4VP); the wallet may include
+        // wallet_metadata / wallet_nonce form params, which we currently ignore.
         app.get(API_PREFIX + "/request/{id}", this::getRequestObject);
+        app.post(API_PREFIX + "/request/{id}", this::getRequestObject);
 
         // Response endpoint (wallet POSTs VP Token via direct_post)
         app.post(API_PREFIX + "/response", this::handleResponse);

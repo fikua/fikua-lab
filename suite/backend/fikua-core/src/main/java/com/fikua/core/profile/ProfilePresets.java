@@ -92,4 +92,22 @@ public final class ProfilePresets {
                 null
         );
     }
+
+    /**
+     * HAIP verifier profile for ISO mdoc (mso_mdoc): x509_hash, JAR,
+     * direct_post.jwt, DCQL. Same as {@link #haipVerifier()} but requests the
+     * mso_mdoc credential format. Maps to the OIDF iso_mdl verifier variant.
+     */
+    public static ProfileConfig haipMdocVerifier() {
+        return new ProfileConfig(
+                null, null, null,
+                CredentialFormat.MDOC,
+                null, null, null, null, null, null,
+                ClientIdPrefix.X509_HASH,
+                ResponseMode.DIRECT_POST_JWT,
+                QueryLanguage.DCQL,
+                "request_uri_signed",
+                null
+        );
+    }
 }

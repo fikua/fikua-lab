@@ -11,4 +11,8 @@ dependencies {
 
     // Logging API only (no implementation in core)
     implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
+
+    // Test-only: generate real X.509 cert chains for mdoc verification tests
+    // (COSE x5chain must parse as genuine certs). No production weight.
+    testImplementation("org.bouncycastle:bcpkix-jdk18on:${property("bouncyCastleVersion")}")
 }

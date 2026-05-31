@@ -18,7 +18,7 @@ class DcqlQueryTest {
                 new CredentialQuery(
                         "identity_credential",
                         DcqlQuery.FORMAT_DC_SD_JWT,
-                        new CredentialQuery.CredentialMeta(List.of("eu.europa.ec.eudi.pid.1")),
+                        CredentialQuery.CredentialMeta.sdJwt(List.of("eu.europa.ec.eudi.pid.1")),
                         List.of(
                                 new ClaimQuery(List.of("given_name"), null, true),
                                 new ClaimQuery(List.of("family_name"), null, true),
@@ -69,7 +69,7 @@ class DcqlQueryTest {
                 new CredentialQuery(
                         "pid",
                         "dc+sd-jwt",
-                        new CredentialQuery.CredentialMeta(List.of("eu.europa.ec.eudi.pid.1")),
+                        CredentialQuery.CredentialMeta.sdJwt(List.of("eu.europa.ec.eudi.pid.1")),
                         List.of(new ClaimQuery(List.of("given_name"), null, null))
                 )
         ));

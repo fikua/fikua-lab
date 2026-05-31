@@ -23,7 +23,7 @@ class AuthorizationRequestTest {
     void fullRequest_serializesCorrectly() throws Exception {
         var dcql = new DcqlQuery(List.of(
                 new CredentialQuery("pid", "dc+sd-jwt",
-                        new CredentialQuery.CredentialMeta(List.of("eu.europa.ec.eudi.pid.1")),
+                        CredentialQuery.CredentialMeta.sdJwt(List.of("eu.europa.ec.eudi.pid.1")),
                         List.of(new ClaimQuery(List.of("given_name"), null, true)))
         ));
 
