@@ -50,11 +50,17 @@ class MdocEncryptedResponseTest {
 
     private static final ProfileStore MDOC_PROFILE = () ->
             new ProfileStore.ActiveProfile("haip-mdoc", ProfilePresets.haipMdocVerifier());
+    private static final ProfileStore SD_JWT_PROFILE = () ->
+            new ProfileStore.ActiveProfile("haip", ProfilePresets.haipVerifier());
 
     private VerificationService newService(Path certsDir, ResponseEncryptionKey encKey) {
+        return newService(certsDir, encKey, MDOC_PROFILE);
+    }
+
+    private VerificationService newService(Path certsDir, ResponseEncryptionKey encKey, ProfileStore profile) {
         SigningKey key = com.fikua.verifier.infra.PemKeyLoader.loadOrGenerate(certsDir.toString());
         return new VerificationService(
-                key, encKey, new InMemorySessionStore(), MDOC_PROFILE, BASE_URL);
+                key, encKey, new InMemorySessionStore(), profile, BASE_URL);
     }
 
     /** A self-signed P-256 issuer key (so the x5chain anchors on itself with no pinned anchor). */
@@ -187,6 +193,32 @@ class MdocEncryptedResponseTest {
         var outcome = service.handleEncryptedResponse(encrypt(encKey, dr, session.state()));
 
         assertEquals("success", outcome.result().status(), "valid mdoc DeviceResponse must verify");
+    }
+
+    @Test
+    void perSessionFormat_overridesSdJwtProfile(@TempDir Path certsDir) throws Exception {
+        // Active profile is SD-JWT, but the session requests mso_mdoc explicitly.
+        var encKey = ResponseEncryptionKey.generate();
+        VerificationService service = newService(certsDir, encKey, SD_JWT_PROFILE);
+        VerificationSession session =
+                service.createSession(DOC_TYPE, List.of("given_name", "family_name"), "mso_mdoc");
+
+        // The request must advertise mso_mdoc despite the SD-JWT profile.
+        var jwt = com.nimbusds.jwt.SignedJWT.parse(session.requestJwt());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cm = (Map<String, Object>) jwt.getJWTClaimsSet().getClaim("client_metadata");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> formats = (Map<String, Object>) cm.get("vp_formats_supported");
+        assertTrue(formats.containsKey("mso_mdoc"), "per-session format must win over the profile");
+
+        EcKeyManager issuer = selfSignedIssuer();
+        EcKeyManager deviceKey = EcKeyManager.generate();
+        String dr = buildDeviceResponse(issuer, deviceKey,
+                session.clientId(), session.nonce(), encKey.jwkThumbprintSha256(), session.responseUri());
+
+        var outcome = service.handleEncryptedResponse(encrypt(encKey, dr, session.state()));
+        assertEquals("success", outcome.result().status(),
+                "mdoc verification must run even when the active profile is SD-JWT");
     }
 
     @Test

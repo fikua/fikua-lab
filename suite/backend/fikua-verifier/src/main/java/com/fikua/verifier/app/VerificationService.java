@@ -61,21 +61,38 @@ public class VerificationService {
     }
 
     /**
-     * Create a new verification session with an Authorization Request.
-     *
-     * @param credentialType the credential type to request (e.g. "eu.europa.ec.eudi.pid.1")
-     * @param requestedClaims the claims to request (e.g. ["given_name", "family_name"])
-     * @return the created session with request_uri
+     * Create a verification session, letting the active profile decide the
+     * credential format. Equivalent to {@link #createSession(String, List, String)}
+     * with a null format.
      */
     public VerificationSession createSession(String credentialType, List<String> requestedClaims) {
+        return createSession(credentialType, requestedClaims, null);
+    }
+
+    /**
+     * Create a new verification session with an Authorization Request.
+     *
+     * <p>The credential format is chosen per-session: the requested {@code format}
+     * ({@code "mso_mdoc"} or {@code "dc+sd-jwt"}) wins, so a single active profile
+     * can serve both SD-JWT VC and ISO mdoc requests. When {@code format} is null
+     * the active profile's {@code credentialFormat} is used as the fallback.
+     *
+     * @param credentialType  the credential type / docType (e.g. "eu.europa.ec.eudi.pid.1")
+     * @param requestedClaims the claims to request (e.g. ["given_name", "family_name"])
+     * @param format          requested credential format, or null to use the profile
+     * @return the created session with request_uri
+     */
+    public VerificationSession createSession(String credentialType, List<String> requestedClaims,
+                                             String format) {
         ProfileConfig config = getActiveConfig();
+        boolean mdoc = resolveMdoc(format, config);
 
         String sessionId = randomToken(16);
         String state = randomToken(32);
         String nonce = randomToken(32);
 
         // Build DCQL query (format-specific: SD-JWT VC vs mso_mdoc).
-        DcqlQuery dcqlQuery = buildDcqlQuery(config, credentialType, requestedClaims);
+        DcqlQuery dcqlQuery = buildDcqlQuery(mdoc, credentialType, requestedClaims);
 
         // Determine response mode from profile
         String responseMode = config.responseMode() != null
@@ -88,7 +105,7 @@ public class VerificationService {
         // For encrypted responses (direct_post.jwt / HAIP §5) the verifier must
         // publish its response-encryption key and supported enc values, plus
         // vp_formats, in client_metadata.
-        Map<String, Object> clientMetadata = buildClientMetadata(responseMode, config);
+        Map<String, Object> clientMetadata = buildClientMetadata(responseMode, mdoc);
 
         String responseUri = baseUrl + API_PREFIX + "/response";
         long now = System.currentTimeMillis() / 1000;
@@ -256,7 +273,7 @@ public class VerificationService {
 
         try {
             Map<String, Object> claims;
-            if (isMdoc(getActiveConfig())) {
+            if (sessionUsesMdoc(session)) {
                 // mso_mdoc DeviceResponse: verify issuer signature + chain, MSO
                 // digests, validity, and the deviceSignature over the
                 // reconstructed SessionTranscript (client_id, nonce, enc-key
@@ -289,6 +306,23 @@ public class VerificationService {
             log.error("Failed to process VP Token: {}", e.getMessage());
             sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
             return VerificationResult.error("invalid_presentation", "Failed to process VP Token: " + e.getMessage());
+        }
+    }
+
+    /**
+     * True when the session requested mso_mdoc. The format is fixed at session
+     * creation and persisted in the DCQL ({@code credentials[0].format}), so it
+     * is read back from there rather than from the (possibly since-changed)
+     * active profile.
+     */
+    private boolean sessionUsesMdoc(VerificationSession session) {
+        try {
+            var node = MAPPER.readTree(session.dcqlQueryJson());
+            var format = node.path("credentials").path(0).path("format");
+            return DcqlQuery.FORMAT_MSO_MDOC.equals(format.asText());
+        } catch (Exception e) {
+            log.warn("Failed to read format from DCQL: {}", e.getMessage());
+            return false;
         }
     }
 
@@ -350,8 +384,17 @@ public class VerificationService {
         return baseUrl + API_PREFIX + "/request/" + sessionId;
     }
 
-    /** True when the active profile requests the mso_mdoc credential format. */
-    private static boolean isMdoc(ProfileConfig config) {
+    /**
+     * Resolve whether this session uses mso_mdoc. A per-session {@code format}
+     * wins ({@code "mso_mdoc"} ⇒ mdoc, {@code "dc+sd-jwt"} ⇒ SD-JWT); when null,
+     * fall back to the active profile's credentialFormat.
+     */
+    private static boolean resolveMdoc(String format, ProfileConfig config) {
+        if (format != null && !format.isBlank()) {
+            return DcqlQuery.FORMAT_MSO_MDOC.equalsIgnoreCase(format)
+                    || "mdoc".equalsIgnoreCase(format)
+                    || "iso_mdl".equalsIgnoreCase(format);
+        }
         return config.credentialFormat() == CredentialFormat.MDOC;
     }
 
@@ -362,9 +405,9 @@ public class VerificationService {
      * claim paths {@code [namespace, element]} (the PID mdoc namespace equals the
      * docType).
      */
-    private DcqlQuery buildDcqlQuery(ProfileConfig config, String credentialType,
+    private DcqlQuery buildDcqlQuery(boolean mdoc, String credentialType,
                                      List<String> requestedClaims) {
-        if (isMdoc(config)) {
+        if (mdoc) {
             String namespace = credentialType; // PID mdoc: namespace == docType
             List<ClaimQuery> claims = requestedClaims.stream()
                     .map(name -> new ClaimQuery(List.of(namespace, name), null, null))
@@ -397,7 +440,7 @@ public class VerificationService {
      * encrypted response modes (direct_post.jwt), HAIP §5 additionally requires
      * the response-encryption jwks and encrypted_response_enc_values_supported.
      */
-    private Map<String, Object> buildClientMetadata(String responseMode, ProfileConfig config) {
+    private Map<String, Object> buildClientMetadata(String responseMode, boolean mdoc) {
         Map<String, Object> metadata = new LinkedHashMap<>();
 
         // vp_formats_supported (OpenID4VP PR #233 renamed vp_formats to
@@ -405,7 +448,7 @@ public class VerificationService {
         // matches the active profile: mso_mdoc uses COSE alg -7 (ES256); SD-JWT
         // VC uses ES256 for both issuer and KB JWTs.
         Map<String, Object> vpFormats = new LinkedHashMap<>();
-        if (isMdoc(config)) {
+        if (mdoc) {
             Map<String, Object> mdocFormat = new LinkedHashMap<>();
             mdocFormat.put("alg", List.of(-7));
             vpFormats.put("mso_mdoc", mdocFormat);
