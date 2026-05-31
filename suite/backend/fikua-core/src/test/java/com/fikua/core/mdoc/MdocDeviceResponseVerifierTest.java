@@ -105,6 +105,40 @@ class MdocDeviceResponseVerifierTest {
         assertEquals("Kowalski", claims.get("family_name"));
     }
 
+    /**
+     * Interop regression: ISO 18013-5 §9.1.2.5 hashes the *tagged*
+     * IssuerSignedItemBytes (#6.24(...)), not the inner untagged bytes. This
+     * asserts the MSO digest independently of the builder, so a verifier that
+     * hashes the wrong bytes (as ours did) fails here even when builder and
+     * verifier agree with each other.
+     */
+    @Test
+    void msoDigest_isOverTaggedIssuerSignedItemBytes() throws Exception {
+        TestCerts.IssuerChain issuer = TestCerts.selfSignedIssuer("Test Issuer");
+        EcKeyManager deviceKey = EcKeyManager.generate();
+        String dr = buildDeviceResponse(issuer, deviceKey, CLIENT_ID, NONCE, THUMBPRINT, RESPONSE_URI, 365);
+
+        CBORObject deviceResponse = CBORObject.DecodeFromBytes(Base64.getUrlDecoder().decode(dr));
+        CBORObject issuerSigned = deviceResponse.get("documents").get(0).get("issuerSigned");
+        CBORObject nameSpaces = issuerSigned.get("nameSpaces");
+        CBORObject items = nameSpaces.get(nameSpaces.getKeys().iterator().next());
+
+        // MSO.valueDigests for the namespace.
+        CBORObject issuerAuth = issuerSigned.get("issuerAuth");
+        CBORObject mso = CBORObject.DecodeFromBytes(
+                CBORObject.DecodeFromBytes(issuerAuth.get(2).GetByteString()).Untag().GetByteString());
+        CBORObject nsDigests = mso.get("valueDigests").get(nameSpaces.getKeys().iterator().next());
+
+        CBORObject tagged = items.get(0);
+        int digestId = CBORObject.DecodeFromBytes(tagged.Untag().GetByteString()).get("digestID").AsInt32();
+        byte[] expected = nsDigests.get(CBORObject.FromObject(digestId)).GetByteString();
+        byte[] overTagged = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(tagged.EncodeToBytes());
+
+        assertArrayEquals(expected, overTagged,
+                "MSO digest must be SHA-256 over the tagged IssuerSignedItemBytes");
+    }
+
     @Test
     void caSignedChain_verifiesAgainstAnchor() throws Exception {
         TestCerts.Ca ca = TestCerts.selfSignedCa("Test Root CA");

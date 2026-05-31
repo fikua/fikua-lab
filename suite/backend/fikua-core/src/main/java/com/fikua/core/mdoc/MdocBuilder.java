@@ -108,8 +108,10 @@ public class MdocBuilder {
                 CBORObject taggedItem = CBORObject.FromObject(itemBytes).WithTag(24);
                 itemsArray.Add(taggedItem);
 
-                // Digest of the raw IssuerSignedItem bytes
-                nsDigests.put(i, sha256(itemBytes));
+                // Digest of the *tagged* IssuerSignedItemBytes (#6.24(...)) per
+                // ISO 18013-5 §9.1.2.5 — the full encoding stored in nameSpaces,
+                // not the inner untagged bytes.
+                nsDigests.put(i, sha256(taggedItem.EncodeToBytes()));
             }
 
             nameSpacesCbor.put(ns, itemsArray);

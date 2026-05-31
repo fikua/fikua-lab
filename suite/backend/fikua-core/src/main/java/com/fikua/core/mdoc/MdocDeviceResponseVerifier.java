@@ -201,9 +201,14 @@ public final class MdocDeviceResponseVerifier {
                 if (tagged.getMostOuterTag().ToInt32Unchecked() != 24) {
                     throw new VerificationException("IssuerSignedItem is not tag 24");
                 }
-                byte[] innerBytes = tagged.Untag().GetByteString();
-                byte[] digest = sha256(innerBytes);
+                // ISO 18013-5 §9.1.2.5: the digest is SHA-256 over the *tagged*
+                // IssuerSignedItemBytes (#6.24(bstr .cbor IssuerSignedItem)),
+                // i.e. the full encoding the wallet placed in nameSpaces — not
+                // the inner untagged bytes.
+                byte[] taggedBytes = tagged.EncodeToBytes();
+                byte[] digest = sha256(taggedBytes);
 
+                byte[] innerBytes = tagged.Untag().GetByteString();
                 CBORObject item = CBORObject.DecodeFromBytes(innerBytes);
                 int digestId = item.get("digestID").AsInt32();
                 String elementId = item.get("elementIdentifier").AsString();
