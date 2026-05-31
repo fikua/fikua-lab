@@ -10,9 +10,14 @@ CREATE TABLE IF NOT EXISTS profiles (
     updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Only one profile can be active at a time
-CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_active
-    ON profiles (is_active) WHERE is_active = true;
+-- At most one active profile per role. (Originally this was a GLOBAL unique
+-- index on (is_active); V7 replaces it with the per-role index below. Because
+-- migrations re-run on every boot, V1 must declare the per-role form too —
+-- otherwise, once V7 has dropped the old global index, a re-run of the old V1
+-- DDL would try to recreate a global unique index over data that legitimately
+-- has multiple active profiles (one per role) and fail.)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_active_per_role
+    ON profiles (role, is_active) WHERE is_active = true;
 
 -- Session audit log for debugging conformance test runs
 CREATE TABLE IF NOT EXISTS session_log (
