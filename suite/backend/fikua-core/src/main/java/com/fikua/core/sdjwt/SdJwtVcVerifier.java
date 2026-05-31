@@ -40,6 +40,13 @@ public final class SdJwtVcVerifier {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Maximum tolerated absolute difference between the KB-JWT iat and now.
+     * The conformance suite tests iat ±1 year; 5 minutes accepts genuine clock
+     * skew while rejecting those.
+     */
+    private static final long MAX_KB_IAT_SKEW_SECONDS = 300;
+
     /** Thrown when a presentation fails any verification step. */
     public static final class VerificationException extends Exception {
         public VerificationException(String message) {
@@ -154,6 +161,19 @@ public final class SdJwtVcVerifier {
             String sdHash = claims.getStringClaim("sd_hash");
             if (!expectedSdHash.equals(sdHash)) {
                 throw new VerificationException("KB-JWT sd_hash does not match the presentation");
+            }
+
+            // iat must be fresh: the KB-JWT proves possession at presentation
+            // time, so reject creation times outside an acceptable window
+            // (catches iat far in the past or future).
+            java.util.Date iat = claims.getIssueTime();
+            if (iat == null) {
+                throw new VerificationException("KB-JWT is missing iat");
+            }
+            long skewSeconds = (System.currentTimeMillis() - iat.getTime()) / 1000;
+            if (Math.abs(skewSeconds) > MAX_KB_IAT_SKEW_SECONDS) {
+                throw new VerificationException(
+                        "KB-JWT iat is outside the acceptable window (skew " + skewSeconds + "s)");
             }
         } catch (VerificationException e) {
             throw e;

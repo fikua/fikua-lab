@@ -54,11 +54,16 @@ class SdJwtVcVerificationTest {
 
     private static String buildKbJwt(ECKey holderKey, String aud, String nonce, String sdHash)
             throws Exception {
+        return buildKbJwt(holderKey, aud, nonce, sdHash, new java.util.Date());
+    }
+
+    private static String buildKbJwt(ECKey holderKey, String aud, String nonce, String sdHash,
+                                     java.util.Date iat) throws Exception {
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .audience(aud)
                 .claim("nonce", nonce)
                 .claim("sd_hash", sdHash)
-                .issueTime(new java.util.Date())
+                .issueTime(iat)
                 .build();
         SignedJWT kb = new SignedJWT(
                 new JWSHeader.Builder(JWSAlgorithm.ES256)
@@ -112,6 +117,36 @@ class SdJwtVcVerificationTest {
         String tampered = new String(chars);
         assertThrows(SdJwtVcVerifier.VerificationException.class,
                 () -> SdJwtVcVerifier.verify(tampered, AUD, NONCE));
+    }
+
+    @Test
+    void iatInPast_rejected(@TempDir Path certsDir) throws Exception {
+        assertThrows(SdJwtVcVerifier.VerificationException.class,
+                () -> SdJwtVcVerifier.verify(
+                        presentationWithKbIat(certsDir,
+                                new java.util.Date(System.currentTimeMillis() - 365L * 24 * 3600 * 1000)),
+                        AUD, NONCE));
+    }
+
+    @Test
+    void iatInFuture_rejected(@TempDir Path certsDir) throws Exception {
+        assertThrows(SdJwtVcVerifier.VerificationException.class,
+                () -> SdJwtVcVerifier.verify(
+                        presentationWithKbIat(certsDir,
+                                new java.util.Date(System.currentTimeMillis() + 365L * 24 * 3600 * 1000)),
+                        AUD, NONCE));
+    }
+
+    /** Build a valid presentation whose KB-JWT carries the given iat. */
+    private String presentationWithKbIat(Path certsDir, java.util.Date iat) throws Exception {
+        ECKey holder = new ECKeyGenerator(Curve.P_256).generate();
+        SigningKey issuerKey = PemKeyLoader.loadOrGenerate(certsDir.toString());
+        SdJwt sdJwt = new SdJwtBuilder(issuerKey)
+                .vct("urn:eudi:pid:1").issuer("https://issuer.example.test")
+                .selectiveClaim("given_name", "Alice")
+                .holderKey(holder).x5cChain(issuerKey.x5cChain()).build();
+        String issuerPart = sdJwt.serialize();
+        return issuerPart + buildKbJwt(holder, AUD, NONCE, sdHash(issuerPart), iat);
     }
 
     @Test
