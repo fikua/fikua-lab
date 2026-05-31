@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":fikua-issuer"))
     implementation(project(":fikua-verifier"))
     implementation(project(":fikua-trustlist"))
+    implementation(project(":fikua-wallet-provider"))
 
     // HTTP server
     implementation("io.javalin:javalin:${property("javalinVersion")}")
