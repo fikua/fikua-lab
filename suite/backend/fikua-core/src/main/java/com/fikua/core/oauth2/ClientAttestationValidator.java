@@ -17,6 +17,7 @@ import java.security.PublicKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -39,6 +40,25 @@ public class ClientAttestationValidator {
             "urn:ietf:params:oauth:client-assertion-type:jwt-client-attestation";
     private static final long MAX_AGE_SECONDS = 300; // 5 minutes
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /**
+     * Trusted Wallet Provider anchors. When non-empty, a WIA presented with an
+     * x5c chain MUST chain to one of these (the WIA was issued by a trusted
+     * Wallet Provider). When empty, x5c pinning is skipped (back-compat: a
+     * self-signed WIA is still accepted on its own key).
+     */
+    private final List<X509Certificate> walletProviderAnchors;
+
+    /** No anchors: accept any self-consistent WIA (legacy behaviour). */
+    public ClientAttestationValidator() {
+        this.walletProviderAnchors = List.of();
+    }
+
+    /** Pin x5c-bearing WIAs to the given Wallet Provider trust anchors. */
+    public ClientAttestationValidator(List<X509Certificate> walletProviderAnchors) {
+        this.walletProviderAnchors = walletProviderAnchors != null
+                ? List.copyOf(walletProviderAnchors) : List.of();
+    }
 
     /**
      * Validate client attestation from HTTP headers (ATCA draft-07 §4).
@@ -207,6 +227,12 @@ public class ClientAttestationValidator {
             X509Certificate cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(certBytes));
             wiaKey = cert.getPublicKey();
             log.info("WIA x5c cert: subject={}, issuer={}", cert.getSubjectX500Principal(), cert.getIssuerX500Principal());
+
+            // Pin the leaf to a trusted Wallet Provider anchor (if configured).
+            if (!walletProviderAnchors.isEmpty() && !chainsToTrustedWalletProvider(cert)) {
+                throw OAuthErrorException.unauthorized(OAuthError.INVALID_CLIENT,
+                        "WIA is not issued by a trusted Wallet Provider");
+            }
         }
 
         // Fallback to JWK in header
@@ -229,6 +255,23 @@ public class ClientAttestationValidator {
                     "Client Attestation JWT signature verification failed");
         }
         log.info("WIA signature verified");
+    }
+
+    /** True if the WIA leaf cert was signed by one of the trusted WP anchors. */
+    private boolean chainsToTrustedWalletProvider(X509Certificate leaf) {
+        List<X509Certificate> tried = new ArrayList<>();
+        for (X509Certificate anchor : walletProviderAnchors) {
+            tried.add(anchor);
+            try {
+                leaf.verify(anchor.getPublicKey());
+                return true;
+            } catch (Exception ignored) {
+                // not signed by this anchor; try the next
+            }
+        }
+        log.warn("WIA leaf {} did not chain to any of {} trusted WP anchors",
+                leaf.getSubjectX500Principal(), tried.size());
+        return false;
     }
 
     /** Extract the public key from the cnf.jwk claim of the WIA. Supports any JWK key type. */

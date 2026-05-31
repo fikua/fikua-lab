@@ -1,6 +1,7 @@
 import { WALLET_BASE, PRE_AUTH_GRANT } from './constants';
 import { base64urlEncode, generateRandomString } from './utils';
 import { buildJwt, exportPublicJwk, sha256 } from './crypto';
+import { looksLikeJwt, verifyRequestObjectJwt } from './requestObject';
 import type {
     CredentialOffer,
     CredentialIssuerMetadata,
@@ -286,11 +287,22 @@ export function getPreAuthTxCode(grant: GrantInfo): PreAuthGrant['tx_code'] | un
 
 /** Fetch the Authorization Request (Request Object) from the verifier. */
 export async function fetchRequestObject(requestUri: string): Promise<Oid4vpAuthorizationRequest> {
+    // Accept both JWT (signed JAR, HAIP) and bare JSON for backwards compat.
     const res = await fetch(requestUri, {
-        headers: { 'Accept': 'application/json' },
+        headers: { 'Accept': 'application/oauth-authz-req+jwt, application/json' },
     });
     if (!res.ok) throw new Error('Failed to fetch request object: ' + res.status);
-    const authReq: Oid4vpAuthorizationRequest = await res.json();
+
+    const body = await res.text();
+    let authReq: Oid4vpAuthorizationRequest;
+    if (looksLikeJwt(body)) {
+        // Signed JAR: verify the ES256 signature against the x5c leaf and
+        // confirm the leaf chains to a pinned trust anchor before using it.
+        authReq = await verifyRequestObjectJwt(body);
+    } else {
+        authReq = JSON.parse(body) as Oid4vpAuthorizationRequest;
+    }
+
     if (authReq.response_type !== 'vp_token') {
         throw new Error('Unsupported response_type: ' + authReq.response_type);
     }

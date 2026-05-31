@@ -1,0 +1,13 @@
+{
+  "list_type": "list_of_trusted_lists",
+  "comment": "Mock List of Trusted Lists (LOTL) — index of the sub-lists this scheme publishes, modelled on the EU LOTL the Commission will maintain (ARF). Points consumers (wallet, verifier, issuer) at each typed list.",
+  "scheme_operator": "Fikua Lab",
+  "scheme_territory": "ES",
+  "version": "1",
+  "pointers": [
+    { "list_type": "trusted_issuers",          "url": "https://lab.fikua.com/trustlist/issuers" },
+    { "list_type": "trusted_verifiers",        "url": "https://lab.fikua.com/trustlist/verifiers" },
+    { "list_type": "trusted_wallet_providers", "url": "https://lab.fikua.com/trustlist/wallet-providers" },
+    { "list_type": "trusted_schemas",          "url": "https://lab.fikua.com/trustlist/schemas" }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "list_type": "trusted_wallet_providers",
+  "scheme": "https://lab.fikua.com/trustlist",
+  "comment": "Mock Trusted Wallet Providers List (ARF LoTE). Each entry names a Wallet Provider whose Wallet Unit Attestations (WUA / Wallet Instance Attestation) a Relying Party or Issuer will accept. Fikua Lab acts as a Wallet Provider here.",
+  "wallet_providers": [
+    {
+      "name": "Fikua Lab Wallet Provider",
+      "provider_id": "https://lab.fikua.com/wallet-provider",
+      "trust_anchor": {
+        "type": "x509",
+        "aki": "i08UGma-UHyuy90queb4ZCRFdU4",
+        "comment": "Anchor that signs the Wallet Attestation. Reuses the shared Fikua Lab Root CA in this mock; in production a Wallet Provider has its own CA.",
+        "root_pem": "-----BEGIN CERTIFICATE-----\nMIICojCCAkmgAwIBAgIUHHYbemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIw\nXjELMAkGA1UEBhMCRVMxEjAQBgNVBAoMCUZpa3VhIExhYjEYMBYGA1UEYQwPVkFU\nRVMtQjAwMDAwMDAxMSEwHwYDVQQDDBhGaWt1YSBMYWIgUm9vdCBDQSAodGVzdCkw\nHhcNMjYwNTMxMTI0NTI1WhcNMzEwNTMwMTI0NTI1WjBeMQswCQYDVQQGEwJFUzES\nMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1CMDAwMDAwMDExITAf\nBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KTBZMBMGByqGSM49AgEGCCqG\nSM49AwEHA0IABMKNq3+tP/wuft06CRnWfqzHN8ZHlSTssP1DXIc5W6H5tElxcW5D\n1k3RMO2BiIWa8+JuFSC/t/gjixg5ves/N+ajgeQwgeEwEgYDVR0TAQH/BAgwBgEB\n/wIBADAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFItPFBpmvlB8rsvdKrnm+GQk\nRXVOMIGbBgNVHSMEgZMwgZCAFItPFBpmvlB8rsvdKrnm+GQkRXVOoWKkYDBeMQsw\nCQYDVQQGEwJFUzESMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1C\nMDAwMDAwMDExITAfBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KYIUHHYb\nemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIDRwAwRAIgMojeeh8QbWA1zabn\n+lp9yagFCOyX7a8ggbGen+yKrBwCIC8htqo6dnu4+P5dJXkhklHLCKqByB98v08g\nzML8ST1w\n-----END CERTIFICATE-----"
+      },
+      "wallet_attestation": {
+        "format": "wallet-attestation+jwt",
+        "status_endpoint": "https://lab.fikua.com/wallet-provider/attestation/status",
+        "comment": "Where a relying party/issuer checks whether a given Wallet Attestation is still valid (mock)."
+      },
+      "status": "active"
+    }
+  ]
+}

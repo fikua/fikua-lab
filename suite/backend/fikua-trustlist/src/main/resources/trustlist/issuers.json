@@ -1,0 +1,18 @@
+{
+  "list_type": "trusted_issuers",
+  "scheme": "https://lab.fikua.com/trustlist",
+  "comment": "Mock Trusted Issuers List (LoTE-style). Each entry names a trust anchor a wallet/verifier accepts for issued credentials. The 'aki' value mirrors OID4VP DCQL trusted_authorities type=aki so a verifier can drop it straight into a query.",
+  "issuers": [
+    {
+      "name": "Fikua Lab Issuer",
+      "iss": "https://lab.fikua.com/issuer",
+      "trust_anchor": {
+        "type": "x509",
+        "aki": "i08UGma-UHyuy90queb4ZCRFdU4",
+        "root_pem": "-----BEGIN CERTIFICATE-----\nMIICojCCAkmgAwIBAgIUHHYbemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIw\nXjELMAkGA1UEBhMCRVMxEjAQBgNVBAoMCUZpa3VhIExhYjEYMBYGA1UEYQwPVkFU\nRVMtQjAwMDAwMDAxMSEwHwYDVQQDDBhGaWt1YSBMYWIgUm9vdCBDQSAodGVzdCkw\nHhcNMjYwNTMxMTI0NTI1WhcNMzEwNTMwMTI0NTI1WjBeMQswCQYDVQQGEwJFUzES\nMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1CMDAwMDAwMDExITAf\nBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KTBZMBMGByqGSM49AgEGCCqG\nSM49AwEHA0IABMKNq3+tP/wuft06CRnWfqzHN8ZHlSTssP1DXIc5W6H5tElxcW5D\n1k3RMO2BiIWa8+JuFSC/t/gjixg5ves/N+ajgeQwgeEwEgYDVR0TAQH/BAgwBgEB\n/wIBADAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFItPFBpmvlB8rsvdKrnm+GQk\nRXVOMIGbBgNVHSMEgZMwgZCAFItPFBpmvlB8rsvdKrnm+GQkRXVOoWKkYDBeMQsw\nCQYDVQQGEwJFUzESMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1C\nMDAwMDAwMDExITAfBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KYIUHHYb\nemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIDRwAwRAIgMojeeh8QbWA1zabn\n+lp9yagFCOyX7a8ggbGen+yKrBwCIC8htqo6dnu4+P5dJXkhklHLCKqByB98v08g\nzML8ST1w\n-----END CERTIFICATE-----"
+      },
+      "credential_types": ["eu.europa.ec.eudi.pid.1"],
+      "status": "active"
+    }
+  ]
+}

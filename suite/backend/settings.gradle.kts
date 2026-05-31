@@ -7,4 +7,5 @@ rootProject.name = "fikua-lab"
 include("fikua-core")
 include("fikua-issuer")
 include("fikua-verifier")
+include("fikua-trustlist")
 include("fikua-lab")

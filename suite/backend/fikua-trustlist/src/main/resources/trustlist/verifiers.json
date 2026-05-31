@@ -1,0 +1,22 @@
+{
+  "list_type": "trusted_verifiers",
+  "scheme": "https://lab.fikua.com/trustlist",
+  "comment": "Mock Trusted Verifiers List (ARF LoTE + Registration). Each entry names a Relying Party: the trust anchor for its Access/request-signing certificate, plus Registration data (which claims it may request and for what purpose).",
+  "verifiers": [
+    {
+      "name": "Fikua Lab Verifier",
+      "client_id": "x509_hash:Pl5YbTjYO2EYdMvcj4h7V7V5GtQFHvswZk1PGeJAeSU",
+      "trust_anchor": {
+        "type": "x509",
+        "aki": "i08UGma-UHyuy90queb4ZCRFdU4",
+        "root_pem": "-----BEGIN CERTIFICATE-----\nMIICojCCAkmgAwIBAgIUHHYbemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIw\nXjELMAkGA1UEBhMCRVMxEjAQBgNVBAoMCUZpa3VhIExhYjEYMBYGA1UEYQwPVkFU\nRVMtQjAwMDAwMDAxMSEwHwYDVQQDDBhGaWt1YSBMYWIgUm9vdCBDQSAodGVzdCkw\nHhcNMjYwNTMxMTI0NTI1WhcNMzEwNTMwMTI0NTI1WjBeMQswCQYDVQQGEwJFUzES\nMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1CMDAwMDAwMDExITAf\nBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KTBZMBMGByqGSM49AgEGCCqG\nSM49AwEHA0IABMKNq3+tP/wuft06CRnWfqzHN8ZHlSTssP1DXIc5W6H5tElxcW5D\n1k3RMO2BiIWa8+JuFSC/t/gjixg5ves/N+ajgeQwgeEwEgYDVR0TAQH/BAgwBgEB\n/wIBADAOBgNVHQ8BAf8EBAMCAQYwHQYDVR0OBBYEFItPFBpmvlB8rsvdKrnm+GQk\nRXVOMIGbBgNVHSMEgZMwgZCAFItPFBpmvlB8rsvdKrnm+GQkRXVOoWKkYDBeMQsw\nCQYDVQQGEwJFUzESMBAGA1UECgwJRmlrdWEgTGFiMRgwFgYDVQRhDA9WQVRFUy1C\nMDAwMDAwMDExITAfBgNVBAMMGEZpa3VhIExhYiBSb290IENBICh0ZXN0KYIUHHYb\nemm2iJ6U16lveaggrZiddoEwCgYIKoZIzj0EAwIDRwAwRAIgMojeeh8QbWA1zabn\n+lp9yagFCOyX7a8ggbGen+yKrBwCIC8htqo6dnu4+P5dJXkhklHLCKqByB98v08g\nzML8ST1w\n-----END CERTIFICATE-----"
+      },
+      "registration": {
+        "purpose": "Fikua Lab demonstration of OID4VP PID verification",
+        "credential_types": ["eu.europa.ec.eudi.pid.1"],
+        "claims": ["given_name", "family_name", "birth_date"]
+      },
+      "status": "active"
+    }
+  ]
+}

@@ -66,7 +66,8 @@ class IssuanceServiceTest {
                 ISSUER_BASE_URL,
                 IDENTIFY_BASE_URL,
                 new NoOpEmailService(),
-                "https://wallet.lab.fikua.com"
+                "https://wallet.lab.fikua.com",
+                new com.fikua.core.oauth2.ClientAttestationValidator()
         );
     }
 

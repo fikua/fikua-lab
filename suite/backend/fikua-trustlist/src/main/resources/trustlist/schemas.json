@@ -1,0 +1,14 @@
+{
+  "list_type": "trusted_schemas",
+  "scheme": "https://lab.fikua.com/trustlist",
+  "comment": "Mock Trusted Schemas List — which credential types (VCT) / schemas the ecosystem recognizes. Not an ARF-native list, but useful for wallet/verifier UX and validation.",
+  "schemas": [
+    {
+      "vct": "eu.europa.ec.eudi.pid.1",
+      "name": "EU Digital Identity — Person Identification Data",
+      "format": "dc+sd-jwt",
+      "claims": ["given_name", "family_name", "birth_date", "issuing_country", "issuing_authority"],
+      "status": "active"
+    }
+  ]
+}
