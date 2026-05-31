@@ -148,7 +148,9 @@ public class VerifierController {
             ctx.json(Map.of("redirect_uri",
                     baseUrl + API_PREFIX + "/result/" + session.sessionId()));
         } else {
-            ctx.json(result);
+            // Invalid presentation / decryption / unknown state: per OID4VP §8.2
+            // the verifier must reject with a 4xx, not a 200 with an error body.
+            ctx.status(400).json(result);
         }
     }
 
