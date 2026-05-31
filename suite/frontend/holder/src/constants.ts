@@ -1,6 +1,11 @@
 export const ISSUER_BASE = 'https://issuer.lab.fikua.com';
 export const WALLET_BASE = location.origin;
 
+// Trusted List (LOTL mock) base — trust anchors for issuers/verifiers/wallet
+// providers are fetched from here, with the bundled trusted-anchors.json as a
+// fallback when the endpoint is unreachable.
+export const TRUSTLIST_BASE = 'https://lab.fikua.com/trustlist';
+
 export const DB_NAME = 'fikua-wallet';
 export const DB_VERSION = 1;
 export const STORE_CREDENTIALS = 'credentials';

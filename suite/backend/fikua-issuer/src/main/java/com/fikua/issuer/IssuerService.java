@@ -1,6 +1,7 @@
 package com.fikua.issuer;
 
 import com.fikua.core.crypto.SigningKey;
+import com.fikua.core.oauth2.ClientAttestationValidator;
 import com.fikua.core.oauth2.DPoPValidator;
 import com.fikua.issuer.app.IssuanceService;
 import com.fikua.issuer.app.port.EmailService;
@@ -51,9 +52,15 @@ public class IssuerService {
             return jtiSet.add(jti);
         });
 
+        // Pin WIA validation to the trusted Wallet Provider anchor(s): the
+        // shared lab root CA (root-ca.crt) that the WP leaf chains to. If absent,
+        // the validator falls back to accepting self-consistent WIAs.
+        ClientAttestationValidator attestationValidator =
+                new ClientAttestationValidator(loadWalletProviderAnchors(certsDir));
+
         // Create application service
         issuanceService = new IssuanceService(key, sessions, issuances, profiles, dpop, baseUrl,
-                identifyBaseUrl, emailService, walletBaseUrl);
+                identifyBaseUrl, emailService, walletBaseUrl, attestationValidator);
 
         // Register HTTP controller
         new IssuerController(issuanceService, baseUrl).register(app);
@@ -62,5 +69,24 @@ public class IssuerService {
     /** Get the issuance service (for orchestrator-level operations like reset). */
     public IssuanceService issuanceService() {
         return issuanceService;
+    }
+
+    /**
+     * Load the Wallet Provider trust anchor(s) used to pin WIA validation.
+     * Reads root-ca.crt from the certs dir (the shared lab CA the WP leaf
+     * chains to). Returns an empty list if absent — validation then falls back
+     * to accepting self-consistent WIAs (back-compat / no pinning).
+     */
+    private static java.util.List<java.security.cert.X509Certificate> loadWalletProviderAnchors(String certsDir) {
+        var path = java.nio.file.Path.of(certsDir, "root-ca.crt");
+        if (!java.nio.file.Files.exists(path)) {
+            return java.util.List.of();
+        }
+        try (var is = java.nio.file.Files.newInputStream(path)) {
+            var cf = java.security.cert.CertificateFactory.getInstance("X.509");
+            return java.util.List.of((java.security.cert.X509Certificate) cf.generateCertificate(is));
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
     }
 }

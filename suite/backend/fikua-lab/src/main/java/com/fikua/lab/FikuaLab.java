@@ -132,6 +132,16 @@ public class FikuaLab {
             log.info("Verifier service started");
         }
 
+        // Trusted List service (LOTL mock): serves trust anchors + registration
+        // data centrally to the wallet / verifier / issuer.
+        if (roles.contains("trustlist")) {
+            new com.fikua.trustlist.TrustListService().start(app);
+            log.info("Trusted List service started");
+            // Fikua Lab also acts as a Wallet Provider: issues + status-checks
+            // Wallet Instance Attestations, anchored in the Trusted List.
+            new com.fikua.trustlist.WalletProviderService().start(app, config.certsDir(), config.baseUrl());
+        }
+
         // future: if (roles.contains("wallet")) { ... }
 
         // Health check

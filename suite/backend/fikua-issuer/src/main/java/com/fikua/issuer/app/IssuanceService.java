@@ -66,13 +66,14 @@ public class IssuanceService {
                            IssuanceStore issuanceStore, ProfileStore profileStore,
                            DPoPValidator dpopValidator, String baseUrl,
                            String identifyBaseUrl, EmailService emailService,
-                           String walletBaseUrl) {
+                           String walletBaseUrl,
+                           ClientAttestationValidator clientAttestationValidator) {
         this.issuerKey = issuerKey;
         this.sessionStore = sessionStore;
         this.issuanceStore = issuanceStore;
         this.profileStore = profileStore;
         this.dpopValidator = dpopValidator;
-        this.clientAttestationValidator = new ClientAttestationValidator();
+        this.clientAttestationValidator = clientAttestationValidator;
         this.baseUrl = baseUrl;
         this.identifyBaseUrl = identifyBaseUrl;
         this.emailService = emailService;

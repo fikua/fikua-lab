@@ -21,7 +21,7 @@ services:
       FIKUA_VERIFIER_BASE_URL: https://lab.fikua.com/verifier
       # Identify lives under the issuer prefix (see ADR 0008r1 v3).
       FIKUA_IDENTIFY_BASE_URL: https://lab.fikua.com/issuer/identify
-      FIKUA_ROLES: issuer,verifier
+      FIKUA_ROLES: issuer,verifier,trustlist
       FIKUA_PORT: "8080"
       FIKUA_DB_URL: jdbc:postgresql://fikua-lab-db:5432/fikua
       FIKUA_DB_USER: ${FIKUA_POSTGRES_USER:-fikua}
