@@ -81,6 +81,7 @@ public class VerifierController {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("session_id", session.sessionId());
         response.put("request_uri", requestUri);
+        response.put("client_id", session.clientId());
         response.put("state", session.state());
 
         ctx.status(201).json(response);

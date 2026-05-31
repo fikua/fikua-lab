@@ -291,9 +291,25 @@ public class VerificationService {
         }
     }
 
+    /**
+     * Compute the x509_hash client_id value: base64url(SHA-256(DER of leaf
+     * certificate)), no padding, per OID4VP §5.10. The leaf is the first
+     * entry of the signing key's x5c chain — the same cert the conformance
+     * suite recomputes the hash from.
+     */
     private String computeCertHash() {
-        // TODO P1: compute SHA-256 hash of verifier certificate DER encoding
-        return "stub-cert-hash";
+        var x5c = signingKey.x5cChain();
+        if (x5c == null || x5c.isEmpty()) {
+            throw new IllegalStateException(
+                    "x509_hash client_id requires a certificate, but signing key has no x5c chain");
+        }
+        try {
+            byte[] der = x5c.get(0).decode();
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(der);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 unavailable", e);
+        }
     }
 
     private static String randomToken(int bytes) {
