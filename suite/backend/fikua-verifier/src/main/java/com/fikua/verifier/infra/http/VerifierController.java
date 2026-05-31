@@ -60,6 +60,7 @@ public class VerifierController {
         // Parse request body
         String credentialType = "eu.europa.ec.eudi.pid.1"; // default
         List<String> requestedClaims = List.of("given_name", "family_name", "birth_date"); // default
+        String format = null; // null ⇒ active profile's credentialFormat decides
 
         String body = ctx.body();
         if (body != null && !body.isBlank()) {
@@ -67,6 +68,9 @@ public class VerifierController {
                 var node = MAPPER.readTree(body);
                 if (node.has("credential_type")) {
                     credentialType = node.get("credential_type").asText();
+                }
+                if (node.has("format")) {
+                    format = node.get("format").asText();
                 }
                 if (node.has("claims") && node.get("claims").isArray()) {
                     requestedClaims = new java.util.ArrayList<>();
@@ -79,7 +83,7 @@ public class VerifierController {
             }
         }
 
-        VerificationSession session = service.createSession(credentialType, requestedClaims);
+        VerificationSession session = service.createSession(credentialType, requestedClaims, format);
         String requestUri = service.buildRequestUri(session.sessionId());
 
         Map<String, Object> response = new LinkedHashMap<>();
