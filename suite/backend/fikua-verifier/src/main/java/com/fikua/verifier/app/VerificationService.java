@@ -6,7 +6,9 @@ import com.fikua.core.crypto.ResponseEncryptionKey;
 import com.fikua.core.crypto.SigningKey;
 import com.fikua.core.oid4vp.*;
 import com.fikua.core.oid4vp.CredentialQuery.CredentialMeta;
+import com.fikua.core.mdoc.MdocDeviceResponseVerifier;
 import com.fikua.core.profile.ProfileConfig;
+import com.fikua.core.profile.enums.CredentialFormat;
 import com.fikua.verifier.app.port.ProfileStore;
 import com.fikua.verifier.app.port.SessionStore;
 import com.fikua.verifier.app.port.SessionStore.VerificationSession;
@@ -72,18 +74,8 @@ public class VerificationService {
         String state = randomToken(32);
         String nonce = randomToken(32);
 
-        // Build DCQL query
-        List<ClaimQuery> claims = requestedClaims.stream()
-                .map(name -> new ClaimQuery(List.of(name), null, null))
-                .toList();
-        DcqlQuery dcqlQuery = new DcqlQuery(List.of(
-                new CredentialQuery(
-                        "requested_credential",
-                        DcqlQuery.FORMAT_DC_SD_JWT,
-                        new CredentialMeta(List.of(credentialType)),
-                        claims
-                )
-        ));
+        // Build DCQL query (format-specific: SD-JWT VC vs mso_mdoc).
+        DcqlQuery dcqlQuery = buildDcqlQuery(config, credentialType, requestedClaims);
 
         // Determine response mode from profile
         String responseMode = config.responseMode() != null
@@ -96,7 +88,7 @@ public class VerificationService {
         // For encrypted responses (direct_post.jwt / HAIP §5) the verifier must
         // publish its response-encryption key and supported enc values, plus
         // vp_formats, in client_metadata.
-        Map<String, Object> clientMetadata = buildClientMetadata(responseMode);
+        Map<String, Object> clientMetadata = buildClientMetadata(responseMode, config);
 
         String responseUri = baseUrl + API_PREFIX + "/response";
         long now = System.currentTimeMillis() / 1000;
@@ -263,18 +255,33 @@ public class VerificationService {
         log.info("VP Token received for session: {}", session.sessionId());
 
         try {
-            // Full SD-JWT VC verification: issuer signature, disclosure digests,
-            // KB-JWT signature, and KB-JWT aud/nonce/sd_hash. aud is the
-            // verifier client_id; nonce is the request nonce.
-            Map<String, Object> claims = SdJwtVcVerifier.verify(
-                    vpToken, session.clientId(), session.nonce());
+            Map<String, Object> claims;
+            if (isMdoc(getActiveConfig())) {
+                // mso_mdoc DeviceResponse: verify issuer signature + chain, MSO
+                // digests, validity, and the deviceSignature over the
+                // reconstructed SessionTranscript (client_id, nonce, enc-key
+                // thumbprint, response_uri).
+                claims = MdocDeviceResponseVerifier.verify(
+                        vpToken,
+                        expectedDocType(session),
+                        session.clientId(),
+                        session.nonce(),
+                        encryptionKey.jwkThumbprintSha256(),
+                        session.responseUri(),
+                        null);
+            } else {
+                // Full SD-JWT VC verification: issuer signature, disclosure
+                // digests, KB-JWT signature, and KB-JWT aud/nonce/sd_hash.
+                claims = SdJwtVcVerifier.verify(
+                        vpToken, session.clientId(), session.nonce());
+            }
 
             log.info("Verified {} claims from VP Token: {}", claims.size(), claims.keySet());
 
             String claimsJson = MAPPER.writeValueAsString(claims);
             sessionStore.updateResult(session.sessionId(), "verified", vpToken, claimsJson, null);
             return VerificationResult.success(claims);
-        } catch (SdJwtVcVerifier.VerificationException e) {
+        } catch (SdJwtVcVerifier.VerificationException | MdocDeviceResponseVerifier.VerificationException e) {
             log.warn("VP Token verification failed: {}", e.getMessage());
             sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
             return VerificationResult.error("invalid_presentation", e.getMessage());
@@ -282,6 +289,19 @@ public class VerificationService {
             log.error("Failed to process VP Token: {}", e.getMessage());
             sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
             return VerificationResult.error("invalid_presentation", "Failed to process VP Token: " + e.getMessage());
+        }
+    }
+
+    /** Recover the requested mdoc docType from the session's stored DCQL query. */
+    private String expectedDocType(VerificationSession session) {
+        try {
+            var node = MAPPER.readTree(session.dcqlQueryJson());
+            var meta = node.path("credentials").path(0).path("meta");
+            var doctype = meta.path("doctype_value");
+            return doctype.isMissingNode() ? null : doctype.asText();
+        } catch (Exception e) {
+            log.warn("Failed to read doctype_value from DCQL: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -330,23 +350,71 @@ public class VerificationService {
         return baseUrl + API_PREFIX + "/request/" + sessionId;
     }
 
+    /** True when the active profile requests the mso_mdoc credential format. */
+    private static boolean isMdoc(ProfileConfig config) {
+        return config.credentialFormat() == CredentialFormat.MDOC;
+    }
+
+    /**
+     * Build the DCQL query for the active profile. SD-JWT VC uses
+     * {@code dc+sd-jwt} with {@code vct_values} and single-segment claim paths;
+     * mso_mdoc uses {@code mso_mdoc} with {@code doctype_value} and two-segment
+     * claim paths {@code [namespace, element]} (the PID mdoc namespace equals the
+     * docType).
+     */
+    private DcqlQuery buildDcqlQuery(ProfileConfig config, String credentialType,
+                                     List<String> requestedClaims) {
+        if (isMdoc(config)) {
+            String namespace = credentialType; // PID mdoc: namespace == docType
+            List<ClaimQuery> claims = requestedClaims.stream()
+                    .map(name -> new ClaimQuery(List.of(namespace, name), null, null))
+                    .toList();
+            return new DcqlQuery(List.of(
+                    new CredentialQuery(
+                            "requested_credential",
+                            DcqlQuery.FORMAT_MSO_MDOC,
+                            CredentialMeta.mdoc(credentialType),
+                            claims
+                    )
+            ));
+        }
+        List<ClaimQuery> claims = requestedClaims.stream()
+                .map(name -> new ClaimQuery(List.of(name), null, null))
+                .toList();
+        return new DcqlQuery(List.of(
+                new CredentialQuery(
+                        "requested_credential",
+                        DcqlQuery.FORMAT_DC_SD_JWT,
+                        CredentialMeta.sdJwt(List.of(credentialType)),
+                        claims
+                )
+        ));
+    }
+
     /**
      * Build the client_metadata for the Authorization Request. vp_formats is
      * always included (OID4VP-1FINAL-5.1 mandates it for SD-JWT VC). For
      * encrypted response modes (direct_post.jwt), HAIP §5 additionally requires
      * the response-encryption jwks and encrypted_response_enc_values_supported.
      */
-    private Map<String, Object> buildClientMetadata(String responseMode) {
+    private Map<String, Object> buildClientMetadata(String responseMode, ProfileConfig config) {
         Map<String, Object> metadata = new LinkedHashMap<>();
 
-        // vp_formats_supported: SD-JWT VC with ES256 for issuer + KB JWTs.
-        // The current spec (OpenID4VP PR #233) renamed vp_formats to
-        // vp_formats_supported inside client_metadata.
-        Map<String, Object> sdJwtFormat = new LinkedHashMap<>();
-        sdJwtFormat.put("sd-jwt_alg_values", List.of("ES256"));
-        sdJwtFormat.put("kb-jwt_alg_values", List.of("ES256"));
+        // vp_formats_supported (OpenID4VP PR #233 renamed vp_formats to
+        // vp_formats_supported inside client_metadata). The advertised format
+        // matches the active profile: mso_mdoc uses COSE alg -7 (ES256); SD-JWT
+        // VC uses ES256 for both issuer and KB JWTs.
         Map<String, Object> vpFormats = new LinkedHashMap<>();
-        vpFormats.put("dc+sd-jwt", sdJwtFormat);
+        if (isMdoc(config)) {
+            Map<String, Object> mdocFormat = new LinkedHashMap<>();
+            mdocFormat.put("alg", List.of(-7));
+            vpFormats.put("mso_mdoc", mdocFormat);
+        } else {
+            Map<String, Object> sdJwtFormat = new LinkedHashMap<>();
+            sdJwtFormat.put("sd-jwt_alg_values", List.of("ES256"));
+            sdJwtFormat.put("kb-jwt_alg_values", List.of("ES256"));
+            vpFormats.put("dc+sd-jwt", sdJwtFormat);
+        }
         metadata.put("vp_formats_supported", vpFormats);
 
         if ("direct_post.jwt".equals(responseMode)) {

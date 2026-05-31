@@ -63,6 +63,20 @@ public final class ResponseEncryptionKey {
     }
 
     /**
+     * Raw 32-byte RFC 7638 SHA-256 JWK thumbprint of the public encryption key.
+     * OID4VP 1.0 FINAL §B.2.6 binds the mdoc {@code OpenID4VPHandoverInfo} to
+     * this thumbprint (as a CBOR byte string) when the response is encrypted
+     * (direct_post.jwt), so a third party cannot re-encrypt the response.
+     */
+    public byte[] jwkThumbprintSha256() {
+        try {
+            return ecKey.toPublicJWK().computeThumbprint("SHA-256").decode();
+        } catch (JOSEException e) {
+            throw new RuntimeException("Failed to compute response-encryption JWK thumbprint", e);
+        }
+    }
+
+    /**
      * Public JWK as a plain map for embedding in client_metadata.jwks.keys.
      * Carries kid, use=enc, and alg=ECDH-ES; never the private key.
      */
