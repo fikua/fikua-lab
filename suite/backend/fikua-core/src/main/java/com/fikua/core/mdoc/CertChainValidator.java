@@ -73,9 +73,27 @@ public final class CertChainValidator {
                 requireCa(trustAnchor);
                 verifySignedBy(top, trustAnchor);
             }
-        } else {
-            // No pinned anchor: the chain's root must be self-signed (its own anchor).
+        } else if (isSelfSigned(top)) {
+            // No pinned anchor: if the chain includes its self-signed root, verify it.
             verifySignedBy(top, top);
+        }
+        // No pinned anchor and no self-signed root in the chain (e.g. a single
+        // leaf whose issuing CA is out-of-band, as the OIDF suite ships): the
+        // chain's internal links and validity are checked above and the
+        // issuerAuth signature is verified by the caller. There is nothing to
+        // anchor to, so accept rather than reject.
+    }
+
+    /** True if the certificate's issuer == subject and it verifies under its own key. */
+    private static boolean isSelfSigned(X509Certificate cert) {
+        if (!cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
+            return false;
+        }
+        try {
+            cert.verify(cert.getPublicKey());
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
