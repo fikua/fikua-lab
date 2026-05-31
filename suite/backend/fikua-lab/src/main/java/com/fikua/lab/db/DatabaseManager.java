@@ -43,7 +43,8 @@ public class DatabaseManager implements AutoCloseable {
             "V3__issuance_records.sql",
             "V4__issuance_email_draft.sql",
             "V5__issuance_tx_code.sql",
-            "V6__rename_plain_issuer.sql"
+            "V6__rename_plain_issuer.sql",
+            "V7__activate_haip_verifier.sql"
     };
 
     /** Run database migrations from SQL files. */
