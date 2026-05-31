@@ -64,7 +64,7 @@ class EncryptedResponseTest {
     }
 
     @Test
-    void encryptedResponse_decryptsToVpTokenAndState(@TempDir Path certsDir) throws Exception {
+    void encryptedResponse_decryptsAndRecoversState(@TempDir Path certsDir) throws Exception {
         var encKey = ResponseEncryptionKey.generate();
         VerificationService service = newService(certsDir, encKey);
 
@@ -76,7 +76,8 @@ class EncryptedResponseTest {
                 new com.fasterxml.jackson.databind.ObjectMapper()
                         .writeValueAsString(encKey.publicJwk()));
 
-        // Minimal SD-JWT-shaped vp_token (issuer JWT~ with no disclosures).
+        // An unsigned, KB-less SD-JWT-shaped vp_token: the decrypt + state
+        // recovery must work, but full verification must reject it.
         String vpToken = "eyJhbGciOiJFUzI1NiJ9.eyJ2Y3QiOiJ1cm46ZXVkaTpwaWQ6MSJ9.sig~";
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .claim("vp_token", vpToken)
@@ -92,7 +93,7 @@ class EncryptedResponseTest {
 
         assertEquals(session.state(), outcome.state(), "state recovered from JWE");
         assertNotNull(outcome.result());
-        assertEquals("success", outcome.result().status(),
-                "single-disclosureless SD-JWT should parse and verify as success");
+        assertEquals("error", outcome.result().status(),
+                "an unverifiable SD-JWT must be rejected, not accepted");
     }
 }
