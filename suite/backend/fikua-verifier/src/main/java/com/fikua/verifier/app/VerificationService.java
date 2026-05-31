@@ -341,20 +341,23 @@ public class VerificationService {
     private Map<String, Object> buildClientMetadata(String responseMode) {
         Map<String, Object> metadata = new LinkedHashMap<>();
 
-        // vp_formats: advertise SD-JWT VC support with ES256 for issuer + KB JWTs.
+        // vp_formats_supported: SD-JWT VC with ES256 for issuer + KB JWTs.
+        // The current spec (OpenID4VP PR #233) renamed vp_formats to
+        // vp_formats_supported inside client_metadata.
         Map<String, Object> sdJwtFormat = new LinkedHashMap<>();
         sdJwtFormat.put("sd-jwt_alg_values", List.of("ES256"));
         sdJwtFormat.put("kb-jwt_alg_values", List.of("ES256"));
         Map<String, Object> vpFormats = new LinkedHashMap<>();
         vpFormats.put("dc+sd-jwt", sdJwtFormat);
-        metadata.put("vp_formats", vpFormats);
+        metadata.put("vp_formats_supported", vpFormats);
 
         if ("direct_post.jwt".equals(responseMode)) {
             Map<String, Object> jwks = new LinkedHashMap<>();
             jwks.put("keys", List.of(encryptionKey.publicJwk()));
             metadata.put("jwks", jwks);
+            // HAIP §5 requires both A128GCM and A256GCM be supported.
             metadata.put("encrypted_response_enc_values_supported",
-                    List.of(ResponseEncryptionKey.ENC));
+                    ResponseEncryptionKey.ENC_VALUES_SUPPORTED);
         }
 
         return metadata;

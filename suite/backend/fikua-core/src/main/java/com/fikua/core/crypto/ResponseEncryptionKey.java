@@ -28,6 +28,15 @@ public final class ResponseEncryptionKey {
     /** Content-encryption method advertised in encrypted_response_enc_values_supported. */
     public static final String ENC = "A128GCM";
 
+    /**
+     * Content-encryption methods advertised in
+     * encrypted_response_enc_values_supported. HAIP §5 requires both A128GCM
+     * and A256GCM. Decryption picks the method from the JWE {@code enc} header,
+     * so either works regardless of order.
+     */
+    public static final java.util.List<String> ENC_VALUES_SUPPORTED =
+            java.util.List.of("A128GCM", "A256GCM");
+
     private final ECKey ecKey;
 
     private ResponseEncryptionKey(ECKey ecKey) {

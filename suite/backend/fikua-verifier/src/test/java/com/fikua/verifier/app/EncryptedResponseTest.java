@@ -55,10 +55,12 @@ class EncryptedResponseTest {
                 (Map<String, Object>) jwt.getJWTClaimsSet().getClaim("client_metadata");
 
         assertNotNull(cm, "HAIP request must include client_metadata");
-        assertNotNull(cm.get("vp_formats"), "client_metadata must include vp_formats");
+        assertNotNull(cm.get("vp_formats_supported"),
+                "client_metadata must include vp_formats_supported");
         assertNotNull(cm.get("jwks"), "client_metadata must include jwks for encryption");
-        assertEquals(List.of(ResponseEncryptionKey.ENC),
-                cm.get("encrypted_response_enc_values_supported"));
+        assertEquals(ResponseEncryptionKey.ENC_VALUES_SUPPORTED,
+                cm.get("encrypted_response_enc_values_supported"),
+                "HAIP §5 requires both A128GCM and A256GCM");
     }
 
     @Test
