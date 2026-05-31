@@ -137,9 +137,13 @@ public class FikuaLab {
         if (roles.contains("trustlist")) {
             new com.fikua.trustlist.TrustListService().start(app);
             log.info("Trusted List service started");
-            // Fikua Lab also acts as a Wallet Provider: issues + status-checks
-            // Wallet Instance Attestations, anchored in the Trusted List.
-            new com.fikua.trustlist.WalletProviderService().start(app, config.certsDir(), config.baseUrl());
+        }
+
+        // Wallet Provider (ARF entity, separate from the Trusted List): issues +
+        // status-checks Wallet Instance Attestations, anchored in the Trusted List.
+        if (roles.contains("wallet-provider")) {
+            new com.fikua.walletprovider.WalletProviderService().start(app, config.certsDir(), config.baseUrl());
+            log.info("Wallet Provider service started");
         }
 
         // future: if (roles.contains("wallet")) { ... }

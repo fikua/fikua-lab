@@ -1,7 +1,7 @@
-package com.fikua.trustlist;
+package com.fikua.walletprovider;
 
 import com.fikua.core.crypto.EcKeyManager;
-import com.fikua.trustlist.infra.http.WalletProviderController;
+import com.fikua.walletprovider.infra.http.WalletProviderController;
 import io.javalin.Javalin;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.openssl.PEMParser;

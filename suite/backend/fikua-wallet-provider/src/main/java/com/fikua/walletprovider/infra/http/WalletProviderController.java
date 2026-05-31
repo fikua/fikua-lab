@@ -1,4 +1,4 @@
-package com.fikua.trustlist.infra.http;
+package com.fikua.walletprovider.infra.http;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
