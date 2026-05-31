@@ -1,5 +1,6 @@
 package com.fikua.verifier.infra.http;
 
+import com.fikua.core.oid4vp.VerificationResult;
 import com.fikua.verifier.app.VerificationService;
 import com.fikua.verifier.app.port.SessionStore.VerificationSession;
 import io.javalin.Javalin;
@@ -120,29 +121,29 @@ public class VerifierController {
         String state = ctx.formParam("state");
         String response = ctx.formParam("response"); // for direct_post.jwt (JWE)
 
-        if (state == null || state.isBlank()) {
-            ctx.status(400).json(Map.of("error", "invalid_request",
-                    "error_description", "Missing state parameter"));
-            return;
-        }
-
-        // For direct_post.jwt, the VP token is inside the encrypted JWE (response param)
-        // TODO P2: decrypt JWE to extract vp_token, presentation_submission, state
+        VerificationResult result;
         if (response != null && !response.isBlank()) {
+            // direct_post.jwt: vp_token and state are inside the encrypted JWE.
             log.info("Received encrypted response (direct_post.jwt), length={}", response.length());
-            vpToken = response; // stub: store JWE as-is until decryption is implemented
+            var outcome = service.handleEncryptedResponse(response);
+            result = outcome.result();
+            state = outcome.state(); // recover state from the decrypted payload
+        } else {
+            if (state == null || state.isBlank()) {
+                ctx.status(400).json(Map.of("error", "invalid_request",
+                        "error_description", "Missing state parameter"));
+                return;
+            }
+            if (vpToken == null || vpToken.isBlank()) {
+                ctx.status(400).json(Map.of("error", "invalid_request",
+                        "error_description", "Missing vp_token or response parameter"));
+                return;
+            }
+            result = service.handleResponse(state, vpToken, presentationSubmission);
         }
-
-        if ((vpToken == null || vpToken.isBlank()) && (response == null || response.isBlank())) {
-            ctx.status(400).json(Map.of("error", "invalid_request",
-                    "error_description", "Missing vp_token or response parameter"));
-            return;
-        }
-
-        var result = service.handleResponse(state, vpToken, presentationSubmission);
 
         // Return redirect_uri for same-device flow (OID4VP §8.2)
-        VerificationSession session = service.getSessionByState(state);
+        VerificationSession session = state != null ? service.getSessionByState(state) : null;
         if (session != null && result.status().equals("success")) {
             ctx.json(Map.of("redirect_uri",
                     baseUrl + API_PREFIX + "/result/" + session.sessionId()));

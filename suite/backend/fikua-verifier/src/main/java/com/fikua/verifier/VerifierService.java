@@ -1,5 +1,6 @@
 package com.fikua.verifier;
 
+import com.fikua.core.crypto.ResponseEncryptionKey;
 import com.fikua.core.crypto.SigningKey;
 import com.fikua.verifier.app.VerificationService;
 import com.fikua.verifier.app.port.ProfileStore;
@@ -25,12 +26,16 @@ public class VerifierService {
         // Load verifier signing key
         SigningKey key = PemKeyLoader.loadOrGenerate(certsDir);
 
+        // Response-encryption key (ECDH-ES) for direct_post.jwt / HAIP §5.
+        // One verifier-wide key, published in every request's client_metadata.
+        ResponseEncryptionKey encryptionKey = ResponseEncryptionKey.generate();
+
         // Create infrastructure adapters
         SessionStore sessions = new InMemorySessionStore();
         ProfileStore profiles = new JdbcProfileStore(dataSource);
 
         // Create application service
-        verificationService = new VerificationService(key, sessions, profiles, baseUrl);
+        verificationService = new VerificationService(key, encryptionKey, sessions, profiles, baseUrl);
 
         // Register HTTP controller
         new VerifierController(verificationService, baseUrl).register(app);

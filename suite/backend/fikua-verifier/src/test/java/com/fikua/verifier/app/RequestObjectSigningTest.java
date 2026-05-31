@@ -1,5 +1,6 @@
 package com.fikua.verifier.app;
 
+import com.fikua.core.crypto.ResponseEncryptionKey;
 import com.fikua.core.crypto.SigningKey;
 import com.fikua.verifier.app.port.ProfileStore;
 import com.fikua.verifier.app.port.SessionStore.VerificationSession;
@@ -27,7 +28,7 @@ class RequestObjectSigningTest {
     private VerificationService newService(Path certsDir) {
         SigningKey key = PemKeyLoader.loadOrGenerate(certsDir.toString());
         return new VerificationService(
-                key, new InMemorySessionStore(), NO_PROFILE,
+                key, ResponseEncryptionKey.generate(), new InMemorySessionStore(), NO_PROFILE,
                 "https://verifier.example.test");
     }
 

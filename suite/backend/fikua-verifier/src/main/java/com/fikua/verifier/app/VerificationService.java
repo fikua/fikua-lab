@@ -2,6 +2,7 @@ package com.fikua.verifier.app;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fikua.core.crypto.ResponseEncryptionKey;
 import com.fikua.core.crypto.SigningKey;
 import com.fikua.core.oid4vp.*;
 import com.fikua.core.oid4vp.CredentialQuery.CredentialMeta;
@@ -34,13 +35,15 @@ public class VerificationService {
     private static final String API_PREFIX = "/oid4vp/v1";
 
     private final SigningKey signingKey;
+    private final ResponseEncryptionKey encryptionKey;
     private final SessionStore sessionStore;
     private final ProfileStore profileStore;
     private final String baseUrl;
 
-    public VerificationService(SigningKey signingKey, SessionStore sessionStore,
-                               ProfileStore profileStore, String baseUrl) {
+    public VerificationService(SigningKey signingKey, ResponseEncryptionKey encryptionKey,
+                               SessionStore sessionStore, ProfileStore profileStore, String baseUrl) {
         this.signingKey = signingKey;
+        this.encryptionKey = encryptionKey;
         this.sessionStore = sessionStore;
         this.profileStore = profileStore;
         this.baseUrl = baseUrl;
@@ -91,6 +94,11 @@ public class VerificationService {
         // Build client_id with prefix
         String clientId = buildClientId(config);
 
+        // For encrypted responses (direct_post.jwt / HAIP §5) the verifier must
+        // publish its response-encryption key and supported enc values, plus
+        // vp_formats, in client_metadata.
+        Map<String, Object> clientMetadata = buildClientMetadata(responseMode);
+
         String responseUri = baseUrl + API_PREFIX + "/response";
         long now = System.currentTimeMillis() / 1000;
 
@@ -112,7 +120,7 @@ public class VerificationService {
                 state,
                 dcqlQuery,
                 null, // scope (using DCQL instead)
-                null, // client_metadata (will be added in P2 for HAIP)
+                clientMetadata,
                 "https://self-issued.me/v2",
                 clientId,
                 now,
@@ -192,6 +200,59 @@ public class VerificationService {
      * @param presentationSubmission the presentation submission JSON (may be null)
      * @return the verification result
      */
+    /**
+     * Handle an encrypted (direct_post.jwt) response. The JWE is decrypted with
+     * the verifier's response-encryption key; vp_token, state and
+     * presentation_submission are read from the plaintext, then verified as a
+     * normal response. For direct_post.jwt the state lives inside the JWE, so
+     * decryption must happen before the session can be resolved.
+     */
+    /** A verification result paired with the state recovered from the response. */
+    public record ResponseOutcome(VerificationResult result, String state) {}
+
+    public ResponseOutcome handleEncryptedResponse(String jwe) {
+        Map<String, Object> payload;
+        try {
+            String plaintext = encryptionKey.decrypt(jwe);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> parsed = MAPPER.readValue(plaintext, Map.class);
+            payload = parsed;
+        } catch (Exception e) {
+            log.error("Failed to decrypt direct_post.jwt response: {}", e.getMessage());
+            return new ResponseOutcome(VerificationResult.error("invalid_request",
+                    "Failed to decrypt response: " + e.getMessage()), null);
+        }
+
+        String state = (String) payload.get("state");
+        Object vpTokenRaw = payload.get("vp_token");
+        // vp_token may be a string or, for multi-credential responses, a map;
+        // single-credential DCQL gives a string (or a single-element structure).
+        String vpToken = vpTokenRaw instanceof String s ? s : extractFirstVpToken(vpTokenRaw);
+        Object submission = payload.get("presentation_submission");
+        String presentationSubmission = submission != null ? submission.toString() : null;
+
+        if (state == null || vpToken == null) {
+            return new ResponseOutcome(VerificationResult.error("invalid_request",
+                    "Decrypted response missing state or vp_token"), state);
+        }
+        return new ResponseOutcome(handleResponse(state, vpToken, presentationSubmission), state);
+    }
+
+    /** Pull the first vp_token value out of a DCQL map/list shape. */
+    private static String extractFirstVpToken(Object raw) {
+        if (raw instanceof Map<?, ?> map && !map.isEmpty()) {
+            Object first = map.values().iterator().next();
+            if (first instanceof List<?> list && !list.isEmpty()) {
+                return String.valueOf(list.get(0));
+            }
+            return String.valueOf(first);
+        }
+        if (raw instanceof List<?> list && !list.isEmpty()) {
+            return String.valueOf(list.get(0));
+        }
+        return null;
+    }
+
     public VerificationResult handleResponse(String state, String vpToken,
                                              String presentationSubmission) {
         VerificationSession session = sessionStore.findByState(state);
@@ -269,6 +330,34 @@ public class VerificationService {
     /** Build the request_uri URL for a session. */
     public String buildRequestUri(String sessionId) {
         return baseUrl + API_PREFIX + "/request/" + sessionId;
+    }
+
+    /**
+     * Build the client_metadata for the Authorization Request. vp_formats is
+     * always included (OID4VP-1FINAL-5.1 mandates it for SD-JWT VC). For
+     * encrypted response modes (direct_post.jwt), HAIP §5 additionally requires
+     * the response-encryption jwks and encrypted_response_enc_values_supported.
+     */
+    private Map<String, Object> buildClientMetadata(String responseMode) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+
+        // vp_formats: advertise SD-JWT VC support with ES256 for issuer + KB JWTs.
+        Map<String, Object> sdJwtFormat = new LinkedHashMap<>();
+        sdJwtFormat.put("sd-jwt_alg_values", List.of("ES256"));
+        sdJwtFormat.put("kb-jwt_alg_values", List.of("ES256"));
+        Map<String, Object> vpFormats = new LinkedHashMap<>();
+        vpFormats.put("dc+sd-jwt", sdJwtFormat);
+        metadata.put("vp_formats", vpFormats);
+
+        if ("direct_post.jwt".equals(responseMode)) {
+            Map<String, Object> jwks = new LinkedHashMap<>();
+            jwks.put("keys", List.of(encryptionKey.publicJwk()));
+            metadata.put("jwks", jwks);
+            metadata.put("encrypted_response_enc_values_supported",
+                    List.of(ResponseEncryptionKey.ENC));
+        }
+
+        return metadata;
     }
 
     private String buildClientId(ProfileConfig config) {
