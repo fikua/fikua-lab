@@ -47,6 +47,11 @@ services:
       OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-otlp}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
       OTEL_SERVICE_NAME: fikua-lab
+      # Without this, the log auto-instrumentation only captures the log
+      # message text — the StructuredArguments.kv("event", ...) fields
+      # used by the business events in IssuanceService/VerificationService
+      # are silently dropped, not forwarded as separate attributes.
+      OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_CAPTURE_LOGSTASH_STRUCTURED_ARGUMENTS: "true"
     volumes:
       # Host bind-mount (same pattern as the DSS sibling). The signing
       # cert + key live on the host at ./certs/ and are mounted read-only.
