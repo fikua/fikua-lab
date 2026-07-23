@@ -30,6 +30,17 @@ services:
       FIKUA_MIGRATIONS_DIR: /app/migrations
       FIKUA_RESEND_API_KEY: ${FIKUA_RESEND_API_KEY:-}
       FIKUA_RESEND_FROM_EMAIL: ${FIKUA_RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      # otel-collector lives in platform-services/compose.yaml, reachable
+      # over traefik-public — this service joins that network below just
+      # for this, it doesn't take a Traefik label. Routes to the
+      # "fikua-digital-identity-lab" OpenObserve organization by matching
+      # on OTEL_SERVICE_NAME (see platform-services/otel-collector/config.yaml).
+      # 4318 = OTLP/HTTP (the Java agent's default protocol).
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-otlp}
+      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-otlp}
+      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-none}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_SERVICE_NAME: fikua-lab
     volumes:
       # Host bind-mount (same pattern as the DSS sibling). The signing
       # cert + key live on the host at ./certs/ and are mounted read-only.
@@ -51,7 +62,12 @@ services:
         condition: service_healthy
     # No Traefik labels: the backend is no longer reachable through a
     # public hostname on Traefik. Cloudflare reaches it through the
-    # fikua-vps Tunnel (Access Service Auth protected).
+    # fikua-vps Tunnel (Access Service Auth protected). Still joins
+    # traefik-public — that's the shared fabric otel-collector lives on
+    # too, unrelated to Traefik routing.
+    networks:
+      - default
+      - traefik-public
     deploy:
       resources:
         limits:
@@ -99,4 +115,12 @@ volumes:
   #     alpine cp -a /from/. /to/
   lab-pgdata:
     name: fikua-lab-pgdata
+    external: true
+
+networks:
+  # Shared L7/telemetry fabric defined by platform-services — joined
+  # only to reach otel-collector, not for Traefik routing (see comment
+  # on fikua-lab's networks: above).
+  traefik-public:
+    name: traefik-public
     external: true
