@@ -30,6 +30,10 @@ dependencies {
     // Logging
     implementation("org.slf4j:slf4j-api:${property("slf4jVersion")}")
     implementation("ch.qos.logback:logback-classic:${property("logbackVersion")}")
+    implementation("net.logstash.logback:logstash-logback-encoder:${property("logstashLogbackEncoderVersion")}")
+    // Required at runtime for logback.xml's <if> (production vs. local
+    // appender selection) — Logback's conditional processing needs Janino.
+    runtimeOnly("org.codehaus.janino:janino:${property("janinoVersion")}")
 }
 
 tasks.named<Jar>("jar") {

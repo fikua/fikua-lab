@@ -15,6 +15,8 @@ import com.fikua.verifier.app.port.SessionStore.VerificationSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import com.fikua.core.sdjwt.SdJwtVcVerifier;
 
 import java.security.SecureRandom;
@@ -297,14 +299,29 @@ public class VerificationService {
 
             String claimsJson = MAPPER.writeValueAsString(claims);
             sessionStore.updateResult(session.sessionId(), "verified", vpToken, claimsJson, null);
+            log.info("credential.validated",
+                    kv("event", "credential.validated"),
+                    kv("session_id", session.sessionId()),
+                    kv("claim_count", claims.size()),
+                    kv("result", "success"));
             return VerificationResult.success(claims);
         } catch (SdJwtVcVerifier.VerificationException | MdocDeviceResponseVerifier.VerificationException e) {
             log.warn("VP Token verification failed: {}", e.getMessage());
             sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
+            log.info("credential.validated",
+                    kv("event", "credential.validated"),
+                    kv("session_id", session.sessionId()),
+                    kv("result", "failure"),
+                    kv("failure_reason", e.getMessage()));
             return VerificationResult.error("invalid_presentation", e.getMessage());
         } catch (Exception e) {
             log.error("Failed to process VP Token: {}", e.getMessage());
             sessionStore.updateResult(session.sessionId(), "failed", vpToken, null, e.getMessage());
+            log.info("credential.validated",
+                    kv("event", "credential.validated"),
+                    kv("session_id", session.sessionId()),
+                    kv("result", "failure"),
+                    kv("failure_reason", e.getMessage()));
             return VerificationResult.error("invalid_presentation", "Failed to process VP Token: " + e.getMessage());
         }
     }

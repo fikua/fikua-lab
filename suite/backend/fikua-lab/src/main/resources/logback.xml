@@ -1,10 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
+    <!-- Local/dev: human-readable single line. Prod (FIKUA_ENV=production):
+         structured JSON, same shape as the DSS's logback-spring.xml, so
+         both services land in OpenObserve with a consistent schema. -->
+    <if condition='"production".equalsIgnoreCase(System.getenv("FIKUA_ENV"))'>
+        <then>
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                    <fieldNames>
+                        <timestamp>timestamp</timestamp>
+                        <message>message</message>
+                        <thread>thread</thread>
+                        <logger>logger</logger>
+                        <level>level</level>
+                    </fieldNames>
+                    <customFields>{"service":"fikua-lab"}</customFields>
+                </encoder>
+            </appender>
+        </then>
+        <else>
+            <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+        </else>
+    </if>
 
     <logger name="com.fikua" level="DEBUG"/>
     <logger name="io.javalin" level="INFO"/>

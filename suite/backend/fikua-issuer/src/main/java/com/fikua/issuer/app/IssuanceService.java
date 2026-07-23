@@ -19,6 +19,8 @@ import com.nimbusds.jose.util.Base64URL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
@@ -431,7 +433,11 @@ public class IssuanceService {
             }
 
             issuanceStore.updateStatus(issuanceRecordId, "credential_issued");
-            log.info("Credential issued: issuanceId={}, format={}", issuanceRecordId, format);
+            log.info("Credential issued: issuanceId={}, format={}", issuanceRecordId, format,
+                    kv("event", "credential.issued"),
+                    kv("issuance_id", issuanceRecordId),
+                    kv("credential_format", format),
+                    kv("result", "success"));
 
             // H11: Invalidate nonce after successful issuance (one-time use)
             sessionStore.invalidateNonce(session.cNonce());

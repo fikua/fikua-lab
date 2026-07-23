@@ -30,15 +30,21 @@ services:
       FIKUA_MIGRATIONS_DIR: /app/migrations
       FIKUA_RESEND_API_KEY: ${FIKUA_RESEND_API_KEY:-}
       FIKUA_RESEND_FROM_EMAIL: ${FIKUA_RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      # Switches logback.xml to JSON output (see comment on OTEL_LOGS_EXPORTER
+      # below) — wasn't set before, so prod has been logging plain text.
+      FIKUA_ENV: production
       # otel-collector lives in platform-services/compose.yaml, reachable
       # over traefik-public — this service joins that network below just
       # for this, it doesn't take a Traefik label. Routes to the
       # "fikua-digital-identity-lab" OpenObserve organization by matching
       # on OTEL_SERVICE_NAME (see platform-services/otel-collector/config.yaml).
       # 4318 = OTLP/HTTP (the Java agent's default protocol).
+      # logback.xml now emits JSON in production (FIKUA_ENV=production) —
+      # the javaagent auto-instruments Logback and forwards it via OTLP,
+      # so logs export turns on too (was "none" before that existed).
       OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-otlp}
       OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-otlp}
-      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-none}
+      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-otlp}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
       OTEL_SERVICE_NAME: fikua-lab
     volumes:
